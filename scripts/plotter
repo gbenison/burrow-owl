@@ -1,0 +1,34 @@
+#! -*-scheme-*-
+exec burrow $0 "$@"
+!#
+
+; create a basic postscript plot of the argument spectrum.
+
+(use-modules (gnome gtk)
+	     (spectrum)
+	     (spec-extra))
+
+(sleep-if-requested)
+(define-usage
+  "Create a postscript representation of a 2D spectrum"
+  '(<spectrum>))
+
+(define (main)
+  (let* ((spec-name (command-line-argument 1))
+	 (spec (spectrum-nih-2d-from-file spec-name))
+	 (painter (painter-bwps-new-file "result.ps"))
+	 (threshold
+	  (let ((spec (spectrum-extract-ppm spec 8.8 9.0)))
+	    (log10
+	     (* 6 (spectrum-stddev spec))))))
+    (painter-set-spectrum painter spec)
+    (set (contour-get-thres-adjustment (painter-get-contour painter))
+	 'value threshold)
+    (painter-view-ppm painter spec)
+    (painter-redraw painter 0 0 10000000 10000000)))
+
+(catch 'usage main usage-message)
+
+
+
+

@@ -1,0 +1,61 @@
+#! /bin/sh
+# Usage: check-guile [-i GUILE-INTERPRETER] [GUILE-TEST-ARGS]
+# If `-i GUILE-INTERPRETER' is omitted, use ${top_builddir}/pre-inst-guile.
+# See ${top_srcdir}/test-suite/guile-test for documentation on GUILE-TEST-ARGS.
+#
+# Example invocations:
+# ./check-guile
+# ./check-guile numbers.test
+# ./check-guile -i /usr/local/bin/guile
+# ./check-guile -i /usr/local/bin/guile numbers.test
+
+export TEST_SUITE_DIR=@top_srcdir@/test-suite;
+export EXAMPLE_DIR=@top_srcdir@/doc/demonstration/data;
+
+## search from top source directory
+GUILE_LOAD_PATH=@top_srcdir@:$GUILE_LOAD_PATH;
+
+## search for uninstalled spectrum modules
+GUILE_LOAD_PATH=@top_srcdir@/src/guile:$GUILE_LOAD_PATH;
+
+## search for installed guile-gnome modules
+GUILE_LOAD_PATH=@guile_gnome_prefix@/share:@guile_gnome_prefix@/share/guile-gnome-0:$GUILE_LOAD_PATH;
+
+## search for uninstalled guile-gnome modules
+ggdir=@top_srcdir@/guile-gnome;
+ggbdir=@top_builddir@/guile-gnome;
+GUILE_LOAD_PATH=${ggbdir}/glib:${ggbdir}/atk:${ggbdir}/gtk:${ggbdir}/pango:$GUILE_LOAD_PATH;
+GUILE_LOAD_PATH=${ggdir}/glib:${ggdir}/atk:${ggdir}/gtk:${ggdir}/pango:$GUILE_LOAD_PATH;
+GUILE_LOAD_PATH=${ggdir}/g-wrap/guile:$GUILE_LOAD_PATH;
+GUILE_LOAD_PATH=${ggdir}/g-wrap/lib:$GUILE_LOAD_PATH;
+
+GUILE_LOAD_PATH=${ggbdir}/g-wrap/guile:$GUILE_LOAD_PATH;
+
+## shlibs for installed guile-gnome
+LTDL_LIBRARY_PATH=@guile_gnome_prefix@/lib/guile-gnome-0:@G_WRAP_LIB_DIR@:$LTDL_LIBRARY_PATH;
+
+## shlibs for uninstalled guile-gnome
+LTDL_LIBRARY_PATH=${ggbdir}/glib/gnome/gw:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=${ggbdir}/g-wrap/guile/g-wrap:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=${ggbdir}/g-wrap/guile/g-wrap/gw:$LTDL_LIBRARY_PATH;
+
+LTDL_LIBRARY_PATH=${ggbdir}/atk/gnome/gw:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=${ggbdir}/pango/gnome/gw:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=${ggbdir}/gtk/gnome/gw:$LTDL_LIBRARY_PATH;
+
+LTDL_LIBRARY_PATH=@top_builddir@/src:$LTDL_LIBRARY_PATH;
+
+export LTDL_LIBRARY_PATH;
+export GUILE_LOAD_PATH;
+
+# --- fixme below ----
+
+# search for tests
+
+exec @GUILE@ \
+    -e main -s "$TEST_SUITE_DIR/guile-test" \
+    --test-suite "$TEST_SUITE_DIR/tests" \
+    --log-file check-guile.log "$@"
+
+
+

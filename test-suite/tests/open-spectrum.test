@@ -1,0 +1,19 @@
+;
+; Can I open a spectrum file?
+;
+
+(pass-if "open spectrum"
+	 (let ((spec (spectrum-nih-from-file (example-spectrum-path "hsqc.DAT"))))
+	   (> (spectrum-ndim spec) 0)))
+
+; -- end --
+
+
+
+
+
+
+
+
+
+

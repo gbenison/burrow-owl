@@ -1,0 +1,16 @@
+aclocal.m4
+compile
+config.guess
+config.sub
+configure
+depcomp
+install-sh
+ltmain.sh
+Makefile.in
+missing
+mkinstalldirs
+./Makefile.in
+configure
+spectrum-gw.c
+contour-fsm.c
+contour-fsm.h

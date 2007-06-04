@@ -1,0 +1,86 @@
+; -*-scheme-*-
+;
+; Create a basic view of a spectrum.
+; report chemical shifts when clicked.
+
+(use-modules (gnome gtk)
+             (spectrum)
+	     (spec-extra))
+
+(sleep-if-requested)
+
+(define-usage
+  "Display a contour plot of a 2D spectrum or sections of a 3D spectrum"
+  '(<spectrum>))
+
+(define (make-spectrum-display fname)
+  (let* ((spec-name (cadr (command-line)))
+	 (raw-spec (spectrum-nih-from-file spec-name))
+	 (spec
+	  (if (> (spectrum-np raw-spec 2) 1)
+	      (spectrum-transpose raw-spec 1)
+	      (spectrum-nih-2d-from-file spec-name))))
+    (confess "spectrum loaded")
+    (let* ((thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
+	   (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+	   (plane-spin (make <gtk-spin-button>)))
+      (gtk-spin-button-set-range plane-spin 0 (- (spectrum-np spec 0) 1))
+      (gtk-spin-button-set-increments plane-spin 1 10)
+      (let* ((plane-label (make <gtk-label>))
+	     (canv (make <hos-canvas>
+		     #:width-request 300	
+		     #:height-request 300)))
+	(define (goto-plane! plane)
+	  (canvas-set-spectrum canv
+			       (spectrum-project-pt spec plane))
+	  (set plane-label 'label (number->string (spectrum-pt2ppm spec 0 plane))))
+	(canvas-set-thres canv thres)
+	(canvas-set-draw-negative canv #t)
+	(confess "canvas made")
+	(if (> (spectrum-ndim spec) 2)
+	    (goto-plane! 0)
+	    (canvas-set-spectrum canv spec))
+	(connect plane-spin 'value-changed
+		 (lambda args (goto-plane!
+			       (inexact->exact
+				(gtk-spin-button-get-value plane-spin))) #f))
+	(let* ((shift-label (make <gtk-label>))
+	       (marker (canvas-add-marker canv)))
+	  (connect marker 'dropped
+		   (lambda (m x y)
+		     (set shift-label 'label
+			  (format #f "~a, ~a~%" x y))
+		     #f))
+	  (confess "marker made")
+	  (let ((cursor-horiz (canvas-add-cursor-horizontal canv))
+		(cursor-vert (canvas-add-cursor-vertical canv)))
+	    (ornaments-allow-simultaneous-grab cursor-horiz cursor-vert))
+	  (let ((vbox (make <gtk-vbox>))
+		(spec-frame (make <gtk-frame> #:label spec-name)))
+	    (add spec-frame canv)
+	    (pack-start vbox shift-label #f #f 10)
+	    (let ((hbox (make <gtk-hbox>)))
+	      (pack-start hbox thres-spin #f #f 5)
+	      (if (> (spectrum-ndim spec) 2)
+		  (begin
+		    (pack-start hbox plane-spin #f #f 5)
+		    (pack-start hbox plane-label #f #f 5)))
+	      (pack-start vbox hbox #f #f 10))
+	    (pack-start vbox spec-frame #t #t 0)
+	    vbox))))))
+
+(define (main)
+  (let ((main-window (make <gtk-window> #:title "burrow viewer")))
+    (add main-window (make-spectrum-display (command-line-argument 1)))
+    (show-all main-window)
+    (connect main-window 'destroy (lambda args (gtk-main-quit)))
+    (gtk-main)))
+
+
+
+
+(catch 'usage main usage-message)
+
+
+
+

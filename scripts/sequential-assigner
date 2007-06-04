@@ -1,0 +1,982 @@
+; -*-scheme-*-
+;
+; ------------------------
+;
+; Sequential assignment strategy based on hncacb, cbcaconh, and noesy
+; with scrollable, selectable strip plots.
+;
+; ------------------------
+
+(use-modules (gnome gtk)
+	     (spectrum)
+	     (spec-extra)
+	     (srfi srfi-1)
+	     (srfi srfi-19)
+	     (nmr average-shift))
+
+(define (confess . args) 'ok)
+; to debug use this:
+'(define (confess . args)
+   (apply format (cons #t args))
+   (newline))
+(define (assert condition . args)
+  (if condition 'ok (apply error args)))
+
+(display ";; pid --> ")
+(display (getpid))
+(newline)
+
+(if (> (length (command-line)) 1)
+    (sleep 10))
+
+; ---------------
+; Spectrum utilities
+; ---------------
+(define (spectrum-zoom spec x y dx dy)
+  (spectrum-transpose
+   (spectrum-extract-ppm (spectrum-transpose
+			  (spectrum-extract-ppm spec
+						(- x dx)
+						(+ x dx))
+			  1)
+			 (- y dy)
+			 (+ y dy)) 1))
+
+(define (spectrum-sw-ppm spec dim)
+  (/ (spectrum-sw spec dim)
+     (spectrum-sf spec dim)))
+
+; ---------------
+; file utilities
+; ---------------
+
+(define (file->list fname)
+  (let ((file (open-input-file fname)))
+    (define (read-item)
+      (let ((item (read file)))
+	(if (eof-object? item)
+	    '()
+	    (cons item (read-item)))))
+    (read-item)))
+
+; ---------------
+; Design notes
+;
+; there is a central list of residues; each one has a set of adjustments corresponding
+; to atoms and a strip plot in the main window.
+;
+; ---------------
+
+; ---------------
+; Assignments
+;
+; an assignment table is a collection of gtkadjustments,
+; indexed by residue and then by atom type.
+;
+; ---------------
+
+;; create a default adjustment with appropriate limits for a given atom symbol.
+(define default-adjustment
+  (let ((table '(((h H HN)         . (4.0    16.0))
+		 ((h-aliphatic)    . (-2.0   7.0))
+		 ((h-all)          . (-2.0   16.0))
+		 ((n N)            . (90.0   150.0))
+		 ((c C)            . (120.0  220.0))
+		 ((ca Ca CA)       . (40.0   80.0))
+		 ((cb Cb CB)       . (0.0    80.0)))))
+    (define (search-table table atom)
+      (cond ((null? table)
+	     '(-1000 1000))
+	    ((member atom (caar table))
+	     (cdar table))
+	    (else (search-table (cdr table) atom))))
+    (lambda (atom)
+      (let* ((limits (search-table table atom))
+	     (min (car limits))
+	     (max (cadr limits)))
+	(make <gtk-adjustment>
+	  #:lower min
+	  #:upper max
+	  #:value (/ (+ min max) 2)
+	  #:step-increment (/ (- max min) 1000))))))
+
+(define (default-adjustment-with-value atom shift)
+  (let ((adj (default-adjustment atom)))
+    (set-value adj shift)
+    adj))
+
+;; here are some sample assignments.
+(define assign-table
+  (let ((op default-adjustment-with-value))
+    `(((H . ,(op 'H 9.79))
+       (N . ,(op 'N 124.4))
+       (CA . ,(op 'CA 54.7)))
+      ((H . ,(op 'H 7.79))
+       (N . ,(op 'N 123.1))
+       (CA . ,(op 'CA 53.0)))
+      ((H . ,(op 'H 8.31))
+       (N . ,(op 'N 115.0))
+       (CA . ,(op 'CA 66.6)))
+      ((H . ,(op 'H 8.27))
+       (N . ,(op 'N 121.4))
+       (CA . ,(op 'CA 56.4))))))
+
+
+
+; ---------------
+; Spectra
+; ---------------
+
+;; note: for bruker, dimension order is HNC
+;; transform: HNC->CHN->HCN
+(define (bruker-transpose spec)  ;; HNC
+  (set! spec (spectrum-transpose spec 2))  ;; CHN
+  (set! spec (spectrum-transpose spec 1))  ;; HCN
+  spec)
+
+;; Assume input spectrum is a triple-resonance in either
+;; Bruker (HNC) or Varian (HCN) order; output in
+;; Varian order (HCN)
+(define (normalize-hcn spec)
+  (let ((ratio (/ (spectrum-sf spec 0)(spectrum-sf spec 1))))
+    (if (> ratio 8)
+	(bruker-transpose spec)
+	spec)))
+
+; --------------
+; Convoluted search spectra
+; --------------
+(define (make-convoluted-4d s)
+  (set! s (spectrum-convolute s s)) ;; H C N H' C' N'
+  (set! s (spectrum-transpose s 3)) ;; H' H C N C' N'
+  (set! s (spectrum-diagonal-project s)) ;; H C N C' N'
+  (set! s (spectrum-transpose s 2)) ;; N H C C' N'
+  (set! s (spectrum-transpose s 4)) ;; N' N H C C'
+  (set! s (spectrum-diagonal-project s)) ;; N H C C'
+  (set! s (spectrum-transpose s 1)) ;; H N C C'
+  (set! s (spectrum-transpose s 2)) ;; C H N C'
+  (set! s (spectrum-transpose s 3)) ;; C' C H N
+  s)
+
+(define (make-noesy-convoluted s)
+  (set! s (spectrum-convolute s s)) ;; H H1 N H' H1' N'
+  (set! s (spectrum-transpose s 4)) ;; H1' H H1 N H' N'
+  (set! s (spectrum-diagonal-project s)) ;; H H1 N H' N'
+  (set! s (spectrum-transpose s 1)) ;; H1 H N H' N'
+  (set! s (spectrum-transpose s 3)) ;; H' H1 H N N'
+  (set! s (spectrum-diagonal-project s)) ;; H1 H N N'
+  (set! s (spectrum-transpose s 3)) ;; N' H1 H N
+  (set! s (spectrum-transpose s 1)) ;; H1 N' H N
+  s)
+
+
+(define-macro (push name proc)
+  `(let ((result (false-if-exception ,proc)))
+     (if result (set! data (cons (cons (quote ,name) result) data)))))
+
+(define (assoc-ref data name)
+  (false-if-exception (cdr (assoc name data))))
+
+(define spectra
+  (let ((data (list)))
+    (define (grab x)(assoc-ref data x))
+    (push cbcaconh (normalize-hcn (spectrum-nih-from-file "cbcaconh.DAT")))
+    (push hncacb (normalize-hcn (spectrum-nih-from-file "hncacb.DAT")))
+    (push hnca (normalize-hcn (spectrum-nih-from-file "hnca.DAT")))
+    (push hsqc (spectrum-nih-2d-from-file "hsqc.DAT"))
+    (push noesy (bruker-transpose (spectrum-nih-from-file "noesy.DAT")))
+    (push noesy-diagonal (grab 'noesy))
+    (push noesy-convoluted (make-noesy-convoluted (grab 'noesy)))
+    (push hncacb-convoluted (make-convoluted-4d (grab 'hncacb)))
+    (push cbcaconh-convoluted (make-convoluted-4d (grab 'cbcaconh)))
+    data))
+
+(define strippers
+  (filter (lambda(x)(assoc-ref spectra x))
+	  '(cbcaconh hncacb hnca noesy)))
+
+;; default width for strips with xdim = H
+(define H-width 0.15)
+
+(define (make-default-thres-adjustment)
+  (make <gtk-adjustment> #:lower 2 #:upper 20 #:value 5.5 #:step-increment 0.1))
+
+(define *thres-table* (list))
+(define (get-thres-adjustment name)
+  (or (assoc-ref *thres-table* name)
+      (let ((thres (make-default-thres-adjustment)))
+	(set! *thres-table* (cons (cons name thres) *thres-table*))
+	thres)))
+
+;; ensure that there is a threshold for all spectra, at start-up.
+(for-each get-thres-adjustment (map car spectra))
+
+(define (make-thres-window)
+  (let ((vbox (make <gtk-vbox>))
+	(window (make <gtk-window> #:title "Thresholds")))
+    (define (add-spin-button name)
+      (let* ((text (symbol->string name))
+	     (thres (get-thres-adjustment name))
+	     (sb (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+	     (hbox (make <gtk-hbox>)))
+	(pack-start hbox sb #f #f 5)
+	(pack-start hbox (make <gtk-label> #:label text) #f #f 5)
+	(pack-start vbox hbox #f #f 5)))
+    (for-each add-spin-button (map car *thres-table*))
+    (add window vbox)
+    window))
+
+(define (canvas-zoom canv factor)
+  (let* ((allocation (gtk-widget-get-allocation canv))
+	 (width (vector-ref allocation 2))
+	 (height (vector-ref allocation 3)))
+    (define (->int x)
+      (inexact->exact (round x)))
+    (gtk-widget-set-size-request canv (->int (* width factor))(->int (* height factor)))))
+
+(define (canvas-add-assignment-labels canv)
+  (define (add-label-from-strip strip)
+    (let* ((H (get ((strip 'get-adj) 'H) 'value))
+	   (N (get ((strip 'get-adj) 'N) 'value))
+	   (serial (strip 'serial)))
+      (if (serial-verified? serial)
+	  (let* ((label (serial-name serial))
+		 (marker (canvas-add-marker-text canv label)))
+	    (marker-set-pos marker H N)
+	    (marker-set-movable marker #f)))))
+  (for-each add-label-from-strip strips))
+
+(define (run-hsqc-pick action)
+  (make-amide-window "hsqc picker" (assoc-ref spectra 'hsqc)(get-thres-adjustment 'hsqc)))
+
+(define (make-amide-window title spec thres)
+  (if strip-selection
+      (let* ((sw (make <gtk-scrolled-window>))
+	     (H-adj ((strip-selection 'get-adj) 'H))
+	     (N-adj ((strip-selection 'get-adj) 'N))
+	     (H-spin (make <gtk-spin-button> #:digits 2))
+	     (N-spin (make <gtk-spin-button> #:digits 2))
+	     (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+	     (zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
+	     (zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
+	     (name (strip-selection 'name))
+	     (window (make <gtk-window>
+		       #:title (string-append title (format #f " -- residue ~a" name))
+		       #:default-width 500
+		       #:default-height 500))
+	     (canv (make <hos-canvas>))
+	     (vbox (make <gtk-vbox>)))
+	(define sync-window!
+	  (let ((sw-hadj (gtk-scrolled-window-get-hadjustment sw))
+		(sw-vadj (gtk-scrolled-window-get-vadjustment sw)))
+	    (lambda ()
+	      (let* ((canv-allocation (gtk-widget-get-allocation canv))
+		     (canv-width (vector-ref canv-allocation 2))
+		     (canv-height (vector-ref canv-allocation 3))
+		     (sw-allocation (gtk-widget-get-allocation sw))
+		     (sw-width (vector-ref sw-allocation 2))
+		     (sw-height (vector-ref sw-allocation 3))
+		     (H (get H-adj 'value))
+		     (H-fraction (/ (- (spectrum-orig-ppm spec 0) H)
+				    (spectrum-sw-ppm spec 0)))
+		     (N (get N-adj 'value))
+		     (N-fraction (/ (- N (spectrum-giro-ppm spec 1))
+				    (spectrum-sw-ppm spec 1))))
+		(set sw-hadj 'value (* H-fraction canv-width))
+		(set sw-vadj 'value (* N-fraction canv-height))))))
+	(assert spec "make-amide-window: no spectrum" title)
+	(canvas-set-spectrum canv spec)
+	(canvas-set-thres canv thres)
+	(canvas-add-assignment-labels canv)
+	(set H-spin 'adjustment H-adj)
+	(set N-spin 'adjustment N-adj)
+	(add window vbox)
+	(let ((button (make <gtk-button> #:label "close"))
+	      (top-hbox (make <gtk-hbox>))
+	      (nametag (make <gtk-label> #:label (format #f "~a" name))))
+	  (define (zoomer factor)
+	    (lambda(b)
+	      (canvas-zoom canv factor)
+	      (sync-window!)
+	      #f))
+	  (pack-start vbox top-hbox #f #f 5)
+	  (pack-start top-hbox nametag #f #f 5)
+	  (pack-start top-hbox zoom-in-button #f #f 5)
+	  (pack-start top-hbox zoom-out-button #f #f 5)
+	  (pack-start top-hbox thres-spin #f #f 5)
+	  (pack-start top-hbox H-spin #f #f 5)
+	  (pack-start top-hbox N-spin #f #f 5)
+	  (gtk-scrolled-window-add-with-viewport sw canv)
+	  (pack-start vbox sw #t #t 0)
+	  (pack-start vbox button #f #f 5)
+	  (connect zoom-in-button 'clicked (zoomer 1.2))
+	  (connect zoom-out-button 'clicked (zoomer (/ 1.0 1.2)))
+	  (connect button 'clicked (lambda args (gtk-widget-destroy window) #f)))
+	(let ((marker (canvas-add-marker canv)))
+	  (marker-set-adjustments marker H-adj N-adj))
+	(show-all window)
+	(lambda (req)
+	  (cond ((eq? req 'canv) canv)
+		((eq? req 'window) window)
+		(else (error "amide window: unknown request " req)))))))
+
+(define (run-noesy-search action)
+  (let* ((H (get-value ((strip-selection 'get-adj) 'H)))
+	 (N (get-value ((strip-selection 'get-adj) 'N)))
+	 (spec (spectrum-project-ppm
+		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
+	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
+	(show-all (amide-window 'window))))
+
+(define (run-noesy-search-prev action)
+  (let* ((H (get-value (((strip-selection 'prev) 'get-adj) 'H)))
+	 (N (get-value (((strip-selection 'prev) 'get-adj) 'N)))
+	 (spec (spectrum-project-ppm
+		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
+	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
+	(show-all (amide-window 'window))))
+
+(define (run-convoluted-search title strip spec-conv)
+  (if strip
+      (let ((CA-adj ((strip 'get-adj) 'CA))
+	    (CB-adj ((strip 'get-adj) 'CB))
+	    (conv-thres (get-thres-adjustment 'convoluted)))
+	(define (grab-spec!)
+	  (let ((ca (get-value CA-adj))
+		(cb (get-value CB-adj)))
+	    (spectrum-project-ppm
+	     (spectrum-project-ppm spec-conv cb) ca)))
+	(let* ((amide-window (make-amide-window title (grab-spec!) conv-thres))
+	       (refresh-signal (connect CA-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f)))
+	       (refresh-signal-cb (connect CB-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f))))
+	  (connect (amide-window 'window)
+		   'destroy (lambda args
+			      (gsignal-handler-disconnect CA-adj refresh-signal)
+			      (gsignal-handler-disconnect CB-adj refresh-signal-cb)
+			      #f))
+	  amide-window))))
+
+(define run-hnca-search-inner
+  (let ((spec-hnca (assoc-ref spectra 'hnca)))
+    (if spec-hnca
+	(let ((hnca-chn (spectrum-transpose (assoc-ref spectra 'hnca) 1)))
+	  (lambda (strip . prev?)
+	    (confess "run-hnca-search-inner: enter")
+	    (if strip
+		(let ((CA-adj ((if (null? prev?)
+				   (strip 'get-adj)
+				   ((strip 'prev) 'get-adj)) 'CA))
+		      (thres (get-thres-adjustment 'hnca-search)))
+		  (define (grab-spec!)
+		    (spectrum-project-ppm hnca-chn (get-value CA-adj)))
+		  (confess "run-hnca-search-inner check 1")
+		  (let* ((amide-window (make-amide-window
+					(if (null? prev?) "HNCA search" "HNCA(i-1) search")
+					(grab-spec!) thres))
+			 (refresh-signal
+			  (connect CA-adj 'value-changed
+				   (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f))))
+		    (connect (amide-window 'window)
+			     'destroy (lambda args
+					(gsignal-handler-disconnect CA-adj refresh-signal)
+					#f))
+		    amide-window)))))
+	(lambda args #f))))
+
+(define (run-hnca-search action)
+  (run-hnca-search-inner strip-selection))
+
+(define (run-hnca-prev-search action)
+  (run-hnca-search-inner strip-selection 'prev))
+
+(define (run-hncacb-search action)
+  (let ((win (run-convoluted-search "hncacb search" strip-selection (assoc-ref spectra 'hncacb-convoluted))))
+    (canvas-set-draw-negative (win 'canv) #t)))
+
+(define (run-cbcaconh-search action)
+  (run-convoluted-search "cbcaconh search" (strip-selection 'prev) (assoc-ref spectra 'cbcaconh-convoluted)))
+
+; ----------------------------------
+; GUI layout
+; ----------------------------------
+
+;; Strips will be held in this horizontal box.
+(define strip-sw (make <gtk-scrolled-window>))
+(define strip-hbox (make <gtk-hbox>))
+(gtk-scrolled-window-add-with-viewport strip-sw strip-hbox)
+
+(define (strip-jump-to-nth nth)
+  (let* ((allocation (gtk-widget-get-allocation strip-hbox))
+	 (width (vector-ref allocation 2))
+	 (frac (/ (* 1.0 nth)(length strips)))
+	 (pos (* frac width))
+	 (adj (gtk-scrolled-window-get-hadjustment strip-sw)))
+    (set adj 'value pos)))
+
+(define (equal-stringwise? a b)
+  (equal? (format #f "~a" a)
+	  (format #f "~a" b)))
+
+(define (strip:name->index name)
+  (define (iter n remaining)
+    (cond ((null? remaining) #f)
+	  ((equal-stringwise? (strip-name (car remaining)) name) n)
+	  (else (iter (+ n 1)(cdr remaining)))))
+  (iter 0 strips))
+
+(define (strip-jump-to-name name)
+  (let ((idx (strip:name->index name)))
+    (and idx (strip-jump-to-nth idx))))
+    
+;; A table of strip information.
+(define strips '())
+
+(define (make-strip spec H N)
+  (let* ((s1 (spectrum-project-ppm
+	      (spectrum-transpose spec 2) N))
+	 (s2 (spectrum-extract-ppm
+	      s1
+	      (- H H-width)
+	      (+ H H-width))))
+    s2))
+
+(define (make-strip-frame name H-adj N-adj)
+  (let* ((frame (make <gtk-frame> #:label (symbol->string name)))
+		(spec (assoc-ref spectra name))
+		(thres-adj (get-thres-adjustment name))
+		(canv (make <hos-canvas> #:width-request 75 #:height-request 400))
+		(cross-canvas (make <hos-canvas> #:width-request 75 #:height-request 75))
+		(v-cursor (canvas-add-cursor-vertical canv))
+		(vbox (make <gtk-vbox>))
+		(cross-spectrum #f)
+		(cross-marker (canvas-add-marker cross-canvas)))
+    (define (cross-set-spectrum cross-spec)
+      (set! cross-spectrum cross-spec))
+    (define (update-spec! . args)
+      (let ((x (get-value H-adj))
+	    (y (get-value N-adj)))
+	(canvas-set-spectrum canv (make-strip spec x y))
+	(if cross-spectrum
+	    (let ((snippet (spectrum-zoom cross-spectrum x y 0.15 1.5)))
+	      (canvas-set-spectrum cross-canvas snippet)))))
+    (assert spec "make-strip-frame: no spectrum" name)
+    (marker-set-adjustments cross-marker H-adj N-adj)
+    (cursor-set-adjustment v-cursor H-adj)
+    (cursor-set-movable v-cursor #f)
+    (update-spec!)
+    (connect H-adj 'value-changed update-spec!)
+    (connect N-adj 'value-changed update-spec!)
+    (add frame vbox)
+    (pack-start vbox canv #t #t 0)
+    (pack-start vbox cross-canvas #f #f 5)
+    (canvas-set-thres canv thres-adj)
+    (lambda (req)
+      (cond ((eq? req 'outer) frame)
+	    ((eq? req 'canvas) canv)
+	    ((eq? req 'cross-canvas) cross-canvas)
+	    ((eq? req 'cross-set-spectrum) cross-set-spectrum)
+	    ((eq? req 'show-cross)(show-all cross-canvas))
+	    ((eq? req 'hide-cross)(hide cross-canvas))
+	    (else (error "strip frame: unknown request:" req))))))
+
+;; there is one global H cursor that will be present in all noesy strips.
+(define global-noesy-H-adjustment (default-adjustment 'h-all))
+
+;; An amino acid type predictor window, based on CA and CB shifts.
+(define (aa-predictor CA-adj CB-adj)
+  (let ((frame (make <gtk-frame> #:label "aa predictor"))
+	(view (make <gtk-tree-view>))
+	(sw (make <gtk-scrolled-window> #:vscrollbar-policy 'always)))
+    (define (add-column! title num)
+      (let ((renderer (make <gtk-cell-renderer-text>))
+	    (column (make <gtk-tree-view-column> #:title title)))
+	(pack-start column renderer #f)
+	(add-attribute column renderer "text" num)
+	(append-column view column)))
+    (define (update-list . args)
+      (let ((ca (get CA-adj 'value))
+	    (cb (get CB-adj 'value)))
+	(and ca cb
+	     (let ((candidates (shift-top-probabilities 'CA ca 'CB cb)))
+	       (confess "update in progress!!")
+	       (confess "probably: ~a~%" (car candidates))
+	       (let ((store (gtk-list-store-new (list gtype:gchararray gtype:gdouble))))
+		 (for-each (lambda (candidate)
+			     (let ((iter (gtk-list-store-append store)))
+			       (set-value store iter 0 (symbol->string (car candidate)))
+			       (set-value store iter 1 (cdr candidate))))
+			   candidates)
+		 (set view 'model store))
+	       #f))))
+    (add sw view)
+    (add frame sw)
+    (add-column! "residue" 0)
+    (add-column! "prob." 1)
+    (lambda (req)
+      (cond ((eq? req 'widget) frame)
+	    ((eq? req 'update) update-list)
+	    (else (error "aa-predictor: unknown request " req))))))
+
+; ------ proton cursor position window -----
+(define proton-window
+  (let ((window (make <gtk-window> #:title "Hall's Window"))
+	(vbox (make <gtk-vbox>))
+	(label (make <gtk-label>))
+	(spin (make <gtk-spin-button> #:digits 2)))
+    (set spin 'adjustment global-noesy-H-adjustment)
+    (let ((signal (connect global-noesy-H-adjustment 'value-changed (lambda args (show-all window) #f))))
+      (connect window 'destroy (lambda args (gsignal-handler-disconnect global-noesy-H-adjustment signal) #f)))
+    (pack-start vbox label)
+    (gtk-label-set-markup label "<span foreground='red' size='x-large'>The proton cursor is at:</span>")
+    (pack-start vbox spin #f #f 5)
+    (add window vbox)))
+
+; ------------------------------------------
+
+;; The strip selection--
+;; there is a global selection which dictates which strip will be used
+;; for convoluted searches, etc.
+(define strip-selection #f)
+
+(define (serial-get-assignments serial)
+  (assoc-ref (cdr serial) 'assignments))
+
+(define (serial-name serial)
+  (format #f "~a" (car serial)))
+
+(define (strip-name strip)
+  (serial-name (strip 'serial)))
+
+(define (serial-verified? serial)
+  (assoc-ref (cdr serial) 'verified))
+
+(define (serial-set-verified serial v?)
+  (if (not (assoc 'verified (cdr serial)))
+      (set-cdr! serial (cons (cons 'verified #f)(cdr serial))))
+  (set-cdr! (assoc 'verified (cdr serial)) v?))
+
+;; A 'residue' abstraction--it has a set of resonance adjustments and a window with spectra.
+(define (make-residue-named name)
+  (let ((adjustments (list))
+	(name name)
+	(preceding #f))
+    (define (get-adj atom)
+      (cond ((assoc atom adjustments) => cdr)
+	    (else (let ((new-adjustment (default-adjustment atom)))
+		    (set! adjustments (cons (cons atom new-adjustment) adjustments))
+		    new-adjustment))))
+    (define (serialize)
+      (let ((assignments
+	     (map (lambda (entry)
+		    (let ((name (car entry))
+			  (value (get-value (cdr entry))))
+		      (cons name value)))
+		  adjustments)))
+	(cons name (list (cons 'assignments assignments)))))
+    (define (make-strip-entry-for name)
+      (cons name (make-strip-frame name (get-adj 'H)(get-adj 'N))))
+    (let ((frames (map make-strip-entry-for strippers))
+	  (hbox (make <gtk-hbox>))
+	  (vbox (make <gtk-vbox>))
+	  (name-label (make <gtk-label> #:label name))
+	  (verify-button (gtk-check-button-new-with-label "verified"))
+	  (aa-predictor (aa-predictor (get-adj 'CA)
+				      (get-adj 'CB)))
+	  (H-spin (make <gtk-spin-button> #:digits 2))
+	  (N-spin (make <gtk-spin-button> #:digits 2)))
+      (define (get-frame name)
+	(assoc-ref frames name))
+      (define (set-name! new-name)
+	(let ((safe-name (format #f "~a" new-name)))
+	  (set name-label 'label safe-name)
+	  (set! name safe-name)))
+      (define (add-cursor residue spec-name atom)
+	(let ((frame (get-frame spec-name))
+	      (adj ((if residue
+			(residue 'get-adj)
+			get-adj)
+		    atom)))
+	  (and frame adj
+	       (let* ((canvas (frame 'canvas))
+		      (cursor (canvas-add-cursor-horizontal canvas)))
+		 (cursor-set-adjustment cursor adj)
+		 cursor))))
+      (define (link-preceding-residue preceding-residue)
+	(set! preceding preceding-residue)
+	(let ((c (add-cursor preceding-residue 'cbcaconh 'CA)))
+	  (connect c 'dropped ((preceding-residue 'aa-predictor) 'update)))
+	(let ((c (add-cursor preceding-residue 'cbcaconh 'CB)))
+	  (connect c 'dropped ((preceding-residue 'aa-predictor) 'update)))
+	(add-cursor preceding-residue 'hnca 'CA))
+      (and (get-frame 'hncacb)
+	   (canvas-set-draw-negative ((get-frame 'hncacb) 'canvas) #t))
+      (let ((c (add-cursor #f 'hncacb 'CA)))
+	(if c (connect c 'dropped (aa-predictor 'update))))
+      (let ((c (add-cursor #f 'hncacb 'CB)))
+	(if c (connect c 'dropped (aa-predictor 'update))))
+      (add-cursor #f 'hnca 'CA)
+      (for-each (lambda (entry)
+		  (let ((strip-frame ((cdr entry) 'outer)))
+		    (pack-start hbox strip-frame #f #f 0)))
+		frames)
+      (set H-spin 'adjustment (get-adj 'H))
+      (set N-spin 'adjustment (get-adj 'N))
+      (pack-start vbox name-label #f #f 5)
+      (pack-start vbox hbox #t #t 0)
+      (let ((spin-hbox (make <gtk-hbox>)))
+	(pack-start spin-hbox H-spin #f #f 5)
+	(pack-start spin-hbox N-spin #f #f 5)
+	(pack-start vbox spin-hbox #f #f 0))
+      (pack-start vbox verify-button #f #f 5)
+      (pack-start vbox (aa-predictor 'widget) #t #t 5)
+      ;; add some decorations to the noesy spec
+      (and (get-frame 'noesy)
+	   (let* ((frame (get-frame 'noesy))
+		  (noesy-canv (frame 'canvas))
+		  (noesy-H-cursor (canvas-add-cursor-horizontal noesy-canv))
+		  (diagonal-cursor (canvas-add-cursor-horizontal noesy-canv)))
+	     ((frame 'cross-set-spectrum) (assoc-ref spectra 'noesy-diagonal))
+	     (cursor-set-adjustment noesy-H-cursor global-noesy-H-adjustment)
+	     (cursor-set-adjustment diagonal-cursor (get-adj 'H))
+	     (cursor-set-movable diagonal-cursor #f)))
+      (show-all vbox)
+      (lambda(req)
+	(cond ((eq? req 'widget) vbox)
+	      ((eq? req 'name) name)
+	      ((eq? req 'serial) #f)
+	      ((eq? req 'set-name!) set-name!)
+	      ((eq? req 'get-adj) get-adj)
+	      ((eq? req 'frames) frames)
+	      ((eq? req 'prev) preceding)
+	      ((eq? req 'serialize) serialize)
+	      ((eq? req 'link-preceding-residue) link-preceding-residue)
+	      ((member req '(hide-cross show-cross))
+	       (for-each (lambda (entry)
+			   ((cdr entry) req)) frames))
+	      ((eq? req 'show-aa)(show (aa-predictor 'widget)))
+	      ((eq? req 'hide-aa)(hide (aa-predictor 'widget)))
+	      ((eq? req 'aa-predictor) aa-predictor)
+	      (else (error "residue: unknown request " req)))))))
+
+(define (residue-set-assignment residue atom assignment)
+  (let ((adj ((residue 'get-adj) atom)))
+    (set-value adj assignment)))
+
+;; make new residues with default sequential numbering as names
+(define make-residue
+  (let ((counter 1))
+    (lambda ()
+      (let ((result (make-residue-named (number->string counter))))
+	(set! counter (+ 1 counter))
+	result))))
+
+(define (append-residue! new-residue)
+  (let ((widget (new-residue 'widget)))
+    (pack-start strip-hbox widget #f #f 10)
+    (if (null? strips)
+	'ok
+	((new-residue 'link-preceding-residue)(car (reverse strips))))
+    (connect widget 'button-press-event
+	     (lambda args
+	       ;; de-highlight currently selected strip
+	       (if strip-selection
+		   (gtk-widget-set-state (strip-selection 'widget) 'normal))
+	       (gtk-widget-set-state widget 'selected)
+	       (set! strip-selection new-residue)
+	       #f))
+    (set! strips (append! strips (list new-residue)))))
+
+; example serial residue:
+; (1 (verified . #t) (residue-type . MET) (assignments (CG . 31.5) (CB . 32.86) (CA . 55.3) (N . 115.37530421839) (H . 7.38512697401224)))
+
+;; A 'residue' abstraction--it has a set of resonance adjustments and a window with spectra.
+(define (serial->residue serial)
+  (let ((adjustments (list))
+	(name (format #f "~a (~a)" (car serial)(assoc-ref (cdr serial) 'residue-type)))
+	(preceding #f))
+    (define (get-adj atom)
+      (cond ((assoc atom adjustments) => cdr)
+	    (else (let ((new-adjustment (default-adjustment atom)))
+		    (set! adjustments (cons (cons atom new-adjustment) adjustments))
+		    new-adjustment))))
+    (define (serialize)
+      (let ((assignments
+	     (map (lambda (entry)
+		    (let ((name (car entry))
+			  (value (get-value (cdr entry))))
+		      (cons name value)))
+		  adjustments)))
+	(set-cdr! (assoc 'assignments (cdr serial)) assignments)
+	serial))
+    (define (make-strip-entry-for name)
+      (cons name (make-strip-frame name (get-adj 'H)(get-adj 'N))))
+    ;; set the assignments
+    (for-each (lambda (asg)
+		(set (get-adj (car asg)) 'value (cdr asg))) (serial-get-assignments serial))
+    (let ((frames (map make-strip-entry-for strippers))
+	  (hbox (make <gtk-hbox>))
+	  (vbox (make <gtk-vbox>))
+	  (name-label (make <gtk-label> #:label name))
+	  (verify-button (gtk-check-button-new-with-label "verified"))
+	  (aa-predictor (aa-predictor (get-adj 'CA)
+				      (get-adj 'CB)))
+	  (H-spin (make <gtk-spin-button> #:digits 2))
+	  (N-spin (make <gtk-spin-button> #:digits 2)))
+      (define (get-frame name)
+	(assoc-ref frames name))
+      (define (set-name! new-name)
+	(let ((safe-name (format #f "~a" new-name)))
+	  (set name-label 'label safe-name)
+	  (set! name safe-name)))
+      (define (add-cursor residue spec-name atom)
+	(let ((frame (get-frame spec-name))
+	      (adj ((if residue
+			(residue 'get-adj)
+			get-adj)
+		    atom)))
+	  (and frame adj
+	       (let* ((canvas (frame 'canvas))
+		      (cursor (canvas-add-cursor-horizontal canvas)))
+		 (cursor-set-adjustment cursor adj)
+		 cursor))))
+      (define (link-preceding-residue preceding-residue)
+	(set! preceding preceding-residue)
+	(let ((c (add-cursor preceding-residue 'cbcaconh 'CA)))
+	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
+	(let ((c (add-cursor preceding-residue 'cbcaconh 'CB)))
+	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
+	(add-cursor preceding-residue 'hnca 'CA))
+      (and (get-frame 'hncacb)
+	   (canvas-set-draw-negative ((get-frame 'hncacb) 'canvas) #t))
+      (let ((c (add-cursor #f 'hncacb 'CA)))
+	(if c (connect c 'dropped (aa-predictor 'update))))
+      (let ((c (add-cursor #f 'hncacb 'CB)))
+	(if c (connect c 'dropped (aa-predictor 'update))))
+      (add-cursor #f 'hnca 'CA)
+      (for-each (lambda (entry)
+		  (let ((strip-frame ((cdr entry) 'outer)))
+		    (pack-start hbox strip-frame #f #f 0)))
+		frames)
+      (set H-spin 'adjustment (get-adj 'H))
+      (set N-spin 'adjustment (get-adj 'N))
+      (pack-start vbox name-label #f #f 5)
+      (pack-start vbox hbox #t #t 0)
+      (let ((spin-hbox (make <gtk-hbox>)))
+	(pack-start spin-hbox H-spin #f #f 5)
+	(pack-start spin-hbox N-spin #f #f 5)
+	(pack-start vbox spin-hbox #f #f 0))
+      (pack-start vbox verify-button #f #f 5)
+      (set verify-button 'active (serial-verified? serial))
+      (connect verify-button 'toggled
+	       (lambda args (serial-set-verified serial (get verify-button 'active)) #f))
+      (pack-start vbox (aa-predictor 'widget) #t #t 5)
+      ;; add some decorations to the noesy spec
+      (and (get-frame 'noesy)
+	   (let* ((frame (get-frame 'noesy))
+		  (noesy-canv (frame 'canvas))
+		  (noesy-H-cursor (canvas-add-cursor-horizontal noesy-canv))
+		  (diagonal-cursor (canvas-add-cursor-horizontal noesy-canv)))
+	     ((frame 'cross-set-spectrum) (assoc-ref spectra 'noesy-diagonal))
+	     (cursor-set-adjustment noesy-H-cursor global-noesy-H-adjustment)
+	     (cursor-set-adjustment diagonal-cursor (get-adj 'H))
+	     (cursor-set-movable diagonal-cursor #f)))
+      (show-all vbox)
+      (lambda(req)
+	(cond ((eq? req 'widget) vbox)
+	      ((eq? req 'name) name)
+	      ((eq? req 'serial) serial)
+	      ((eq? req 'set-name!) set-name!)
+	      ((eq? req 'get-adj) get-adj)
+	      ((eq? req 'frames) frames)
+	      ((eq? req 'prev) preceding)
+	      ((eq? req 'serialize) serialize)
+	      ((eq? req 'link-preceding-residue) link-preceding-residue)
+	      ((member req '(hide-cross show-cross))
+	       (for-each (lambda (entry)
+			   ((cdr entry) req)) frames))
+	      ((eq? req 'show-aa)(show (aa-predictor 'widget)))
+	      ((eq? req 'hide-aa)(hide (aa-predictor 'widget)))
+	      ((eq? req 'aa-predictor) aa-predictor)
+	      (else (error "residue: unknown request " req)))))))
+
+(define (add-residue-from-serial serial)
+  (append-residue! (serial->residue serial)))
+
+;; default: read initial assignments from a file called "assignments.scm"
+(for-each add-residue-from-serial (file->list "assignments.scm"))
+
+;; write assignments to stdout with a comment including a serial counter
+;; that tells how many times this has been called.
+(define write-assignments
+  (let ((n 1))
+    (lambda args
+      (let ((all-assignments (map (lambda(strip)((strip 'serialize))) strips))
+	    (time-stamp (format #f "~a.~a.~a:~a.~a"
+				(date-year (current-date))
+				(date-month (current-date))
+				(date-day (current-date))
+				(date-hour (current-date))
+				(date-minute (current-date)))))
+	(with-output-to-file "assignments.scm"
+	  (lambda()
+	    (format #t ";; ---- start assignment dump ~a (~a) -----~%" n time-stamp)
+	    (for-each write-line all-assignments)
+	    (format #t ";; ---- end assignment dump ~a -----~%~%" n)))
+	(set! n (+ 1 n))))))
+
+;; How to make a widget look 'selected'
+;; (gtk-widget-set-state hbox 'selected)
+
+;; A gtk-action callback that shows or hides a class of strip plots.
+(define (strip-toggler type)
+  (define (toggle-strip op)
+    (lambda (strip)
+      (cond ((assoc type (strip 'frames)) => (lambda(s)(op ((cdr s) 'outer)))))))
+  (lambda (action)
+    (let ((op (if (get-active action) show hide)))
+      (for-each (toggle-strip op) strips))))
+
+(define (cross-section-toggle action)
+  (for-each
+   (lambda(strip)
+     (strip (if (get-active action) 'show-cross 'hide-cross)))
+   strips))
+
+(define (aa-toggle action)
+  (for-each
+   (lambda (strip)
+     (strip (if (get-active action) 'show-aa 'hide-aa)))
+   strips))
+
+;; get name of assignment file
+(define assign-file-name
+  (let ((cmd (command-line)))
+    (if (> (length cmd) 1)
+	(cadr cmd)
+	"assignments.scm")))
+
+;; revert an assignment to what it was upon bootup in the assignments.scm file.
+(define revert-assignment
+  (let ((original-assignments
+	 (map (lambda(x)
+		(cons (format #f "~a" (car x))(cdr x)))
+	      (file->list assign-file-name))))
+    (lambda (strip)
+      (let ((original (assoc (strip 'name) original-assignments)))
+	(and strip original
+	     (for-each (lambda (assignment)
+			 (residue-set-assignment strip (car assignment)(cdr assignment)))
+		       (cdr original)))))))
+
+(define (revert-current-assignment . args)(revert-assignment strip-selection))
+
+;
+; There was a bug in g-wrap, fixed now, that didn't allow negative values of
+; ssize_t, which would cause calls to gtk-ui-manager-add-ui-from-string to fail
+; if -1 was used as the string length argument.  So this wrapper is provided
+; that calculates the length explicitly.
+;
+(define (add-ui-from-string ui str)
+  (gtk-ui-manager-add-ui-from-string ui str (string-length str)))
+
+;; Set up a UI manager that contains a menu which can select which strip plots
+;; are displayed.
+(define ui-manager
+  (let ((ui (make <gtk-ui-manager>))
+	(actions (make <gtk-action-group> #:name "Actions"))
+	(toggle-entries
+	 `(("cross-section" #f "cross-section" #f "cross-section" ,cross-section-toggle #t)
+	   ("aa-predictor" #f "aa-predictor" #f "aa-predictor" ,aa-toggle #t)))
+	(action-entries
+	 `(("JumpMenu" #f "_Jump to strip")
+	   ("hncacb-search" #f "hncacb search" #f "hncacb search" ,run-hncacb-search)
+	   ("cbcaconh-search" #f "cbcaconh search" #f "cbcaconh search" ,run-cbcaconh-search)
+	   ("hnca-search" #f "hnca search" #f "hnca search" ,run-hnca-search)
+	   ("hnca-prev-search" #f "hnca(i-1) search" #f "hnca(i-1) search" ,run-hnca-prev-search)
+	   ("conv-noesy" #f "noesy search" #f "noesy search" ,run-noesy-search)
+	   ("conv-noesy-prev" #f "noesy search (<-)" #f "noesy search (<-)" ,run-noesy-search-prev)
+	   ("hsqc-pick" #f "hsqc-pick" #f "hsqc-pick" ,run-hsqc-pick)
+	   ("thres" #f "Thresholds..." #f "Thresholds" ,(lambda (action)(show-all (make-thres-window))))
+	   ("revert-assignment" #f "revert assignments" #f "revert assignments" ,revert-current-assignment)
+	   ("write-assignments" #f "write-assignments" #f "write-assignments" ,write-assignments)))
+	(ui-info "
+<ui>
+  <menubar name='MenuBar'>
+    <menu name='ShowMenu' action='Show'>
+      <separator/>
+      <menuitem action='thres'/>
+      <separator/>
+      <menuitem action='cross-section'/>
+      <menuitem action='aa-predictor'/>
+    </menu>
+    <menu action='Actions'>
+      <menu action='JumpMenu'/>
+      <separator/>
+      <menuitem action='hncacb-search'/>
+      <menuitem action='cbcaconh-search'/>
+      <menuitem action='hnca-search'/>
+      <menuitem action='hnca-prev-search'/>
+      <menuitem action='conv-noesy'/>
+      <menuitem action='conv-noesy-prev'/>
+      <menuitem action='hsqc-pick'/>
+      <separator/>
+      <menuitem action='revert-assignment'/>
+      <menuitem action='write-assignments'/>
+    </menu>
+  </menubar>
+</ui>"))
+    ;; add some spectrum actions to the toggle entries:
+    (add-toggle-actions actions
+			(map
+			 (lambda (name)
+			   (let ((text (symbol->string name)))
+			     (list text #f text #f text (strip-toggler name) #t))) strippers))
+    (add-actions actions '(("Show" #f "Show")))
+    (add-actions actions '(("Actions" #f "Actions")))
+    (add-toggle-actions actions toggle-entries)
+    (add-actions actions action-entries)
+    (insert-action-group ui actions 0)
+    (gtk-ui-manager-set-add-tearoffs ui #t)
+    (add-ui-from-string ui ui-info)
+;    (add-ui-from-string ui "<menubar name='MenuBar'><menu action='Show'><menuitem action='HNCA'/></menu></menubar>")
+    (let ((add-spec-toggler
+	   (lambda (name)
+	     (gtk-ui-manager-add-ui ui (gtk-ui-manager-new-merge-id ui) "ui/MenuBar/ShowMenu"
+				    (symbol->string name)
+				    (symbol->string name)
+				    -1 -1))))
+      (for-each add-spec-toggler strippers))
+    (let ((strip-names (map strip-name strips)))
+      (define (name->action name)
+	(list name #f name #f name (lambda args (strip-jump-to-name name))))
+      (define (add-strip-selector name)
+	(gtk-ui-manager-add-ui ui (gtk-ui-manager-new-merge-id ui) "ui/MenuBar/Actions/JumpMenu"
+			       name name -1 -1))
+      (add-actions actions (map name->action strip-names))
+      (for-each add-strip-selector (reverse strip-names)))
+    ui))
+
+; -----------------
+; main loop
+; -----------------
+
+(define (end-application . args)
+  (gtk-main-quit))
+
+(define main-window
+  (let ((main-window (make <gtk-window> #:default-width 600 #:default-height 700 #:title "sequential assigner"))
+	(main-vbox (make <gtk-vbox>)))
+    (pack-start main-vbox (gtk-ui-manager-get-widget ui-manager "ui/MenuBar") #f #f 0)
+    (pack-start main-vbox strip-sw #t #t 5)
+    (add main-window main-vbox)
+    main-window))
+
+
+(show-all main-window)
+(connect main-window 'destroy end-application)
+(strip-jump-to-name 45)
+
+(gtk-main)
+
+
+

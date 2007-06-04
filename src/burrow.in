@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# Start guile interpreter in an environment
+# that allows it to find shared libraries and
+# modules for g-wrap, guile-gnome, and spectrum;
+# search for sub-scripts or start guile interpreter
+#
+
+guile_prog=@GUILE@;
+
+prefix=@prefix@;
+datadir=${prefix}/share;
+ggdatadir=@guile_gnome_prefix@/share;
+libdir=${prefix}/lib;
+gglibdir=@guile_gnome_prefix@/lib;
+scriptdir=${datadir}/burrow/scripts;
+
+extra_guile_path=${datadir}:${datadir}/guile:${datadir}/guile/site:${ggdatadir}/guile-gnome:${ggdatadir}/guile-gnome-0:@G_WRAP_INSTALLED_MODULE_DIR@;
+extra_ld_path=${libdir}:${gglibdir}/guile-gnome:${gglibdir}/guile-gnome-0:@G_WRAP_INSTALLED_LIB_DIR@;
+
+export GUILE_LOAD_PATH=${extra_guile_path}:$GUILE_LOAD_PATH;
+export LD_LIBRARY_PATH=${extra_ld_path}:$LD_LIBRARY_PATH;
+
+# To have a burrow that is compatible with both guile-1.6 and guile-1.8,
+# it is unavoidable to use some features that are deprecated in guile-1.8.
+# We therefore sweep the warning message under the rug.
+export GUILE_WARN_DEPRECATED=no;
+
+all_scripts=`ls $scriptdir`;
+
+if test $# -lt 1; then
+cat <<EOF
+
+Usage: $0 <script> ...
+
+Scripts currently installed in ${scriptdir}:
+
+$all_scripts
+
+EOF
+exit 1
+fi
+
+if test "x$1" = "xshell"; then
+   exec $guile_prog;
+fi
+
+script=$1;
+shift;
+if ! test -f "${script}"; then
+    script=${scriptdir}/$script;
+fi
+
+
+
+if ! test -f "${script}"; then
+cat <<EOF
+
+Usage: $0 <script> ...
+
+Cannot find ${script}.
+Scripts currently installed in ${scriptdir}:
+$all_scripts
+
+EOF
+exit 1
+fi
+
+exec ${guile_prog} -s ${script} $@;
+
+
+
+
+

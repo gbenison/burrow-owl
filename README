@@ -1,0 +1,36 @@
+
+
+This is burrow-owl, a software package for visualizing
+multidimensional nuclear magnetic resonance (NMR)
+spectra, with an emphasis on spectra used in
+macromolecular structure determination.
+
+burrow-owl incorporates the higher-order spectrum principle,
+a way of identifying correlated peaks in
+multiple spectra without the need for peaklists.
+
+The name burrow-owl continues the tradition of naming
+programs used in structure determination after birds,
+started by the program
+coot (http://www.ysbl.york.ac.uk/%7Eemsley/coot/).
+burrow-owl and coot are similar in some ways:
+
+- both are free software (http://www.gnu.org/philosophy/philosophy.html)
+- both draw contour plots with automatic wrap-around and
+  instant recontouring
+- both use the guile-gtk library (http://www.gnu.org/software/guile-gnome/)
+  to provide a modern graphical user interface controlled by a
+  high-level scripting language
+
+There are also some important differences:
+
+- coot is for x-ray crystallography; burrow-owl is for NMR.
+- The coot is a water-dwelling bird, whereas everybody knows
+  that a burrow owl lives in a hole in the ground.  (Why do you
+  think they call it a burrow owl, anyway?)
+
+
+
+
+
+

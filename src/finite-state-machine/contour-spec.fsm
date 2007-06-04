@@ -1,0 +1,419 @@
+
+/* -*-C-*- */
+
+/*
+ *  Copyright (C) 2006 Greg Benison
+ * 
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
+
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+#include <assert.h>
+#include "contour-fsm.h"
+#include "../boomerang.h"
+
+/* #define FSM_VERBOSE */
+
+/* If the contour drawing is taking longer than fsm_timeout, run the glib main loop */
+static const double fsm_timeout = 0.001;
+static const double fsm_idle_msec = 1;
+
+/* Traps exist only as convenient hooks for the debugger. */
+static void trap_stray() {}
+static void trap_dump() {}
+static void trap_hit_mark() {}
+
+#ifdef ENABLE_TRAPS
+#define TRAP(op) {op();}
+#else
+#define TRAP(op)
+#endif /* ENABLE_TRAPS */
+
+void
+test_method(void* data, struct hos_point* points, const int n_point, const int level, gboolean closed)
+{
+  char* msg = closed ? "closed" : "open";
+  printf("level %d (%s):\n", level, msg);
+
+  struct hos_point* cur;
+  for (cur = points; cur < points + n_point; ++cur)
+    printf(" %f, %f\n", cur->x, cur->y);
+
+}
+
+/*
+ * Trace contours through a submatrix of size 'nx' * 'ny', located at offsets 'x_offset' and 'y_offset' within 'buf_base'
+ * (an array of row size 'stride' and height at least 'ny'),
+ * for all thresholds in the array 'levels' (of length 'n_levels'), calling 'trace_method' with extra data 'trace_data'
+ * for every contour loop found.
+ */
+void
+contour_fsm(double *buf_base,
+	    const int x_offset,
+	    const int y_offset,
+	    const int stride,
+	    const int nx,
+	    const int ny,
+	    double *levels,
+	    const int n_levels,
+	    void (*trace_method)(void* data, struct hos_point* points, const gint n_point, gint level, gboolean closed),
+	    void *trace_data,
+	    gulong *cancellation)
+{
+
+  double *buf = buf_base + x_offset + y_offset * stride;
+
+  /******** timer for interruptibility *******/
+  GTimer* timer = g_timer_new();
+  gulong cancellation_id = cancellation ? *cancellation : 0;
+#define IS_CANCELED (cancellation ? ((*cancellation == cancellation_id) ? FALSE : TRUE) : FALSE)
+
+#ifdef FSM_VERBOSE
+#define ECHO_TIME       {printf("row %d: time %f\n", y, g_timer_elapsed(timer, NULL));}
+#else
+#define ECHO_TIME {}
+#endif /* FSM_VERBOSE */
+
+#define G_MAIN_LOOP_ITERATE_MAYBE { gdouble fsm_time = g_timer_elapsed(timer, NULL); \
+                                         /* fprintf(stderr, "Elapsed: %f\n", fsm_time); fflush(stderr); */ \
+                                         if (fsm_time > fsm_timeout) \
+                                       { boomerang_throw(fsm_idle_msec); \
+                                             g_timer_reset(timer); gdk_flush(); }}
+
+  /******** level pointer ********/
+  gint lvl_idx;
+  gdouble level;
+#define LVL_INCREMENT {++lvl_idx; level=levels[lvl_idx];}
+#define LVL_DECREMENT {--lvl_idx; level=levels[lvl_idx];}
+#define LVL_SET_HIGHEST    {lvl_idx = n_levels - 1; level=levels[lvl_idx];}
+#define LVL_SET_LOWEST     {lvl_idx = 0; level=levels[lvl_idx];}
+#define LVL_AT_HIGHEST   (lvl_idx >= (n_levels - 1))
+#define LVL_AT_LOWEST    (lvl_idx == 0)
+
+  /******** marks buffer **********/
+
+  int mark_stride = ((n_levels / 8) + 1);
+  char* marks = g_new0(char, mark_stride * nx * ny);
+  char* west_marks = g_new0(char, mark_stride * ny);
+  char* mark_ptr;  /* for use during contour tracing */
+  char* search_mark_ptr;  /* for use during searching */
+
+#define MARK_BUMP_EAST {mark_ptr += mark_stride;}
+#define MARK_BUMP_WEST {mark_ptr -= mark_stride;}
+#define MARK_BUMP_NORTH {mark_ptr += mark_stride * nx;}
+#define MARK_BUMP_SOUTH {mark_ptr -= mark_stride * nx;}
+
+#define SEARCH_MARK_BUMP {search_mark_ptr += mark_stride;}
+
+#define MARK_SETUP_ROW(_row_) {search_mark_ptr = marks + (mark_stride * nx * (_row_)); }
+
+#define MARK_SETUP_EAST {search_mark_ptr = east_marks;}
+#define MARK_SETUP_WEST {search_mark_ptr = west_marks;}
+#define MARK_SETUP_SOUTH {MARK_SETUP_ROW(0);}
+#define MARK_SETUP_NORTH {MARK_SETUP_ROW(ny - 1);}
+
+#define MARK_INIT_COORDS(_x_, _y_) {mark_ptr = marks + ((_y_ * nx) + _x_) * mark_stride;}
+
+#define MARK_PTR_VALIDATE
+#ifdef FSM_STRICT
+#define MARK_PTR_VALIDATE {assert(mark_ptr == marks + ((cntr_x + cntr_y * nx) * mark_stride));}
+#endif
+
+#define MARK_IS_SET_AT_COORDS(_x_, _y_) (*(marks + ((_x_) + (_y_) * nx) * mark_stride + (lvl_idx / 8)) & (1 << (lvl_idx % 8)))
+#define SEARCH_MARK_IS_SET   (*(search_mark_ptr + (lvl_idx / 8)) & (1 << (lvl_idx % 8)))
+
+#define NORTH_MARK_IS_SET (*(mark_ptr + (mark_stride * nx) + (lvl_idx / 8)) & (1 << (lvl_idx % 8)))
+#define SOUTH_MARK_IS_SET (*(mark_ptr + (lvl_idx / 8)) & (1 << (lvl_idx % 8)))
+
+#define MARK_SET_SOUTH   {*(mark_ptr + (lvl_idx / 8)) |= (1 << (lvl_idx % 8)); MARK_PTR_VALIDATE;}
+#define MARK_SET_NORTH   {*(mark_ptr + (mark_stride * nx) + (lvl_idx / 8)) |= (1 << (lvl_idx % 8)); MARK_PTR_VALIDATE;}
+
+  /* Initialize mark array to zero (clear all marks) */
+  memset(marks, 0, (mark_stride * nx * ny));
+  memset(west_marks, 0, (mark_stride * ny));
+
+#define HIT_MARK_TRAP {TRAP(trap_hit_mark);}
+
+
+  /******** results buffer **********/
+
+  GArray* result_buffer = g_array_new(FALSE, FALSE, sizeof(struct hos_point));
+
+#define RESULT_DATA ((struct hos_point*)(result_buffer->data))
+#define RESULT_LENGTH (result_buffer->len)
+
+#define RESULT_X(_idx_) g_array_index(result_buffer, struct hos_point, (_idx_)).x
+#define RESULT_Y(_idx_) g_array_index(result_buffer, struct hos_point, (_idx_)).y
+
+#define RESULT_FLIP { int i; for (i = 0; (double)i < (result_buffer->len / 2.0); ++i) { \
+                        struct hos_point tmp = {RESULT_X(i), RESULT_Y(i)}; \
+                        RESULT_X(i) = RESULT_X(result_buffer->len - i - 1); \
+                        RESULT_Y(i) = RESULT_Y(result_buffer->len - i - 1); \
+                        RESULT_X(result_buffer->len - i - 1) = tmp.x; \
+                        RESULT_Y(result_buffer->len - i - 1) = tmp.y; }}
+#define RESULT_RESET { g_array_set_size(result_buffer, 0); }
+#define RESULT_PUSH(_x_, _y_)  { struct hos_point new_value = {(_x_) + x_offset, (_y_) + y_offset}; \
+                                 g_array_append_val(result_buffer, new_value); }
+
+  /******** contour tracing **********/
+
+#define CONTOUR_DRAW_CLOSED {trace_method(trace_data, RESULT_DATA, result_buffer->len, lvl_idx, TRUE);}
+#define CONTOUR_DRAW_OPEN {trace_method(trace_data, RESULT_DATA, result_buffer->len, lvl_idx, FALSE);}
+
+  /******** contour searching *********/
+
+  /* registers */
+  double* cntr_ptr;
+  int cntr_x, cntr_y;
+  int cntr_start_x, cntr_start_y;
+  gboolean contour_starting_now;
+
+#define CNTR_AT_START ((cntr_x == cntr_start_x) && (cntr_y == cntr_start_y) && (contour_starting_now == FALSE))
+
+
+#define CONTOUR_INIT_COORDS(_x_, _y_)  {cntr_x = _x_; cntr_y = _y_; cntr_ptr = buf + _x_ + (_y_ * stride); \
+                                        cntr_start_x = cntr_x; cntr_start_y = cntr_y; \
+                                        MARK_INIT_COORDS(_x_, _y_);}
+
+#define CONTOUR_GOTO_START CONTOUR_INIT_COORDS(cntr_start_x, cntr_start_y)
+
+#define AT_EDGE_EAST   (cntr_x >= (nx - 1))
+#define AT_EDGE_WEST   (cntr_x < 0)
+#define AT_EDGE_NORTH  (cntr_y >= (ny - 1))
+#define AT_EDGE_SOUTH  (cntr_y < 0)
+
+#define STRADDLES(_p1_, _p2_) ((_p1_ > _p2_) ? \
+                      STRADDLES_INNER(_p1_, _p2_) : STRADDLES_INNER(_p2_, _p1_))
+#define STRADDLES_INNER(_s1_, _s2_)  (_s1_ > level) && (_s2_ <= level)
+
+#define PT_SW *cntr_ptr
+#define PT_NW *(cntr_ptr + stride)
+#define PT_SE *(cntr_ptr + 1)
+#define PT_NE *(cntr_ptr + stride + 1)
+
+#define CROSSES_WEST   STRADDLES(PT_SW, PT_NW)
+#define CROSSES_EAST   STRADDLES(PT_SE, PT_NE)
+#define CROSSES_SOUTH  STRADDLES(PT_SE, PT_SW)
+#define CROSSES_NORTH  STRADDLES(PT_NE, PT_NW)
+
+#define CONTOUR_BUMP_EAST  {++cntr_ptr; ++cntr_x; MARK_BUMP_EAST;}
+#define CONTOUR_BUMP_WEST  {--cntr_ptr; --cntr_x; MARK_BUMP_WEST;}
+#define CONTOUR_BUMP_NORTH  {cntr_ptr += stride; ++cntr_y; MARK_BUMP_NORTH;}
+#define CONTOUR_BUMP_SOUTH {cntr_ptr -= stride; --cntr_y; MARK_BUMP_SOUTH; contour_starting_now = FALSE;}
+
+  /* interpolation */
+#define INTERPOLATE(_pt1_, _pt2_) ((_pt2_ < _pt1_) ? \
+                (1.0 - INTERPOLATE_INNER(_pt2_, _pt1_)) : INTERPOLATE_INNER(_pt1_, _pt2_))
+#define INTERPOLATE_INNER(_ipt1_, _ipt2_) ((level - _ipt1_) / (_ipt2_ - _ipt1_))
+
+#define CONTOUR_PAINT_EAST {RESULT_PUSH(cntr_x + 1, cntr_y + INTERPOLATE(PT_SE, PT_NE));}
+#define CONTOUR_PAINT_WEST {RESULT_PUSH(cntr_x, cntr_y + INTERPOLATE(PT_SW, PT_NW));}
+#define CONTOUR_PAINT_NORTH {RESULT_PUSH(cntr_x + INTERPOLATE(PT_NW, PT_NE), cntr_y + 1);}
+#define CONTOUR_PAINT_SOUTH {RESULT_PUSH(cntr_x + INTERPOLATE(PT_SW, PT_SE), cntr_y);}
+
+#define CONTOUR_FOLLOW_EAST {CONTOUR_PAINT_EAST; CONTOUR_BUMP_EAST;}
+#define CONTOUR_FOLLOW_WEST {CONTOUR_PAINT_WEST; CONTOUR_BUMP_WEST;}
+#define CONTOUR_FOLLOW_NORTH {CONTOUR_PAINT_NORTH; CONTOUR_BUMP_NORTH;}
+#define CONTOUR_FOLLOW_SOUTH {CONTOUR_PAINT_SOUTH; CONTOUR_BUMP_SOUTH;}
+
+#define ABOVE_STR(x)((x > level) ? "*" : " ")
+
+#define CONTOUR_DUMP {TRAP(trap_dump); \
+                      fprintf(stderr, "contour coordinates (lvl %f)\n", level); \
+                      int i; \
+                      for (i = 0; i < RESULT_LENGTH; ++i) { \
+                          double result_x = ((g_array_index(result_buffer, struct hos_point, i)).x); \
+                          double result_y = ((g_array_index(result_buffer, struct hos_point, i)).y); \
+                          int int_result_x = floor(result_x); \
+                          int int_result_y = floor(result_y); \
+                          double vl_ll = *(buf_base + int_result_x + int_result_y * stride); \
+                          double vl_ul = *(buf_base + int_result_x + 1 + int_result_y * stride); \
+                          double vl_lu = *(buf_base + int_result_x + (int_result_y + 1) * stride); \
+                          double vl_uu = *(buf_base + int_result_x + 1 + (int_result_y + 1) * stride); \
+                          char* marked = MARK_IS_SET_AT_COORDS(int_result_x - x_offset, int_result_y - y_offset) ? "MARKED" : ""; \
+                          fprintf(stderr, "%.2f/%d %.2f/%d\n", result_x, nx, result_y, ny); \
+                          fprintf(stderr, "  %12.2f %s   %12.2f %s\n", vl_lu, ABOVE_STR(vl_lu), vl_uu, ABOVE_STR(vl_uu)); \
+                          fprintf(stderr, "  %12.2f %s   %12.2f %s  %s\n", vl_ll, ABOVE_STR(vl_ll), vl_ul, ABOVE_STR(vl_ul), marked); \
+                          fprintf(stderr, "------\n"); \
+                      }}
+
+
+  /******* contour searching **********/
+  int x, y;
+  double* this_pt;
+  double* next_pt;
+  int pt_delta = 1;
+
+
+#define SYNC_THIS_PT       {this_pt = buf + x + y * stride; next_pt = this_pt + pt_delta;}
+#define MARK_SETUP_CURRENT_ROW {MARK_SETUP_ROW(y);}
+
+#define WEST_EDGE_SETUP    {x = 0; y = 0;         pt_delta = stride; SYNC_THIS_PT;  MARK_SETUP_WEST;}
+#define INTERIOR_SETUP     {x = 0; y = 0;         pt_delta = 1;      SYNC_THIS_PT;  MARK_SETUP_CURRENT_ROW;}
+
+
+  /* FIXME uncommenting this is causing segfaults */
+#define INCREASE_ROW       {++y; SYNC_THIS_PT; MARK_BUMP_NORTH; SEARCH_MARK_BUMP; G_MAIN_LOOP_ITERATE_MAYBE; if(IS_CANCELED) goto cancelled;}
+
+  /*
+#define INCREASE_ROW       {++y; SYNC_THIS_PT; MARK_BUMP_NORTH; SEARCH_MARK_BUMP;}
+  */
+
+#define INCREASE_COLUMN    {++x; MARK_BUMP_EAST; ++this_pt; ++next_pt; SEARCH_MARK_BUMP;}
+#define COLUMN_SET_FIRST   {x = 0; SYNC_THIS_PT; MARK_INIT_COORDS(x, y);}
+
+#define AT_LAST_ROW     (y == ny - 1)
+#define AT_LAST_COLUMN  (x == nx - 1)
+
+#define ASCENDING_PAIR  (*next_pt > *this_pt)
+#define DESCENDING_PAIR (*next_pt <= *this_pt)
+
+#define NEXT_POINT_LOWER   (*next_pt < level)
+#define NEXT_POINT_HIGHER  (*next_pt >= level)
+
+#define CONTOUR_SETUP {CONTOUR_INIT_COORDS(x, y); contour_starting_now = TRUE; RESULT_RESET;}
+
+  /******* error recovery **********/
+#define FSM_TRAPPED { fprintf(stderr, "fsm: trapped in state %s\n", fsm_current_state); return; }
+     
+
+%%
+
+start --> interior-search, init
+
+# find contours which cross horizontal edges
+interior-search, init --> interior-setup; interior-search, row-init
+interior-search, row-increase-leave --> at-last-row? west-edge-search, init
+interior-search, row-increase-leave --> interior-search, row-init
+interior-search, row-init --> column-set-first; mark-setup-current-row; interior-search, cntr-search-init
+interior-search, trace-contour-enter --> contour-setup; interior-search, trace-up, trace-contour, from-south
+interior-search, cntr-search-leave --> interior-search, column-increase-enter
+interior-search, column-increase-leave --> at-last-column ? interior-search, cntr-search-cleanup
+interior-search, cntr-search-cleanup-leave --> interior-search, row-increase-enter
+interior-search, column-increase-leave --> interior-search, cntr-search-enter
+interior-search, trace-up, contour-hit-mark --> hit-mark-trap; interior-search, trace-contour-leave
+interior-search, trace-down, contour-hit-mark --> hit-mark-trap; interior-search, trace-contour-leave
+
+interior-search, trace-contour, from-south, trace-up --> cntr-at-start ? contour-draw-closed; interior-search, trace-contour-leave
+trace-up, contour-at-edge --> result-flip; contour-goto-start; contour-paint-south; contour-bump-south; trace-down, trace-contour, from-north-ignoring-mark
+trace-down, contour-at-edge --> contour-draw-open; trace-contour-leave
+
+# find contours that do not cross any horizontal edge.
+west-edge-search, init --> west-edge-setup; west-edge-search, cntr-search-init
+west-edge-search, trace-contour-enter --> contour-setup; contour-paint-west; west-edge-search, tracing
+west-edge-search, cntr-search-leave   --> west-edge-search, row-increase-enter
+west-edge-search, row-increase-leave  --> at-last-row ? west-edge-search, cntr-search-cleanup
+west-edge-search, row-increase-leave  --> west-edge-search, cntr-search-enter
+west-edge-search, cntr-search-cleanup-leave --> end
+
+west-edge-search, tracing --> at-edge-east ? contour-draw-open; west-edge-search, trace-contour-leave
+west-edge-search, tracing --> crosses-north ? west-edge-search, trace-contour-leave
+west-edge-search, tracing --> crosses-south ? west-edge-search, trace-contour-leave
+west-edge-search, tracing --> contour-follow-east; west-edge-search, tracing
+
+# contour-search initialization:
+# set the level to just one above 'next pt' register
+cntr-search-init --> cntr-search, seek, below-range, lvl-increase-enter
+cntr-search, seek, lvl-increase-leave, mid-range --> next-point-lower ? cntr-search-leave, ascending, mid-range
+cntr-search, seek, lvl-increase-leave, above-range --> cntr-search-leave, ascending, above-range
+cntr-search, seek, lvl-increase-leave, mid-range --> cntr-search, seek, mid-range, lvl-increase-enter
+
+# contour search incrementing:
+# for this 'this-pt', 'next-pt' pair, trace all contours applicable
+cntr-search-enter, ascending   --> ascending-pair  ? cntr-search, ascend-enter
+cntr-search-enter, ascending   --> descending-pair ? cntr-search, descending, lvl-decrease-enter
+cntr-search-enter, descending  --> ascending-pair  ? cntr-search, ascending, lvl-increase-enter
+cntr-search-enter, descending  --> descending-pair ? cntr-search, descend-enter
+
+cntr-search, ascend-enter, above-range  --> cntr-search-leave, above-range, ascending
+cntr-search, ascend-enter, mid-range    --> next-point-lower   ? cntr-search-leave, mid-range, ascending
+cntr-search, ascend-enter, mid-range    --> search-mark-is-set ? cntr-search, mid-range, ascending, lvl-increase-enter
+cntr-search, ascend-enter, mid-range    --> cntr-search, trace-contour-enter, mid-range, ascending
+cntr-search, ascending, trace-contour-leave --> cntr-search, ascending, lvl-increase-enter
+cntr-search, descend-enter, below-range --> cntr-search-leave, below-range, descending
+cntr-search, descend-enter, mid-range   --> next-point-higher  ? cntr-search-leave, mid-range, descending
+cntr-search, descend-enter, mid-range   --> search-mark-is-set ? cntr-search, mid-range, descending, lvl-decrease-enter
+cntr-search, descend-enter, mid-range   --> cntr-search, trace-contour-enter, mid-range, descending
+cntr-search, descending, trace-contour-leave --> cntr-search, descending, lvl-decrease-enter
+
+cntr-search, ascending, lvl-increase-leave, above-range   --> cntr-search-leave, ascending, above-range
+cntr-search, descending, lvl-decrease-leave, below-range  --> cntr-search-leave, descending, below-range
+cntr-search, ascending, mid-range, lvl-increase-leave     --> cntr-search, ascend-enter, mid-range
+cntr-search, descending, mid-range, lvl-decrease-leave    --> cntr-search, descend-enter, mid-range
+
+# cleanup- remove mid-range, above-range, below-range, ascending, descending from the state
+cntr-search-cleanup, ascending  --> cntr-search-cleanup-2
+cntr-search-cleanup, descending --> cntr-search-cleanup-2
+cntr-search-cleanup-2, mid-range   --> cntr-search-cleanup-leave
+cntr-search-cleanup-2, above-range --> cntr-search-cleanup-leave
+cntr-search-cleanup-2, below-range --> cntr-search-cleanup-leave
+
+# row/column increment
+column-increase-enter --> increase-column; column-increase-leave
+row-increase-enter    --> increase-row;    row-increase-leave
+
+# level increment/decrement states
+below-range, lvl-increase-enter  --> lvl-set-lowest; mid-range, lvl-increase-leave
+mid-range, lvl-increase-enter    --> lvl-at-highest ? above-range, lvl-increase-leave
+mid-range, lvl-increase-enter    --> lvl-increment; mid-range, lvl-increase-leave
+
+above-range, lvl-decrease-enter  --> lvl-set-highest; mid-range, lvl-decrease-leave
+mid-range, lvl-decrease-enter    --> lvl-at-lowest ? below-range, lvl-decrease-leave
+mid-range, lvl-decrease-enter    --> lvl-decrement; mid-range, lvl-decrease-leave
+
+# contour tracing rules:
+# These rules are generated by direction-permutations.scm
+# but then modified.
+# NOTE: these rules handle ambiguous quadrants (ones where two points are above level and two below)
+# by always choosing the right-hand turn.
+trace-contour, from-west --> at-edge-east ? contour-at-edge
+trace-contour, from-west --> crosses-south ? contour-follow-south; trace-contour, from-north
+trace-contour, from-west --> crosses-east ? contour-follow-east; trace-contour, from-west
+trace-contour, from-west --> crosses-north ? contour-follow-north; trace-contour, from-south
+trace-contour, from-west --> contour-lost
+trace-contour, from-north-ignoring-mark --> trace-contour, from-north-mark-sanction
+trace-contour, from-north-mark-sanction --> at-edge-south ? contour-at-edge
+trace-contour, from-north-mark-sanction --> crosses-west ? mark-set-north; contour-follow-west; trace-contour, from-east
+trace-contour, from-north-mark-sanction --> crosses-east ? mark-set-north; contour-follow-east; trace-contour, from-west
+trace-contour, from-north-mark-sanction --> crosses-south ? mark-set-north; contour-follow-south; trace-contour, from-north
+trace-contour, from-north-mark-sanction --> contour-lost
+trace-contour, from-north --> north-mark-is-set ? contour-hit-mark
+trace-contour, from-north --> trace-contour, from-north-mark-sanction
+trace-contour, from-east --> at-edge-west ? contour-at-edge
+trace-contour, from-east --> crosses-north ? contour-follow-north; trace-contour, from-south
+trace-contour, from-east --> crosses-west ? contour-follow-west; trace-contour, from-east
+trace-contour, from-east --> crosses-south ? contour-follow-south; trace-contour, from-north
+trace-contour, from-east --> contour-lost
+trace-contour, from-south --> at-edge-north ? contour-at-edge
+trace-contour, from-south --> south-mark-is-set ? contour-hit-mark
+trace-contour, from-south --> crosses-east ? mark-set-south; contour-follow-east; trace-contour, from-west
+trace-contour, from-south --> crosses-west ? mark-set-south; contour-follow-west; trace-contour, from-east
+trace-contour, from-south --> crosses-north ? mark-set-south; contour-follow-north; trace-contour, from-south
+trace-contour, from-south --> contour-lost
+# end generated rules
+
+%%
+
+cancelled:
+
+ g_timer_destroy(timer);
+ g_free(marks);
+ g_free(west_marks);
+
+}

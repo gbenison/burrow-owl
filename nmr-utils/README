@@ -1,0 +1,3 @@
+A few useful utilities for working with NMR data:
+- average chemical shifts for atom types as specified by the BMRB;
+- parser for bruker format parameter files

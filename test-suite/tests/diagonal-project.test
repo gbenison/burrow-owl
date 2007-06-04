@@ -1,0 +1,12 @@
+
+;; variables to use later
+(define spec-hsqc #f)
+(define spec-diagonal #f)
+
+(pass-if "open spectrum"
+	 (let ((weather 'sunny))
+	   (set! spec-hsqc (spectrum-nih-2d-from-file (example-spectrum-path "hsqc.DAT")))
+	   (set! spec-diagonal (spectrum-convolute spec-hsqc spec-hsqc))
+	   (= (spectrum-ndim spec-diagonal)
+	      (* 2 (spectrum-ndim spec-hsqc)))))
+

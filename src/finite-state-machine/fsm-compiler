@@ -1,0 +1,354 @@
+#!/bin/sh
+# -*-scheme-*-
+exec guile -s $0 $@
+!#
+
+(use-modules (ice-9 rdelim)
+	     (ice-9 regex)
+	     (srfi srfi-1))
+
+(define infile (open-input-file (cadr (command-line))))
+
+; ----- utilities ------
+
+(define (true? x) x)
+
+(define (all-but-last elts)
+  (reverse
+   (cdr (reverse elts))))
+
+(define (remove-duplicates elts)
+  (let loop ((result '())
+	     (rest elts))
+    (if (null? rest)
+	(reverse result)
+	(let ((next (car rest)))
+	  (if (member next result)
+	      (loop result (cdr rest))
+	      (loop (cons next result)
+		    (cdr rest)))))))
+
+; returns: items with 'query' excised, or #f
+(define (all-but query items)
+  (let loop ((result '())
+	     (remaining items))
+    (cond ((null? remaining) #f)
+	  ((equal? query (car remaining))
+	   (append result (cdr remaining)))
+	  (else (loop (append result (list (car remaining)))
+		      (cdr remaining))))))
+
+
+(define (all-but-multiple queries items)
+  (if (null? queries)
+      items
+      (let ((cur (all-but (car queries) items)))
+	(and cur
+	     (all-but-multiple (cdr queries) cur)))))
+
+(define (symbol-canonicalize sym)
+  (string-upcase!
+   (list->string
+    (map (lambda(c)
+	   (if (or (char-alphabetic? c)
+		   (char-numeric? c))
+	       c
+	       #\_))
+	 (string->list (symbol->string sym))))))
+
+
+(define (parse-delimited-list delimiter)
+  (let ((rx (string-append "([^ ]+)" delimiter "(.*)")))
+    (letrec ((parse
+	      (lambda (str)
+		(let ((m (string-match rx str)))
+		  (if m
+		      (cons (match:substring m 1)(parse (match:substring m 2)))
+		      (list str))))))
+      parse)))
+
+(define parse-comma-list (parse-delimited-list ", *"))
+(define parse-whitespace-list (parse-delimited-list " +"))
+(define parse-semicolon-list (parse-delimited-list "; *"))
+
+;; some regular expression patterns describing the specification format
+(define rx/rule "(.*)-->(.*)")
+(define rx/condition "([^ ]+) *[?] *(.*)")
+(define rx/comment "^#")
+
+(define (string->symbol/strip-ws str)
+  (let ((str:chomped (match:substring (string-match " *([^ ]*) *" str) 1)))
+    (if (equal? str:chomped "")
+	#f
+	(string->symbol str:chomped))))
+
+; an example rule:
+;
+; left-edge-search, lvl-increasing --> increase-level; left-edge-search, lvl-searching
+;
+
+(define (parse-line str)
+  (let* ((m1 (string-match rx/rule str))
+	 (states (parse-comma-list (match:substring m1 1)))
+	 (condition #f)
+	 (action-str (match:substring m1 2))
+	 (match-condition (string-match rx/condition action-str)))
+    (if match-condition
+	(begin (set! condition (string->symbol (match:substring match-condition 1)))
+	       (set! action-str (match:substring match-condition 2))))
+    (let* ((actions-and-target (parse-semicolon-list action-str))
+	   (target (filter true?
+			   (map string->symbol/strip-ws (parse-comma-list (last actions-and-target)))))
+	   (actions (filter true? (map string->symbol/strip-ws (all-but-last actions-and-target))))
+	   (states (map string->symbol/strip-ws states)))
+      (if (equal? states '(end))
+	  (set! actions (append actions '(fsm-goto-end))))
+      (list states
+	    condition
+	    actions
+	    target))))
+
+(define rule:states car)
+(define rule:condition cadr)
+(define rule:actions caddr)
+(define rule:target cadddr)
+
+(define (print-rule rule)
+  (write-line "-------")  
+  (write-line (rule:states rule))
+  (write-line (rule:condition rule))
+  (for-each write-line (rule:actions rule)))
+
+(define (print-rule-xform rule)
+  (display (rule:states rule))
+  (display " --> ")
+  (display (rule:target rule))
+  (newline))
+
+(define (read-until-%% port)
+  (let ((str (read-line port)))
+    (if (or (eof-object? str)
+	    (string-match "^%%" str))
+	'()
+	(cons str (read-until-%% port)))))
+
+;
+; input phase-- gather header, footer, and rules
+;
+(define header (read-until-%% infile))
+(define middle (read-until-%% infile))
+(define footer (read-until-%% infile))
+
+(define (is-a-rule? str)
+  (and (string-match rx/rule str)
+       (not (string-match rx/comment str))))
+
+(define rules (map parse-line (filter is-a-rule? middle)))
+
+(define all-conditions
+  (remove-duplicates (filter true? (map rule:condition rules))))
+
+(define state-match? all-but-multiple)
+(define (state-match-exactly? state1 state2)
+  (let ((rejects (state-match? state1 state2)))
+    (and rejects (null? rejects))))
+
+(define (contains-state? states state)
+  (cond ((null? states) #f)
+	((state-match-exactly? (car states) state) #t)
+	(else (contains-state? (cdr states) state))))
+
+; return 'state', but with duplicate symbols removed
+(define (state-tidy state)
+  (let loop ((result '())
+	     (remaining state))
+    (cond ((null? remaining)
+	   (reverse result))
+	  ((member (car remaining) result)
+	   (loop result (cdr remaining)))
+	  (else (loop (cons (car remaining) result)
+		      (cdr remaining))))))
+
+(define (trace-state-through-all-rules state)
+  (filter true?
+	  (map
+	   (lambda (rule)
+	     (let ((match (state-match? (rule:states rule) state)))
+	       (if match
+		   (append match (rule:target rule))
+		   #f)))
+	   rules)))
+
+;
+; Auditing --
+; make sure all states have a path to the 'end' state
+;
+
+;
+; state-chain is a list of states ordered from last-reached to first-reached
+; prepend the next-reachable state to 'state chain'
+; return a list of new chains, one for each reachable state, excluding
+; chains with cycles
+;
+(define (extend-state-chain state-chain)
+  (let* ((states-1 (trace-state-through-all-rules (car state-chain)))
+	 (states-2 (filter (lambda (st)(not (state-match? st state-chain))) states-1))
+	 (new-chains (map (lambda (st)(cons st state-chain)) states-2)))
+    (for-each (lambda (chain)(if (equal? (car chain) '(end))(throw 'at-end chain))) new-chains)
+    new-chains))
+
+(define (extend-chains chains)
+  (apply append (map extend-state-chain chains)))
+
+(define (extend-chains-recursive chains)
+  (if (null? chains)
+      #f
+      (extend-chains-recursive (extend-chains chains))))
+
+(define (state-reach-end? state)
+  (catch 'at-end
+	 (lambda()(extend-chains-recursive (list (list state))))
+	 (lambda (key chain)
+	   chain)))
+
+(define (terminate-or-cycle start state)
+  'fixme)
+
+(define (enumerate-all-states max-iterations)
+  (let loop ((iterations max-iterations)
+	     (states '((start))))
+    (if (= iterations 0)
+	(reverse states)
+	(let ((candidates (map state-tidy (apply append (map trace-state-through-all-rules states)))))
+	  (let inner ((n-accepted 0)
+		      (states states)
+		      (candidates candidates))
+	    (if (null? candidates)
+		(if (= n-accepted 0)
+		    (reverse states)
+		    (loop (- iterations 1) states))
+		(if (contains-state? states (car candidates))
+		    (inner n-accepted states (cdr candidates))
+		    (inner (+ n-accepted 1)
+			   (cons (car candidates) states)
+			   (cdr candidates)))))))))
+
+
+;
+; Construct alist of unique key : state
+;
+(define states
+  (let loop ((rest (enumerate-all-states -1))
+	     (n 1)
+	     (result '()))
+    (if (null? rest)
+	(reverse result)
+	(loop (cdr rest)
+	      (+ n 1)
+	      (cons (cons n (car rest))
+		    result)))))
+
+;; return alist entry of the unique index of 'state' and 'state';
+;; state is a list of symbols order is not important.
+(define (state->idx state)
+  (find (lambda (candidate)
+	  (state-match-exactly? (cdr candidate) state)) states))
+
+; return a list of the results of applying all applicable rules to 'state'
+(define (state->targets state)
+  (let loop ((rules rules)
+	     (result '()))
+    (if (null? rules)
+	(reverse result)
+	(let* ((rule (car rules))
+	       (match (state-match? (rule:states rule) state)))
+	  (if match
+	      (let ((this-match (list (state->idx (append match (rule:target rule)))
+				      (rule:condition rule)
+				      (rule:actions rule))))
+		(loop (cdr rules)
+		      (cons this-match result)))
+	      (loop (cdr rules)
+		    result))))))
+
+(define target:state car)
+(define target:condition cadr)
+(define target:actions caddr)
+
+(define (state:label state)
+  (format #f "S~a" (car state)))
+(define state:symbols cdr)
+
+(define (display-all . args)
+  (for-each display args))
+(define (display-line . args)
+  (for-each display args)
+  (newline))
+(define (state->symbol-string state)
+  (with-output-to-string
+    (lambda()
+      (display "\"")
+      (let ((symbols (state:symbols state)))
+	(let loop ((next (car symbols))
+		   (rest (cdr symbols)))
+	  (display next)
+	  (if (not (null? rest))
+	      (begin (display " ")
+		     (loop (car rest)
+			   (cdr rest))))))
+      (display "\""))))
+
+(define (render:c state)
+  (display-line (state:label state) ":")
+  (display-line "fsm_current_state = " (state->symbol-string state) ";")
+  (display-line "#ifdef FSM_VERBOSE")
+  (display-line "printf(\"%s\\n\", fsm_current_state);")
+  (display-line "#endif")
+  (for-each
+   (lambda (target)
+     (if (target:condition target)
+	 (format #t "if (~a) " (symbol-canonicalize (target:condition target))))
+     (display "{")
+     (for-each
+      (lambda (act)
+	(display (symbol-canonicalize act))
+	(display ";"))
+      (target:actions target))
+     (format #t " goto ~a; /* ~a */" (state:label (target:state target))(state:symbols (target:state target)))
+     (display "}\n"))
+   (state->targets (state:symbols state)))
+  (if (equal? (state:symbols state) '(end))
+      (display-line "goto FSM_END;"))
+  (display-line "goto S_TRAPPED;")
+  (newline))
+
+;
+; ------- output phase --------
+;
+
+(write-line "/* This file is generated by fsm-compiler; do not edit */")
+(for-each write-line header)
+(display
+"
+static char* fsm_current_state;
+")
+(for-each render:c states)
+(display
+"
+S_TRAPPED:
+#ifndef FSM_TRAPPED
+   fprintf(stderr, \"fsm: trapped in state \\\"%s\\\"\\n\", fsm_current_state);
+   exit(1);
+#else
+FSM_TRAPPED
+#endif
+
+FSM_END:
+
+"
+)
+(for-each write-line footer)
+
+
+
+
