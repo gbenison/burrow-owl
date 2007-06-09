@@ -62,7 +62,9 @@ painter_gdk.c  \
 painter_gdk.h  \
 painter.h  \
 ticket.c  \
-ticket.h
+ticket.h \
+endian.c \
+endian.h
 
 libgw_guile_spectrum_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ @GUILE_LDFLAGS@ -module
 libgw_guile_spectrum_la_DEPENDENCIES=gw/spectrum-gw.lo

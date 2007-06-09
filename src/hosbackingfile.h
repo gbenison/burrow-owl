@@ -48,6 +48,8 @@ struct _HosBackingFile
   gchar *fname;
   FileBuf *channel;
   
+  int needs_swap;
+  
   gsize hdr_size;
 
 };
