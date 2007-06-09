@@ -32,9 +32,10 @@
  * available.  In this file it is needed for proper round() behavior
  * (at least).
  */
+/* GCB 9jun07 GNU_SOURCE seems to be causing problems */
 #define _GNU_SOURCE
 
-#include <stdlib.h>
+/* #include <stdlib.h> */
 #include <assert.h>
 #include <string.h>
 #include <math.h>

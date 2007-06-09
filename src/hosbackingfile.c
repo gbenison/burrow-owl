@@ -103,6 +103,9 @@ backing_file_peek(HosBacking* self)
   verify_filebuf(backing_file);
   filebuf_peek(backing_file->channel, &result, sizeof(specdata_t));
 
+  if (backing_file->needs_swap)
+    endian_swap4(&result, 1);
+
   return result;
 }
 
@@ -142,6 +145,7 @@ backing_file_copy(HosBacking *src, HosBacking *dest)
   HOS_BACKING_FILE(dest)->channel = NULL;
 #define COPY_THE(x) (HOS_BACKING_FILE(dest)->x) = (HOS_BACKING_FILE(src)->x)
   COPY_THE(hdr_size);
+  COPY_THE(needs_swap);
 #undef COPY_THE
 
 }

@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <assert.h>
 #include "hosspectrum.h"
 #include "hosdimension.h"
 #include "hosdimensionblock.h"
