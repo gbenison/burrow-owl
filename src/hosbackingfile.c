@@ -38,7 +38,7 @@ static void backing_file_reset(HosBacking* self);
 static void
 hos_backing_file_init(HosBackingFile *self)
 {
-  /* nutin' */
+  self->needs_swap = 0;
 }
 
 static void

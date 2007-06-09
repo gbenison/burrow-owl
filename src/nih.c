@@ -23,6 +23,7 @@
 #include "hosdimensionblock.h"
 #include "hosbackingblock.h"
 #include "hosbackingfile.h"
+#include "endian.h"
 
 /*  --- header contents ----
  *
@@ -98,6 +99,7 @@ spectrum_nih_from_file(gchar* fname)
     if (channel == NULL)
       return NULL;
     fread(hdr, sizeof(float), NIH_HDR_SIZE, channel);
+
     fclose(channel);
   }
 
@@ -106,6 +108,17 @@ spectrum_nih_from_file(gchar* fname)
   backing_file->fname = g_strdup(fname);
   backing_file->hdr_size = NIH_HDR_SIZE * sizeof(float);
   backing = HOS_BACKING(backing_file);
+
+  /* checks for endian-ness based on sanity of header values */
+  if ((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1))
+    {
+      endian_swap4(hdr, NIH_HDR_SIZE);
+      backing_file->needs_swap = 1;
+    }
+
+  /* sanity checks after byte swapping */
+  assert(!((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1)));
+  assert(!((hdr[AWOL_NP_X] > 1e6) || (hdr[AWOL_NP_X] < 1)));
 
   /* set up dimensions */
 
@@ -212,7 +225,8 @@ spectrum_nih_unfold(HosSpectrum *self,
 		    guint upfield,
 		    gboolean negate_on_fold)
 {
-  HosDimensionBlock *dimen = (HosDimensionBlock*)g_list_nth_data((GList*)g_list_nth_data(self->dimensions, dim), 0);
+  HosDimensionBlock *dimen =
+    (HosDimensionBlock*)g_list_nth_data((GList*)g_list_nth_data(self->dimensions, dim), 0);
     dimension_block_unfold(dimen, downfield, upfield, negate_on_fold);
 }
 
