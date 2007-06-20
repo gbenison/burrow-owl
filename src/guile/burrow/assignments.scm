@@ -1,6 +1,11 @@
 
 (define-module (burrow assignments)
   #:export (file->list
+	    residue:name
+	    residue:shift
+	    residue:set-shift!
+	    residue->alist
+	    residues->alist
 	    assignment-alist->hash
 	    assignment:name
 	    assignment:shift
@@ -22,8 +27,8 @@
     (read-item)))
 
 (define (assoc-ref alist key)
-  (let ((tmp (assoc key alist)))
-    (and tmp (cdr tmp))))
+  (false-if-exception
+   (cdr (assoc key alist))))
 
 (define (key->getter key)
   (lambda (asg)
@@ -58,3 +63,26 @@
      my-alist)
     residues))
 
+;
+; A 'residue' is defined as
+; a residue name and
+; a dictionary mapping atom names
+; to assignments.
+;
+
+(define (residue->alist residue)
+  (map cdr (hash-fold acons '()(cdr residue))))
+
+(define (residues->alist residues)
+  (apply append
+	 (map residue->alist residues)))
+
+(define (residue:shift res name)
+  (assoc-ref (hash-ref (cdr res) name) 'Atom_chem_shift.Val))
+
+(define (residue:set-shift! res name value)
+  (let ((assignment
+	 (assoc 'Atom_chem_shift.Val (hash-ref (cdr res) name))))
+    (set-cdr! assignment value)))
+
+(define residue:name car)
