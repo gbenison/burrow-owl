@@ -25,6 +25,10 @@
   (let ((tmp (assoc key alist)))
     (and tmp (cdr tmp))))
 
+(define (key->getter key)
+  (lambda (asg)
+    (assoc-ref asg key)))
+
 (define assignment:name car)
 (define (assignment:shift asg atom)
   (let ((assigns (assoc-ref (cdr asg) 'assignments)))
