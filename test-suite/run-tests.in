@@ -10,7 +10,7 @@
 # ./check-guile -i /usr/local/bin/guile numbers.test
 
 export TEST_SUITE_DIR=@top_srcdir@/test-suite;
-export EXAMPLE_DIR=@top_srcdir@/doc/demonstration/data;
+export EXAMPLE_DIR=@top_srcdir@/test-suite/data;
 
 ## search from top source directory
 GUILE_LOAD_PATH=@top_srcdir@:$GUILE_LOAD_PATH;
