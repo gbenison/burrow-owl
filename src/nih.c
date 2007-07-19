@@ -59,11 +59,66 @@
 #define AWOL_REALFLAG_Y 55
 #define AWOL_REALFLAG_Z 51
 
+/*
+ * Transposition flags
+ * 2 == X
+ * 1 == Y
+ * 3 == Z
+ */
+#define AWOL_TRANSPOSE_X 24
+#define AWOL_TRANSPOSE_Y 25
+#define AWOL_TRANSPOSE_Z 26
+
 #define IS_COMPLEX_X(_h)((_h)[AWOL_REALFLAG_X] != 1.0)
 #define IS_COMPLEX_Y(_h)((_h)[AWOL_REALFLAG_Y] != 1.0)
 #define IS_COMPLEX_Z(_h)((_h)[AWOL_REALFLAG_Z] != 1.0)
 
 /****** end header contents ******/
+
+/*
+ * fill 'result' with a permutation that transforms 'A' into 'B'.
+ */
+static void
+find_permutation(int A[3], int B[3], int result[3])
+{
+
+  result[0] = -1;
+  result[1] = -1;
+  result[2] = -1;
+
+  int i, j;
+  for (i = 0; i < 3; ++i)
+    for (j = 0; j < 3; ++j)
+      if(B[i] == A[j])
+	result[i] = j;
+
+  assert((result[0] > -1) && (result[0] < 3));
+  assert((result[1] > -1) && (result[1] < 3));
+  assert((result[2] > -1) && (result[2] < 3));
+
+}
+
+/*
+ * re-order 'array' according to 'permutation'
+ */
+static void
+permute(float array[3], int permutation[3])
+{
+  float buffer[3];
+
+  buffer[0] = array[0];
+  buffer[1] = array[1];
+  buffer[2] = array[2];
+
+  int i;
+  
+  for (i = 0; i < 3; ++i)
+    {
+      assert(permutation[i] > -1);
+      assert(permutation[i] < 3);
+      array[i] = buffer[permutation[i]];
+    }
+}
 
 /*
  * Construct a list of one member.
@@ -121,6 +176,41 @@ spectrum_nih_from_file(gchar* fname)
   assert(!((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1)));
   assert(!((hdr[AWOL_NP_X] > 1e6) || (hdr[AWOL_NP_X] < 1)));
 
+  /*
+   * check dimension transposition order 
+   */
+  int transpose_flags[3] = {
+    (int)hdr[AWOL_TRANSPOSE_X],
+    (int)hdr[AWOL_TRANSPOSE_Y],
+    (int)hdr[AWOL_TRANSPOSE_Z]
+  };
+
+  static const int transpose_native[3] = {2, 1, 3};
+  int permutation[3];
+  find_permutation(transpose_native, transpose_flags, permutation);
+
+  float sf[3] = {
+    hdr[AWOL_SF_X],
+    hdr[AWOL_SF_Y],
+    hdr[AWOL_SF_Z]
+  };
+
+  float sw[3] = {
+    hdr[AWOL_SW_X],
+    hdr[AWOL_SW_Y],
+    hdr[AWOL_SW_Z]
+  };
+
+  float orig[3] = {
+    hdr[AWOL_ORIG_X],
+    hdr[AWOL_ORIG_Y],
+    hdr[AWOL_ORIG_Z]
+  };
+
+  permute(sf, permutation);
+  permute(sw, permutation);
+  permute(orig, permutation);
+
   /* set up dimensions */
 
   /* X */
@@ -130,10 +220,10 @@ spectrum_nih_from_file(gchar* fname)
   dimen->backing = backing;
   dimen_block->schedule = NULL;
   dimen_block->np_physical = hdr[AWOL_NP_X];
-  dimen_block->sw_physical = hdr[AWOL_SW_X];
-  dimen->sw = hdr[AWOL_SW_X];
-  dimen->sf = hdr[AWOL_SF_X];
-  dimen->orig = hdr[AWOL_ORIG_X] + hdr[AWOL_SW_X];
+  dimen_block->sw_physical = sw[0];
+  dimen->sw = dimen_block->sw_physical;
+  dimen->sf = sf[0];
+  dimen->orig = orig[0] + dimen->sw;
   dimen->np = dimen_block->np_physical;
   /* FIXME-- make sure orig corresponds to point 0 */
   dimen->orig -= dimen->sw / dimen->np;
@@ -156,10 +246,10 @@ spectrum_nih_from_file(gchar* fname)
   dimen_block->schedule = NULL;
   dimen_block->np_physical =
     (IS_COMPLEX_X(hdr) && IS_COMPLEX_Y(hdr)) ? hdr[AWOL_NP_Y] / 2 : hdr[AWOL_NP_Y];
-  dimen->sw = hdr[AWOL_SW_Y];
-  dimen_block->sw_physical = hdr[AWOL_SW_Y];
-  dimen->sf = hdr[AWOL_SF_Y];
-  dimen->orig = hdr[AWOL_ORIG_Y] + hdr[AWOL_SW_Y];
+  dimen_block->sw_physical = sw[1];
+  dimen->sw = dimen_block->sw_physical;
+  dimen->sf = sf[1];
+  dimen->orig = orig[1] + dimen->sw;
   dimen->np = dimen_block->np_physical;
   /* FIXME-- make sure orig corresponds to point 0 */
   dimen->orig -= dimen->sw / dimen->np;
@@ -182,10 +272,11 @@ spectrum_nih_from_file(gchar* fname)
   dimen_block->schedule = NULL;
   dimen_block->np_physical =
     IS_COMPLEX_Z(hdr) ? hdr[AWOL_NP_Z] / 2 : hdr[AWOL_NP_Z];
-  dimen->sw = hdr[AWOL_SW_Z];
-  dimen_block->sw_physical = hdr[AWOL_SW_Z];
-  dimen->sf = hdr[AWOL_SF_Z];
-  dimen->orig = hdr[AWOL_ORIG_Z] + hdr[AWOL_SW_Z];
+
+  dimen_block->sw_physical = sw[2];
+  dimen->sw = dimen_block->sw_physical;
+  dimen->sf = sf[2];
+  dimen->orig = orig[2] + dimen->sw;
   dimen->np = dimen_block->np_physical;
   /* FIXME-- make sure orig corresponds to point 0 */
   dimen->orig -= dimen->sw / dimen->np;
