@@ -3,7 +3,7 @@
 #define _HAVE_NIH_H
 
 #include "hosspectrum.h"
-#include "common.h"
+#include "burrow.h"
 
 /*
  * The NIH spectrum type--

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006 Greg Benison
+ *  Copyright (C) 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,69 +17,26 @@
  *
  */
 
-#ifndef _HOS_HAVE_SPECTRUM_H
-#define _HOS_HAVE_SPECTRUM_H
+#ifndef _HAVE_BURROW_H
+#define _HAVE_BURROW_H
 
-/*
+/* public C api for burrow-owl */
+
 #include <glib.h>
 #include <glib-object.h>
-*/
 
-#include "hosdimension.h"
-#include "burrow.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+/* 
+ * The 'CONSTRUCTOR' tag is inserted into function prototypes
+ * so that h2def.py will mark them as constructors and allow
+ * the caller to own the reference to the return value.
+ * The CONSTRUCTOR tag has no influence on C compilation.
+ */
+#define CONSTRUCTOR
 
-#define HOS_TYPE_SPECTRUM              (hos_spectrum_get_type())
-#define HOS_SPECTRUM(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_SPECTRUM, HosSpectrum))
-#define HOS_SPECTRUM_CLASS(klass)      (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_SPECTRUM, HosSpectrumClass))
-#define HOS_IS_SPECTRUM(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_SPECTRUM))
-#define HOS_IS_SPECTRUM_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_SPECTRUM))
-#define HOS_SPECTRUM_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_SPECTRUM, HosSpectrumClass))
-
-  /*					
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
-  */
 
-/* spectrum status */
-enum
-{
-  NO_STATUS = 0,
-  LATENT,
-  TRAVERSING,
-  COMPLETE
-};
-
-struct _HosSpectrum
-{
-
-  GObject parent_instance;
-
-  gdouble *buf;
-
-  gboolean negated;
-  guint status;
-  gboolean *alive;
-
-  GList *projections;
-  GList *dimensions;
-
-  GMutex *traverse_lock;
-  GMutex *status_lock;
-
-};
-
-struct _HosSpectrumClass
-{
-  GObjectClass parent_class;
-  void(*ready)(HosSpectrum *spec);
-};
-
-/*
 gsize spectrum_np(HosSpectrum* spec, guint dim);
 gsize spectrum_ndim(HosSpectrum* spec);
 gdouble spectrum_sw(HosSpectrum* spec, guint dim);
@@ -116,16 +73,8 @@ gdouble* spectrum_traverse(HosSpectrum *spec);
 gdouble* spectrum_traverse_blocking(HosSpectrum *spec);
 
 GType hos_spectrum_get_type (void);
-*/
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 
-#endif /* not  _HOS_HAVE_SPECTRUM_H  */
-
-
-
+#endif /* not  _HAVE_BURROW_H  */
 
 

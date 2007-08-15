@@ -20,7 +20,7 @@ boomerang.c  \
 boomerang.h  \
 box.c  \
 box.h  \
-common.h  \
+burrow.h  \
 contour.c  \
 contour.h  \
 cursor.c  \
