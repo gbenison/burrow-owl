@@ -3,6 +3,12 @@ EXTRA_DIST=
 CLEANFILES=
 headers_dir=@top_srcdir@/src
 
+lib_LTLIBRARIES=libgw-guile-spectrum.la
+
+libgw_guile_spectrum_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ @GUILE_LDFLAGS@ -module
+libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
+libgw_guile_spectrum_la_LIBADD=../libburrow.la
+
 HEADERS_1= \
 $(headers_dir)/hosspectrum.h \
 $(headers_dir)/nih.h \
