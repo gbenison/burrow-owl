@@ -41,6 +41,7 @@
 #include <math.h>
 #include <glib.h>
 #include <burrow/spectrum.h>
+#include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "ticket.h"
 #include "hosbackingcache.h"

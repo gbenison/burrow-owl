@@ -22,7 +22,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include "hosdimension.h"
 
 /* peace in our time */
 #ifdef __cplusplus

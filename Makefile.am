@@ -19,6 +19,9 @@ install-data-hook:
 uninstall-hook:
 	rm -rf $(scriptdir)/*
 
+pkgconfigdir=$(libdir)/pkgconfig
+pkgconfig_DATA=burrow.pc
+
 EXTRA_DIST=scripts suppress_guile.vg THANKS burrow-owl.mp3
 
 dist-hook:
