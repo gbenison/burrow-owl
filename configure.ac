@@ -115,6 +115,7 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset pow sqrt])
 
 AC_CONFIG_FILES([Makefile
+                 burrow.pc
                  doc/Makefile
                  src/Makefile
                  src/burrow

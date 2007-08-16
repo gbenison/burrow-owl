@@ -28,7 +28,7 @@
 #include <math.h>
 #include "marshal.h"
 #include "cursor.h"
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 #define CLICK_RADIUS 5
 

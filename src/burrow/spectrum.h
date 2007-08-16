@@ -22,8 +22,6 @@
 
 #include <glib.h>
 #include <glib-object.h>
-#include "hosdimension.h"
-#include "common.h"
 
 /* peace in our time */
 #ifdef __cplusplus
@@ -74,6 +72,13 @@ struct _HosSpectrumClass
   void(*ready)(HosSpectrum *spec);
 };
 
+/* 
+ * The 'CONSTRUCTOR' tag is inserted into function prototypes
+ * so that h2def.py will mark them as constructors and allow
+ * the caller to own the reference to the return value.
+ * The CONSTRUCTOR tag has no influence on C compilation.
+ */
+#define CONSTRUCTOR  /* empty */
 
 gsize spectrum_np(HosSpectrum* spec, guint dim);
 gsize spectrum_ndim(HosSpectrum* spec);

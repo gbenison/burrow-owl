@@ -40,8 +40,8 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-#include "hosspectrum.h"
-/* #include "hosdimension.h"  -- put in hosspectrum.h to get rounding conversions */
+#include <burrow/spectrum.h>
+#include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "ticket.h"
 #include "hosbackingcache.h"

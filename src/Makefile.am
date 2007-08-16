@@ -1,10 +1,10 @@
 
 EXTRA_DIST=
 INCLUDES=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=gw finite-state-machine
+SUBDIRS=finite-state-machine . gw 
 CLEANFILES=
 
-lib_LTLIBRARIES=libgw-guile-spectrum.la
+lib_LTLIBRARIES=libburrow.la
 bin_SCRIPTS=burrow
 
 CLEANFILES += $(bin_SCRIPTS)
@@ -13,14 +13,18 @@ nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
-libgw_guile_spectrum_la_SOURCES=\
+burrowincludedir=$(includedir)/burrow
+burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
+include_HEADERS=burrow.h
+
+libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
 boomerang.c  \
 boomerang.h  \
 box.c  \
 box.h  \
-common.h  \
+burrow.h  \
 contour.c  \
 contour.h  \
 cursor.c  \
@@ -46,13 +50,13 @@ hosdimension.h  \
 hosdimensionsim.c  \
 hosdimensionsim.h  \
 hosspectrum.c  \
-hosspectrum.h  \
+burrow/spectrum.h  \
 marker.c  \
 marker.h  \
 marker_text.c  \
 marker_text.h  \
 nih.c  \
-nih.h  \
+burrow/nih.h  \
 ornament.c  \
 ornament.h  \
 painter_bwps.c  \
@@ -66,9 +70,8 @@ ticket.h \
 endian.c \
 endian.h
 
-libgw_guile_spectrum_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ @GUILE_LDFLAGS@ -module
-libgw_guile_spectrum_la_DEPENDENCIES=gw/spectrum-gw.lo
-libgw_guile_spectrum_la_LIBADD=gw/spectrum-gw.lo finite-state-machine/contour-fsm.lo
+libburrow_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -module
+libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd
 	glib-genmarshal --header @srcdir@/marshal.cmd > $@

@@ -28,7 +28,7 @@
 #include <assert.h>
 #include "marshal.h"
 #include "marker_text.h"
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 enum {
   PROP_0,

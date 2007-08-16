@@ -21,7 +21,7 @@
 #define _HAVE_PAINTER_H
 
 #include <glib-object.h>
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 #include "finite-state-machine/contour-fsm.h"
 #include "contour.h"
 

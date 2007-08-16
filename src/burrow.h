@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,16 +17,14 @@
  *
  */
 
+#ifndef _HAVE_BURROW_H
+#define _HAVE_BURROW_H
 
-#ifndef HAVE_COMMON_H
-#define HAVE_COMMON_H
+/* public C api for burrow-owl */
 
-/* 
- * The 'CONSTRUCTOR' tag is inserted into function prototypes
- * so that h2def.py will mark them as constructors and allow
- * the caller to own the reference to the return value.
- * The CONSTRUCTOR tag has no influence on C compilation.
- */
-#define CONSTRUCTOR
+#include <burrow/spectrum.h>
+#include <burrow/nih.h>
 
-#endif /* not HAVE_COMMON_H */
+#endif /* not  _HAVE_BURROW_H  */
+
+

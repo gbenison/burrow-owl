@@ -21,7 +21,7 @@
 #define _HOS_HAVE_CANVAS_H
 
 #include <gtk/gtk.h>
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 #include "painter_gdk.h"
 
 typedef struct _HosCanvas      HosCanvas;
