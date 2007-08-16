@@ -13,6 +13,10 @@ nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
+burrowincludedir=$(includedir)/burrow
+burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
+include_HEADERS=burrow.h
+
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
@@ -46,13 +50,13 @@ hosdimension.h  \
 hosdimensionsim.c  \
 hosdimensionsim.h  \
 hosspectrum.c  \
-hosspectrum.h  \
+burrow/spectrum.h  \
 marker.c  \
 marker.h  \
 marker_text.c  \
 marker_text.h  \
 nih.c  \
-nih.h  \
+burrow/nih.h  \
 ornament.c  \
 ornament.h  \
 painter_bwps.c  \

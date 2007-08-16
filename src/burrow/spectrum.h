@@ -20,13 +20,9 @@
 #ifndef _HOS_HAVE_SPECTRUM_H
 #define _HOS_HAVE_SPECTRUM_H
 
-/*
 #include <glib.h>
 #include <glib-object.h>
-*/
-
 #include "hosdimension.h"
-#include "burrow.h"
 
 /* peace in our time */
 #ifdef __cplusplus
@@ -39,11 +35,9 @@ extern "C" {
 #define HOS_IS_SPECTRUM(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_SPECTRUM))
 #define HOS_IS_SPECTRUM_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_SPECTRUM))
 #define HOS_SPECTRUM_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_SPECTRUM, HosSpectrumClass))
-
-  /*					
+					
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
-  */
 
 /* spectrum status */
 enum
@@ -79,7 +73,14 @@ struct _HosSpectrumClass
   void(*ready)(HosSpectrum *spec);
 };
 
-/*
+/* 
+ * The 'CONSTRUCTOR' tag is inserted into function prototypes
+ * so that h2def.py will mark them as constructors and allow
+ * the caller to own the reference to the return value.
+ * The CONSTRUCTOR tag has no influence on C compilation.
+ */
+#define CONSTRUCTOR  /* empty */
+
 gsize spectrum_np(HosSpectrum* spec, guint dim);
 gsize spectrum_ndim(HosSpectrum* spec);
 gdouble spectrum_sw(HosSpectrum* spec, guint dim);
@@ -91,7 +92,6 @@ gdouble spectrum_orig_ppm(HosSpectrum* spec, guint dim);
 gdouble spectrum_giro_ppm(HosSpectrum* spec, guint dim);
 gdouble spectrum_ppm2pt(HosSpectrum* spec, guint dim, gdouble ppm);
 gdouble spectrum_pt2ppm(HosSpectrum* spec, guint dim, gdouble pt);
-
 
 HosSpectrum* CONSTRUCTOR spectrum_project(HosSpectrum* self);
 HosSpectrum* CONSTRUCTOR spectrum_project_pt(HosSpectrum* self, guint pt);
@@ -116,7 +116,7 @@ gdouble* spectrum_traverse(HosSpectrum *spec);
 gdouble* spectrum_traverse_blocking(HosSpectrum *spec);
 
 GType hos_spectrum_get_type (void);
-*/
+
 
 #ifdef __cplusplus
 }

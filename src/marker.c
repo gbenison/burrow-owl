@@ -28,7 +28,7 @@
 #include <assert.h>
 #include "marshal.h"
 #include "marker.h"
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 /* #define _VERBOSE 1 */
 

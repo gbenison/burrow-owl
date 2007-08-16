@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include "hosspectrum.h"
+#include <burrow/nih.h>
 #include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "hosbackingblock.h"
@@ -79,7 +79,7 @@
  * fill 'result' with a permutation that transforms 'A' into 'B'.
  */
 static void
-find_permutation(int A[3], int B[3], int result[3])
+find_permutation(const int A[3], const int B[3], int result[3])
 {
 
   result[0] = -1;

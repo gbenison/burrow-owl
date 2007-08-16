@@ -28,7 +28,7 @@
 #include <glib-object.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 typedef struct _HosOrnament       HosOrnament;
 typedef struct _HosOrnamentClass  HosOrnamentClass;

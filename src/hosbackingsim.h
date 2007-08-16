@@ -22,7 +22,7 @@
 
 #include "hosbacking.h"
 #include "hosdimensionsim.h"
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 /* peace in our time */
 #ifdef __cplusplus
