@@ -5,9 +5,9 @@ headers_dir=@top_srcdir@/src
 
 lib_LTLIBRARIES=libgw-guile-spectrum.la
 
-libgw_guile_spectrum_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ @GUILE_LDFLAGS@ -module
+libgw_guile_spectrum_la_LDFLAGS=-L.. -lburrow @GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
+                                @GUILE_LDFLAGS@ -module
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
-libgw_guile_spectrum_la_LIBADD=../libburrow.la
 
 HEADERS_1= \
 $(headers_dir)/burrow/spectrum.h \
@@ -44,11 +44,6 @@ spectrum-gw.c spectrum-gw.h: hosspectrum.defs
 	GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$(GUILE_PATH_GWRAP):$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
 INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
-
-## this library is built for the sole purpose of ensuring
-## that spectrum-gw.lo gets built.
-noinst_LTLIBRARIES=libspec-temp.la
-libspec_temp_la_SOURCES=spectrum-gw.c
 
 BUILT_SOURCES=spectrum-gw.c spectrum-gw.h hosspectrum.defs
 
