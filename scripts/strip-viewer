@@ -1,6 +1,7 @@
 ; -*-scheme-*-
 
-(use-modules (gnome gtk)
+(use-modules (oop goops)
+             (gnome gtk)
 	     (spectrum)
 	     (spec-extra)
 	     (ice-9 format))

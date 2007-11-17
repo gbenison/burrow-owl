@@ -4,6 +4,7 @@
 ; with synchronized cursors
 
 (use-modules (ice-9 format)
+             (oop goops)
 	     (gnome gtk)
 	     (spectrum)
 	     (spec-extra)

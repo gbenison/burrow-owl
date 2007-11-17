@@ -3,7 +3,8 @@
 ; Create a basic view of a spectrum.
 ; report chemical shifts when clicked.
 
-(use-modules (gnome gtk)
+(use-modules (oop goops)
+             (gnome gtk)
              (spectrum)
 	     (spec-extra))
 
