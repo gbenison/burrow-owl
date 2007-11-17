@@ -16,7 +16,7 @@ export EXAMPLE_DIR=@top_srcdir@/test-suite/data;
 GUILE_LOAD_PATH=@top_srcdir@:$GUILE_LOAD_PATH;
 
 ## search for uninstalled spectrum modules
-GUILE_LOAD_PATH=@top_srcdir@/src/guile:$GUILE_LOAD_PATH;
+GUILE_LOAD_PATH=@top_srcdir@/src/guile:../src/gw:$GUILE_LOAD_PATH;
 
 ## search for installed guile-gnome modules
 GUILE_LOAD_PATH=@guile_gnome_prefix@/share:@guile_gnome_prefix@/share/guile-gnome-0:$GUILE_LOAD_PATH;
