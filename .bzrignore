@@ -17,3 +17,4 @@ contour-fsm.h
 autom4te.cache
 build
 log
+build-test
