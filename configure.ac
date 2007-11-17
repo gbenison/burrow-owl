@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(burrow, 1.2, [gbenison@gmail.com])
+AC_INIT(burrow, 1.3, [gbenison@gmail.com])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
 AC_PREFIX_DEFAULT(${HOME}/AC_PACKAGE_NAME)
 # AC_CONFIG_HEADER([config.h])
@@ -30,41 +30,22 @@ PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
 
 AC_CONFIG_SUBDIRS(nmr-utils)
 
-PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-0,
+PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-0 >= 2.15,
 {
 	AC_MSG_RESULT([Using installed guile-gnome])
 	guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-0`;
-	bundle_guile_gnome=no;
 	GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-0;
-	BUNDLE_GUILE_GNOME_DIR="";
-},
-{
-	GUILE_GNOME_MODULE_DIR="";
-	if ! test -d ${srcdir}/guile-gnome; then
-	  AC_MSG_ERROR([[no installed guile-gnome found, and no bundled guile-gnome present]])
-	else
-  	  AC_MSG_RESULT([Using bundled guile-gnome])
-	  bundle_guile_gnome=yes;
-          BUNDLE_GUILE_GNOME_DIR=guile-gnome;	
-	  guile_gnome_dir='$(top_srcdir)/guile-gnome';
-	  guile_gnome_prefix='${prefix}';
-	  GUILE_GNOME_CFLAGS="-I${guile_gnome_dir}/glib -I${guile_gnome_dir}/glib/gnome/gobject";
-	  GUILE_GNOME_LIBS='$(top_builddir)/guile-gnome/gtk/gnome/gw/libgw-guile-gnome-gtk.la'
-	  AC_CONFIG_SUBDIRS(guile-gnome)
-	fi
 })
 
 AC_SUBST(guile_gnome_prefix)
 AC_SUBST(GUILE_GNOME_CFLAGS)
 AC_SUBST(GUILE_GNOME_LIBS)
-AC_SUBST(BUNDLE_GUILE_GNOME_DIR)
 AC_SUBST(GUILE_GNOME_MODULE_DIR)
 
 AM_INIT_AUTOMAKE
-AM_CONDITIONAL(BUNDLE_GUILE_GNOME, test x"$bundle_guile_gnome" = xyes)
 
 # Check for g-wrap
-PKG_CHECK_MODULES(G_WRAP, g-wrap-2.0-guile >= 1.9.4,
+PKG_CHECK_MODULES(G_WRAP, g-wrap-2.0-guile >= 1.9.8,
 {
   AC_MSG_RESULT([Using g-wrap installed in] `${PKG_CONFIG} --prefix g-wrap-2.0-guile`)
   AC_SUBST(G_WRAP_CFLAGS)
@@ -75,30 +56,7 @@ PKG_CHECK_MODULES(G_WRAP, g-wrap-2.0-guile >= 1.9.4,
   g_wrap_libs=`${PKG_CONFIG} --variable=libdir g-wrap-2.0-guile`;
   AC_SUBST(G_WRAP_LIB_DIR, $g_wrap_libs)
   AC_SUBST(G_WRAP_INSTALLED_LIB_DIR, $g_wrap_libs)
-  bundle_g_wrap=no;
-},
-{
-
-   g_wrap_dir='$(top_srcdir)/guile-gnome/g-wrap';
-   g_wrap_builddir='$(top_builddir)/guile-gnome/g-wrap';
-
-   if ! test -d ${srcdir}/guile-gnome/g-wrap; then
-     AC_MSG_ERROR([[no installed g-wrap found, and bundled g-wrap not present]])
-   else
-
-     AC_MSG_RESULT([Using bundled g-wrap])
-     AC_SUBST(G_WRAP_MODULE_DIR, ${g_wrap_dir}:${g_wrap_dir}/lib:${g_wrap_dir}/guile:${g_wrap_builddir}/guile)
-     AC_SUBST(G_WRAP_INSTALLED_MODULE_DIR, "")
-     AC_SUBST(G_WRAP_CFLAGS, "-I${g_wrap_dir} -I${g_wrap_dir}/libffi/include -I${g_wrap_dir}/guile -I${g_wrap_builddir} -I${g_wrap_builddir}/libffi/include")
-     AC_SUBST(G_WRAP_LIBS, "-L${g_wrap_builddir}/libffi -L${g_wrap_builddir}/g-wrap -L${g_wrap_builddir}/guile/g-wrap -lgwrap-guile-runtime -lgwrap-core-runtime -lffi")
-     AC_SUBST(G_WRAP_LIB_DIR, ${g_wrap_builddir}/g-wrap:${g_wrap_builddir}/guile/g-wrap:${g_wrap_builddir}/guile/g-wrap/gw)
-     bundle_g_wrap=yes;
-     AC_SUBST(G_WRAP_INSTALLED_LIB_DIR, "")
-   fi
-}
-)
-
-AM_CONDITIONAL(BUNDLE_G_WRAP, test x"bundle_g_wrap" = xyes)
+})
 
 GUILE_PROGS
 GUILE_FLAGS

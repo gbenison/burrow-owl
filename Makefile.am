@@ -1,11 +1,5 @@
 
-
-SUBDIRS = nmr-utils @BUNDLE_GUILE_GNOME_DIR@ src test-suite doc
-
-## if BUNDLE_GUILE_GNOME
-## SUBDIRS += guile-gnome
-## endif
-## SUBDIRS += src test-suite
+SUBDIRS = nmr-utils src test-suite doc
 
 scriptdir=$(pkgdatadir)/scripts
 
