@@ -1,5 +1,6 @@
 
 SUBDIRS = nmr-utils src test-suite doc
+bin_SCRIPTS=wrapper/burrow
 
 scriptdir=$(pkgdatadir)/scripts
 
@@ -7,18 +8,25 @@ scriptdir=$(pkgdatadir)/scripts
 ## abilities
 script_DATA =
 install-data-hook:
-	chmod +w $(scriptdir)
-	$(INSTALL) $(srcdir)/scripts/* $(scriptdir)
+	chmod +w $(DESTDIR)$(scriptdir)
+	$(INSTALL) $(srcdir)/scripts/* $(DESTDIR)$(scriptdir)
 
 uninstall-hook:
-	rm -rf $(scriptdir)/*
+	rm -rf $(DESTDIR)/$(scriptdir)/*
 
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=burrow.pc
 
-EXTRA_DIST=scripts suppress_guile.vg THANKS burrow-owl.mp3
+EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 ChangeLog
+DISTCLEANFILES=ChangeLog
+MAINTAINERCLEANFILES = ChangeLog
+.PHONY: ChangeLog
+ChangeLog:
+	(bzr log $(top_srcdir) > .changelog.tmp && mv .changelog.tmp ChangeLog || rm -rf .changelog.tmp;) || \
+	(touch ChangeLog; \
+         echo 'failed to generate changelog from bzr: installing possibly empty changelog.' >&2)
+dist-hook: ChangeLog
 
-dist-hook:
-	rm -rf `find $(distdir) -name CVS`
-	rm -rf `find $(distdir) -name '.arch*'`
+
+
 
