@@ -18,3 +18,5 @@ autom4te.cache
 build
 log
 build-test
+src/marshal.h
+src/marshal.c
