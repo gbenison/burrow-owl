@@ -5,7 +5,6 @@ SUBDIRS=finite-state-machine . gw
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
-bin_SCRIPTS=burrow
 
 CLEANFILES += $(bin_SCRIPTS)
 
@@ -80,7 +79,7 @@ marshal.c: marshal.cmd
 	glib-genmarshal --body @srcdir@/marshal.cmd > $@
 
 CLEANFILES += marshal.c marshal.h
-EXTRA_DIST += marshal.cmd guile burrow.in
+EXTRA_DIST += marshal.cmd guile
 
 
 

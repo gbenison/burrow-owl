@@ -1,5 +1,6 @@
 
 SUBDIRS = nmr-utils src test-suite doc
+bin_SCRIPTS=wrapper/burrow
 
 scriptdir=$(pkgdatadir)/scripts
 
@@ -16,7 +17,7 @@ uninstall-hook:
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=burrow.pc
 
-EXTRA_DIST=scripts suppress_guile.vg THANKS burrow-owl.mp3
+EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3
 
 dist-hook:
 	rm -rf `find $(distdir) -name CVS`

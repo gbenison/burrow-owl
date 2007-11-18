@@ -76,7 +76,7 @@ AC_CONFIG_FILES([Makefile
                  burrow.pc
                  doc/Makefile
                  src/Makefile
-                 src/burrow
+                 wrapper/burrow
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
 		 test-suite/Makefile])
