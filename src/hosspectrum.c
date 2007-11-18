@@ -1135,6 +1135,7 @@ spectrum_cache(HosSpectrum* self)
 
   /* create new spectrum; point its buf to old buf */
   HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM, NULL);
+  result->buf = NULL;
 
   /* create backing_cache object to store data */
   HosBackingCache *backing_cache = g_object_new(HOS_TYPE_BACKING_CACHE, NULL);
@@ -1142,12 +1143,11 @@ spectrum_cache(HosSpectrum* self)
   /* traverse src spectrum */
   spectrum_traverse(self);
 
-  /* set new spec's buf to old spec's buf */
-  result->buf = self->buf;
-  g_object_ref(self);
-
   /* set backing's data to spec's buf */
-  backing_cache->data = result->buf;
+  backing_cache->data = self->buf;
+
+  /* the new backing object holds a reference to the old spectrum */
+  g_object_ref(self);
 
   /* create block dims and tie to backing_cache */
   for (i = 0; i < spectrum_ndim(self); ++i)
