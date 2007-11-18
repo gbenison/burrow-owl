@@ -4,7 +4,6 @@
 AC_PREREQ(2.59)
 AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
-AC_PREFIX_DEFAULT(${HOME}/AC_PACKAGE_NAME)
 # AC_CONFIG_HEADER([config.h])
 
 guile-config --version || AC_MSG_ERROR([
@@ -76,7 +75,7 @@ AC_CONFIG_FILES([Makefile
                  burrow.pc
                  doc/Makefile
                  src/Makefile
-                 src/burrow
+                 wrapper/burrow
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
 		 test-suite/Makefile])
