@@ -1014,7 +1014,7 @@ spectrum_project_pt(HosSpectrum* self, const guint pt)
 HosSpectrum*
 spectrum_integrate(HosSpectrum* self)
 {
-  HosSpectrum *result = spectrum_copy(self);
+  HosSpectrum *result = spectrum_cache(spectrum_copy(self));
   guint idx = dimen_list_lookup_nth(result->dimensions, 0);
 
   GList* list_orig = dimen_list_get_nth(result->dimensions, 0);
