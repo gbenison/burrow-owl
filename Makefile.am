@@ -8,8 +8,8 @@ scriptdir=$(pkgdatadir)/scripts
 ## abilities
 script_DATA =
 install-data-hook:
-	chmod +w $(scriptdir)
-	$(INSTALL) $(srcdir)/scripts/* $(scriptdir)
+	chmod +w $(DESTDIR)$(scriptdir)
+	$(INSTALL) $(srcdir)/scripts/* $(DESTDIR)$(scriptdir)
 
 uninstall-hook:
 	rm -rf $(scriptdir)/*
