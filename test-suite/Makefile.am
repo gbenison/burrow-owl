@@ -1,5 +1,5 @@
 
-TESTS = run-tests
+TESTS = guile-gnome-test run-tests
 
 EXTRA_DIST = tests guile-test lib.scm data
 DISTCLEANFILES = check-guile.log
