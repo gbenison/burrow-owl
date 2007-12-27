@@ -62,24 +62,24 @@ struct _HosPainter
 
   HosContour *contour;
   HosSpectrum *spectrum;
-  guint32 cancellation_id;
-  guint priority;   /* useful for overlayed drawings. */
-
-  char *marks;
-  int mark_stride;
 
 };
 typedef void(*trace_func)(HosPainter*, struct hos_point*, const gint, gint, gboolean);
 
-void painter_set_spectrum(HosPainter* painter, HosSpectrum *spectrum);
+
 void painter_set_contour(HosPainter* painter, HosContour *contour);
 HosContour* painter_get_contour(HosPainter* painter);
-void painter_cancel_redraws(HosPainter* painter);
-void painter_redraw(HosPainter* painter,
-		    int x_lower,
-		    int y_lower,
-		    int x_upper,
-		    int y_upper);
+
+void painter_set_spectrum(HosPainter* painter, HosSpectrum *spectrum);
+HosSpectrum* painter_get_spectrum(HosPainter* painter);
+
+fsm_state_t* painter_redraw_init(HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
+void painter_redraw_region(HosPainter* painter,
+			   int x_lower,
+			   int y_lower,
+			   int x_upper,
+			   int y_upper);
+void painter_redraw(HosPainter* painter);
 void painter_set_xform(HosPainter* painter,
 		       gdouble x_offset,
 		       gdouble y_offset,
