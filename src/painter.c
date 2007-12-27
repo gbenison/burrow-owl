@@ -382,7 +382,11 @@ painter_redraw_region(HosPainter* painter,
   HosSpectrum *spectrum = painter->spectrum;
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
 
-  fsm_state_t* state = painter_redraw_init(painter, x_lower, x_upper, y_lower, y_upper);
+  fsm_state_t* state = painter_redraw_init(painter,
+					   MIN(x_lower, x_upper),
+					   MAX(x_lower, x_upper),
+					   MIN(y_lower, y_upper),
+					   MAX(y_lower, y_upper));
   while(!contour_fsm(state)) { /* no-op */ }
 
   fsm_state_free(state);
