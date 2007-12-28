@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,19 +24,20 @@
 #include <burrow/spectrum.h>
 #include "painter_gdk.h"
 
+G_BEGIN_DECLS
+
+#define HOS_TYPE_CANVAS                  (hos_canvas_get_type())
+#define HOS_CANVAS(obj)                  (G_TYPE_CHECK_INSTANCE_CAST((obj), HOS_TYPE_CANVAS, HosCanvas))
+#define HOS_CANVAS_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS, HosCanvasClass)
+#define HOS_IS_CANVAS(obj)               (G_TYPE_CHECK_INSTANCE_TYPE((obj), HOS_TYPE_CANVAS))
+#define HOS_IS_CANVAS_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS))
+#define HOS_CANVAS_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS, HosCanvasClass))
+
 typedef struct _HosCanvas      HosCanvas;
 typedef struct _HosCanvasClass HosCanvasClass;
 
-
+#include "canvasitem.h"
 #include "ornament.h"
-
-#define HOS_TYPE_CANVAS  (hos_canvas_get_type())
-#define HOS_CANVAS(obj)  (G_TYPE_CHECK_INSTANCE_CAST((obj), HOS_TYPE_CANVAS, HosCanvas))
-#define HOS_CANVAS_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS, HosCanvasClass)
-#define HOS_IS_CANVAS(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), HOS_TYPE_CANVAS))
-#define HOS_IS_CANVAS_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS))
-#define HOS_CANVAS_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS, HosCanvasClass))
-
 
 struct _HosCanvas
 {
@@ -47,6 +48,15 @@ struct _HosCanvas
 
   GList *ornaments;
   GList *active_ornaments;
+
+  GList *items;
+  
+  /* world coordinates */
+  gdouble x1;
+  gdouble y1;
+  gdouble xn;
+  gdouble yn;
+
 };
 
 struct _HosCanvasClass
@@ -70,6 +80,7 @@ void canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y);
 
 GType hos_canvas_get_type(void);
 
+G_END_DECLS
 
 #endif /* _HOS_HAVE_CANVAS_H */
 

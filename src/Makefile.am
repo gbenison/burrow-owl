@@ -42,6 +42,8 @@ hosbackingsim.c  \
 hosbackingsim.h  \
 hoscanvas.c  \
 hoscanvas.h  \
+canvasitem.c \
+canvasitem.h \
 hosdimensionblock.c  \
 hosdimensionblock.h  \
 hosdimension.c  \
