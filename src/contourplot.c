@@ -49,7 +49,7 @@ static void contour_plot_set_painter(HosContourPlot *self, HosPainter *painter);
 
 
 
-G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CONTOUR_PLOT)
+G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CANVAS_ITEM)
 
 static void
 hos_contour_plot_class_init(HosContourPlotClass *klass)
@@ -116,8 +116,6 @@ contour_plot_get_property (GObject         *object,
 			   GParamSpec      *pspec)
 {
   HosContourPlot *contour_plot = HOS_CONTOUR_PLOT(object);
-
-  contour_plot=contour_plot; /* to eliminate warning */
 
   switch (prop_id)
     {

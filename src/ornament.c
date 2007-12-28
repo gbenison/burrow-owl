@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 enum {
   ACQUIRE,
   RELEASE,
+  CONFIGURE,
   LAST_SIGNAL
 };
 
@@ -32,7 +33,6 @@ enum {
   PROP_0
 };
 
-static GObjectClass *parent_class = NULL;
 static guint ornament_signals[LAST_SIGNAL] = { 0 };
 
 
@@ -45,76 +45,39 @@ static void hos_ornament_get_property   (GObject         *object,
 					 GValue          *value,
 					 GParamSpec      *pspec);
 
-
-
 static void ornament_acquire_handler(HosOrnament *self);
 static void ornament_release_handler(HosOrnament *self);
-static void hos_ornament_class_init (HosOrnamentClass *klass);
-static void hos_ornament_init(HosOrnament *ornament);
+static void ornament_expose(HosCanvasItem *self, GdkEventExpose *event);
+static void ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
+static gboolean ornament_overlap_region(HosOrnament *self, GdkRegion *region);
+static void ornament_configure_handler(HosOrnament *self);
+static GdkRegion* ornament_calculate_region(HosOrnament *self);
 
-static gulong ornament_id_counter = 1;
+static void ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
 
-
-GType
-hos_ornament_get_type (void)
-{
-  static GType ornament_type = 0;
-
-  if (!ornament_type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosOrnamentClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_ornament_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosOrnament),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_ornament_init,
-      };
-
-      ornament_type = g_type_register_static (G_TYPE_OBJECT,
-					      "HosOrnament",
-					      &_info,
-					      G_TYPE_FLAG_ABSTRACT);
-    }
-
-  return ornament_type;
-}
+G_DEFINE_ABSTRACT_TYPE (HosOrnament, hos_ornament, HOS_TYPE_CANVAS_ITEM)
 
 static void
 hos_ornament_init(HosOrnament *ornament)
 {
-  ornament->group_id = ornament_id_counter;
-  ornament_id_counter++;
+  /* FIXME */
 }
 
 static void
 hos_ornament_class_init (HosOrnamentClass *klass)
 {
-  GObjectClass *gobject_class;
-
-  gobject_class = G_OBJECT_CLASS (klass);
+  GObjectClass       *gobject_class     = G_OBJECT_CLASS (klass);
+  HosCanvasItemClass *canvas_item_class = (HosCanvasItemClass*)klass;
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_ornament_set_property;
   gobject_class->get_property = hos_ornament_get_property;
 
-  klass->acquire = ornament_acquire_handler;
-  klass->release = ornament_release_handler;
+  klass->acquire   = ornament_acquire_handler;
+  klass->release   = ornament_release_handler;
+  klass->configure = ornament_configure_handler;
 
-  /*
-  g_object_class_install_property (gobject_class,
-                                   PROP_N_LVL,
-                                   g_param_spec_uint ("n-lvl",
-						      "N-lvl",
-						      "number of contour levels",
-						      0, 0xFFFF, 0,
-						      G_PARAM_READWRITE));
-  */
+  canvas_item_class->expose     = ornament_expose;
+  canvas_item_class->set_canvas = ornament_set_canvas;
 
   ornament_signals[ACQUIRE] =
     g_signal_new ("acquire",
@@ -130,6 +93,15 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
 		  G_STRUCT_OFFSET(HosOrnamentClass, release),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__VOID,
+		  G_TYPE_NONE, 0);
+
+  ornament_signals[CONFIGURE] =
+    g_signal_new ("configure",
+		  G_OBJECT_CLASS_TYPE(klass),
+		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET(HosOrnamentClass, configure),
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
@@ -165,25 +137,28 @@ ornament_release_handler(HosOrnament *self)
 {
 }
 
-void
-ornament_redraw(HosOrnament *self)
+static void
+ornament_expose(HosCanvasItem *self, GdkEventExpose *event)
 {
-  HosOrnamentClass *class;
-
   g_return_if_fail(HOS_IS_ORNAMENT(self));
-  class = HOS_ORNAMENT_GET_CLASS(self);
+  g_return_if_fail(HOS_IS_CANVAS(self->canvas));
 
-  class->paint(self);
+  HosOrnamentClass *ornament_class = HOS_ORNAMENT_GET_CLASS(self);
+  HosOrnament *ornament = HOS_ORNAMENT(self);
+
+  if(ornament_overlap_region(HOS_ORNAMENT(self), event->region))
+    ornament_class->paint(HOS_ORNAMENT(self), self->canvas);
 }
 
 void
 ornament_invalidate_region(HosOrnament *self)
 {
   g_return_if_fail(HOS_IS_ORNAMENT(self));
+  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
 
-  if (HOS_IS_CANVAS(self->canvas))
+  if (HOS_IS_CANVAS(canvas_item->canvas))
     {
-      GtkWidget *widget = GTK_WIDGET(self->canvas);
+      GtkWidget *widget = GTK_WIDGET(canvas_item->canvas);
       if (widget->window != NULL)
 	gdk_window_invalidate_region(widget->window, self->region, TRUE);
     }
@@ -197,18 +172,6 @@ ornament_set_region(HosOrnament *self, GdkRegion* region)
   self->region = region;
 }
 
-gulong
-ornament_get_group_id(HosOrnament *self)
-{
-  return self->group_id;
-}
-
-void
-ornament_set_group_id(HosOrnament *self, gulong id)
-{
-  self->group_id = id;
-}
-
 void
 ornament_move (HosOrnament *self, gdouble x, gdouble y)
 {
@@ -218,7 +181,10 @@ ornament_move (HosOrnament *self, gdouble x, gdouble y)
   g_return_if_fail(HOS_IS_ORNAMENT(self));
   class = HOS_ORNAMENT_GET_CLASS(self);
 
-  class->set_pos(self, x, y);
+  /*
+    FIXME deprecate for move_relative ??
+    class->set_pos(self, x, y);
+  */
 
 }
 
@@ -229,12 +195,12 @@ ornament_release (HosOrnament* ornament)
   g_signal_emit(ornament, ornament_signals[RELEASE], 0);
 }
 
-void
-ornament_sync_region(HosOrnament *self)
+static GdkRegion*
+ornament_calculate_region(HosOrnament *self)
 {
   HosOrnamentClass *class = HOS_ORNAMENT_GET_CLASS(self);
-  if (class->sync_region)
-    class->sync_region(self);
+  if (class->calculate_region)
+    return class->calculate_region(self);
 }
 
 /*
@@ -245,14 +211,20 @@ gboolean
 ornament_test_grab (HosOrnament *ornament, gdouble x_ppm, gdouble y_ppm)
 {
   HosOrnamentClass *class;
-  gboolean result;
+  gboolean result = FALSE;
 
   if (!(HOS_IS_ORNAMENT(ornament)))
     return FALSE;
 
   class = HOS_ORNAMENT_GET_CLASS(ornament);
 
+  /*
+
+    FIXME use the standard region to test -- test-grab should not be exported-- this
+    should be handled as part of the button press signal handlers
   result = class->point_overlap(HOS_ORNAMENT(ornament), x_ppm, y_ppm);
+
+  */
 
   return result;
 
@@ -268,25 +240,14 @@ ornament_pick_up(HosOrnament* ornament)
  * TRUE if region defined by x1, y1, xn, yn (in ppm)
  * overlaps the visual area of the ornament.
  */
-gboolean
-ornament_overlap_region (HosOrnament *ornament,
-			 gdouble x1,
-			 gdouble y1,
-			 gdouble xn,
-			 gdouble yn)
+static gboolean
+ornament_overlap_region(HosOrnament *self,
+			GdkRegion *region)
 {
-  HosOrnamentClass *class;
+  GdkRegion* tmp = gdk_region_copy(region);
+  gdk_region_intersect(tmp, self->region);
 
-  if (!(HOS_IS_ORNAMENT(ornament)))
-    return FALSE;
-
-  class = HOS_ORNAMENT_GET_CLASS(ornament);
-
-  if (class->overlap_region != NULL)
-    return class->overlap_region(HOS_ORNAMENT(ornament), x1, y1, xn, yn);
-  else
-    return FALSE;
-      
+  return gdk_region_empty(tmp) ? FALSE : TRUE;
 }
 
 GtkAdjustment*
@@ -303,3 +264,70 @@ adjustment_for_spectrum(HosSpectrum *spec, guint dim)
   step = spectrum_sw(spec, dim) / np / spectrum_sf(spec, dim);
   return GTK_ADJUSTMENT(gtk_adjustment_new((lower + upper) / 2.0, lower, upper, step, 0, 0));
 }
+
+void
+ornament_configure(HosOrnament* ornament)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(ornament));
+  g_signal_emit(ornament, ornament_signals[CONFIGURE], 0);
+}
+
+static void
+ornament_configure_handler(HosOrnament *self)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
+
+  GdkRegion *old_region = self->region;
+  self->region = ornament_calculate_region(self);
+  gdk_region_union(old_region, self->region);
+
+  if (canvas_item->canvas)
+    canvas_invalidate_region(canvas_item->canvas, old_region);
+
+  gdk_region_destroy(old_region);
+}
+
+
+/* FIXME */
+static void
+ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  if (old_canvas)
+    {
+      g_signal_handlers_disconnect_matched (old_canvas,
+					    G_SIGNAL_MATCH_DATA,
+					    0,      /* id */
+					    0,      /* detail */
+					    NULL,   /* closure */
+					    NULL,   /* func */
+					    self);  /* data */
+    }
+
+  if (canvas)
+    {
+      /* FIXME link new signals */
+      g_signal_connect (canvas, "motion-notify-event",
+			G_CALLBACK (ornament_canvas_motion_notify),
+			self);
+
+      /* link button press signal */
+      /* link button release signal */
+    }
+}
+
+/*
+ * Connected to the canvas 'motion-notify' signal; called when the pointer
+ * moves over the canvas.
+ */
+static void
+ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self)
+{
+  /* FIXME */
+  /* move me?? */
+  /* pick me up?? */
+}
+

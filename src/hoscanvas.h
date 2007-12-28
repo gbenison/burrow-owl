@@ -37,7 +37,6 @@ typedef struct _HosCanvas      HosCanvas;
 typedef struct _HosCanvasClass HosCanvasClass;
 
 #include "canvasitem.h"
-#include "ornament.h"
 
 struct _HosCanvas
 {
@@ -45,9 +44,6 @@ struct _HosCanvas
 
   GdkGC *gc;
   HosPainterGdk *painter;
-
-  GList *ornaments;
-  GList *active_ornaments;
 
   GList *items;
   
@@ -71,12 +67,17 @@ struct _HosCanvasClass
 HosPainter* canvas_get_painter(HosCanvas *self);
 void canvas_set_painter(HosCanvas *self, HosPainterGdk *painter);
 HosSpectrum* canvas_get_spectrum(HosCanvas *self);
-void canvas_add_ornament(HosCanvas *self, HosOrnament *ornament);
+void canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem);
 
 void canvas_view2ppm(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_ppm2view(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_view2pt(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y);
+
+void canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y);
+
+void canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region);
 
 GType hos_canvas_get_type(void);
 

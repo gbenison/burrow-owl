@@ -44,14 +44,10 @@ static gboolean canvas_expose_event(GtkWidget *widget, GdkEventExpose *event);
 static gboolean canvas_configure_event(GtkWidget *widget, GdkEventConfigure *event);
 static void canvas_realize(GtkWidget *widget);
 static gboolean canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event);
-static void canvas_redraw_ornaments(HosCanvas *self);
 static void canvas_painter_ready(HosPainter *painter, gpointer data);
 static void canvas_painter_configure(HosPainter *painter, gpointer data);
 static void canvas_painter_sync_xform(HosCanvas *canvas, HosPainter *painter);
 static void canvas_get_geometry(HosCanvas *canvas, gdouble *width, gdouble *height);
-static GList* g_list_append_circular(GList* list, gpointer elem);
-static void g_list_assert_circular(GList* list);
-static void ornament_release_cb(HosOrnament* ornament, gpointer data);
 static void canvas_drop_all_ornaments(HosCanvas *canvas);
 
 G_DEFINE_TYPE (HosCanvas, hos_canvas, GTK_TYPE_DRAWING_AREA)
@@ -94,9 +90,10 @@ hos_canvas_init(HosCanvas  *canvas)
   GtkWidget *widget = GTK_WIDGET(canvas);
 
   gtk_widget_add_events(widget,
-			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
-			| GDK_POINTER_MOTION_MASK);
-
+			GDK_BUTTON_PRESS_MASK |
+			GDK_BUTTON_RELEASE_MASK |
+			GDK_POINTER_MOTION_MASK |
+			GDK_POINTER_MOTION_HINT_MASK);
 
   canvas_set_painter(canvas, painter_gdk_new());
 
@@ -121,114 +118,6 @@ hos_canvas_init(HosCanvas  *canvas)
 
 }
 
-static gboolean
-canvas_configure_ornament_cb(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
-{
-  HosOrnament *ornament = HOS_ORNAMENT(data);
-  ornament_sync_region(ornament);
-  return FALSE;
-}
-
-void
-canvas_add_ornament(HosCanvas *self, HosOrnament *ornament)
-{
-  g_return_if_fail(HOS_IS_CANVAS(self));
-  g_return_if_fail(HOS_IS_ORNAMENT(ornament));
-
-  /* add new ornament to this canvas's list */
-  self->ornaments = g_list_append_circular(self->ornaments, ornament);
-
-  ornament->canvas = self;
-
-  HosOrnamentClass *class = HOS_ORNAMENT_GET_CLASS(ornament);
-  g_signal_connect(self, "configure-event", G_CALLBACK(canvas_configure_ornament_cb), ornament);
-
-  g_object_ref(ornament);
-}
-
-static GList*
-g_list_append_circular(GList* list, gpointer elem)
-{
-  GList* new_entry = g_new(GList, 1);
-
-  new_entry->data = elem;
-  /* note: assertion will fix up prev links */
-  g_list_assert_circular(list);
-  if (list == NULL)
-    list = new_entry;
-  else
-    list->prev->next = new_entry;
-  new_entry->next = list;
-  g_list_assert_circular(list);
-
-  return list;
-}
-
-/*
- * make sure list is circular with a sanity check for # of iterations
- * and fix up ->prev links
- */
-static void
-g_list_assert_circular(GList* list)
-{
-  int i = 0;
-  static const int max = 10000;
-  GList* orig = list;
-
-  if (list == NULL)
-    return;
-
-  while (1)
-    {
-      assert(list != NULL);
-      assert(i < max);
-      ++i;
-      list->next->prev = list;
-      list = list->next;
-      if (list == orig)
-	break;
-    }
-}
-
-/*
- * Spin the wheel of circularly linked ornaments so that the next in
- * line is the first to be picked up.
- */
-static void
-canvas_shuffle_ornaments(HosCanvas *self)
-{
-  g_list_assert_circular(self->ornaments);
-
-  if (self->ornaments)
-    self->ornaments = self->ornaments->next;
-}
-
-static void
-canvas_redraw_ornaments(HosCanvas *self)
-{
-  GList* ptr = self->ornaments;
-
-  if (ptr == NULL)
-    return;
-
-  /* adapt to circular list... first member of list acts as sentinel */
-  while (1)
-    {
-      assert(ptr != NULL);
-      ornament_redraw(HOS_ORNAMENT(ptr->data));
-      ptr = ptr->next;
-      assert(ptr != NULL);
-      if (ptr == self->ornaments)
-	break;
-    }
-}
-
-static void
-ornament_release_cb(HosOrnament* ornament, gpointer data)
-{
-  ornament_release(ornament);
-}
-
 /* callback for button press events on canvas widget */
 static gboolean
 canvas_button_press(GtkWidget *widget, GdkEventButton *event)
@@ -243,6 +132,11 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
   x = event->x;
   y = event->y;
   canvas_view2ppm(canvas, &x, &y);
+
+
+#ifdef UNDEF
+
+  /* FIXME this block to be moved to ornament signal handlers */
 
   /* there shouldn't be any active ornament, but release to be sure... */
   canvas_drop_all_ornaments(canvas);
@@ -276,7 +170,7 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 	
       }
 
-  canvas_shuffle_ornaments(canvas);
+#endif /* UNDEF */
 
   g_signal_emit(canvas,
 		canvas_signals[CLICKED],
@@ -292,12 +186,17 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 static void
 canvas_drop_all_ornaments(HosCanvas *canvas)
 {
+  /*
+
+    FIXME this functionality to be moved to ornaments' button signal handlers
+
   if (canvas->active_ornaments != NULL)
     {
       g_list_foreach(canvas->active_ornaments, (GFunc)ornament_release_cb, NULL);
       g_list_free(canvas->active_ornaments);
       canvas->active_ornaments = NULL;
     }
+  */
 }
 
 /* callback for button release events on canvas widget */
@@ -433,11 +332,16 @@ canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event)
   y = event->y;
   canvas_view2ppm(canvas, &x, &y);
 
+  /*
+
+    FIXME ornaments are now responsible for their own movement through signal handlers
+
   {
     GList* ptr;
     for (ptr = canvas->active_ornaments; ptr != NULL; ptr = ptr->next)
       ornament_move(HOS_ORNAMENT(ptr->data), x, y);
   }
+  */
 
   if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event)
     return GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event(widget, event);
@@ -664,3 +568,62 @@ canvas_get_painter(HosCanvas *self)
   return HOS_PAINTER(self->painter);
 }
 
+void
+canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
+{
+  g_return_if_fail(HOS_IS_CANVAS(self));
+  g_return_if_fail(HOS_IS_CANVAS_ITEM(canvasitem));
+
+  canvas_item_set_canvas(canvasitem, self);
+
+  if (!g_list_find(self->items, canvasitem))
+    {
+      g_object_ref(canvasitem);
+      self->items = g_list_append(self->items, canvasitem);
+    }
+}
+
+void
+canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+  if (GTK_WIDGET_DRAWABLE(canvas))
+    gdk_window_invalidate_region(GTK_WIDGET(canvas)->window, region, TRUE);
+}
+
+void
+canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  gint window_width, window_height;
+  gdk_window_get_size(GTK_WIDGET(canvas)->window,
+		      &window_width, &window_height);
+
+  if (x != NULL)
+    *x = (*x / window_width)
+      * (canvas->xn - canvas->x1) + canvas->x1;
+  if (y != NULL)
+    *y = (*y / window_height)
+      * (canvas->yn - canvas->y1) + canvas->y1;
+
+}
+
+void
+canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  gint window_width, window_height;
+  gdk_window_get_size(GTK_WIDGET(canvas)->window,
+		      &window_width, &window_height);
+
+  if (x != NULL)
+    *x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
+      * window_width;
+
+  if (y != NULL)
+    *y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
+      * window_height;
+
+}
