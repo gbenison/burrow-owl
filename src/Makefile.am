@@ -26,6 +26,8 @@ box.h  \
 burrow.h  \
 contour.c  \
 contour.h  \
+contourplot.c \
+contourplot.h \
 cursor.c  \
 cursor.h  \
 filebuf.c  \
