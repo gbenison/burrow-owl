@@ -24,10 +24,10 @@ $(headers_dir)/hosbackingsim.h \
 $(headers_dir)/hosdimensionsim.h
 
 HEADERS_3= \
-$(headers_dir)/marker.h \
-$(headers_dir)/marker_text.h \
-$(headers_dir)/cursor.h \
-$(headers_dir)/box.h
+$(headers_dir)/marker.h
+# $(headers_dir)/marker_text.h \
+# $(headers_dir)/cursor.h \
+# $(headers_dir)/box.h
 
 H2DEF=@srcdir@/h2def.py
 

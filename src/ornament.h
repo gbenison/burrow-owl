@@ -47,16 +47,13 @@ struct _HosOrnamentClass
 {
   HosCanvasItemClass parent_class;
 
-  void (*paint)        (HosOrnament *self, HosCanvas *canvas);
-
-  GdkRegion* (*calculate_region)  (HosOrnament *self);
-
-  void (*motion_event) (HosOrnament *ornament, gdouble x, gdouble y);
-  void (*acquire)      (HosOrnament *ornament);
-  void (*release)      (HosOrnament *ornament);
-  void (*configure)    (HosOrnament *ornament);
-
-  void (*move_relative)(HosOrnament *ornament, gdouble dx, gdouble dy);
+  void       (*paint)             (HosOrnament *ornament, HosCanvas *canvas);
+  GdkRegion* (*calculate_region)  (HosOrnament *ornament);
+  void       (*acquire)           (HosOrnament *ornament);
+  void       (*release)           (HosOrnament *ornament);
+  void       (*configure)         (HosOrnament *ornament);
+  void       (*motion_event)      (HosOrnament *ornament, gdouble x, gdouble y);
+  void       (*move_relative)     (HosOrnament *ornament, gdouble dx, gdouble dy);
 
 };
 
@@ -71,7 +68,6 @@ struct _HosOrnament
   gdouble save_y;
 };
 
-void ornament_redraw(HosOrnament *self);
 void ornament_release(HosOrnament *self);
 void ornament_move (HosOrnament *ornament, gdouble x, gdouble y);
 gboolean ornament_test_grab(HosOrnament *self, gdouble x_ppm, gdouble y_ppm);

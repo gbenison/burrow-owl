@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,10 +25,7 @@
 #include "ornament.h"
 #include "hoscanvas.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
   /* a list of styles available for markers */
   enum { MARKER_CROSS,
@@ -63,9 +60,9 @@ struct _HosMarkerClass
 {
   HosOrnamentClass parent_class;
 
-  void (*grabbed)(HosMarker *marker);
-  void (*moved)(HosMarker *marker, gdouble x, gdouble y);
-  void (*dropped)(HosMarker *marker, gdouble x, gdouble y);
+  void (*grabbed) (HosMarker *marker);
+  void (*moved)   (HosMarker *marker, gdouble x, gdouble y);
+  void (*dropped) (HosMarker *marker, gdouble x, gdouble y);
 
 };
 
@@ -76,12 +73,9 @@ GtkAdjustment* marker_get_x_adjustment(HosMarker *marker);
 GtkAdjustment* marker_get_y_adjustment(HosMarker *marker);
 HosMarker* canvas_add_marker(HosCanvas *canvas);
 gboolean marker_get_pos(HosMarker *self, gdouble *x, gdouble *y);
-void marker_set_pos(HosMarker *self, gdouble x, gdouble y);
 
 GType hos_marker_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_MARKER_H */
