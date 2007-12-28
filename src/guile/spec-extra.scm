@@ -25,6 +25,10 @@
       (lambda args (for-each display args)(newline))
       (lambda args 'ok)))
 
+(define-public (burrow-assert-version major minor)
+  (if (not (burrow-check-version major minor))
+      (error (format #f "Requested burrow version ~a.~a, but binary version is ~a" major minor (burrow-version)))))
+
 (define-public (command-line-argument n)
   (catch 'out-of-range
 	 (lambda ()(list-ref (command-line) n))

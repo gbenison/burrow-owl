@@ -21,6 +21,7 @@
         "#include <marker_text.h>\n"
         "#include <cursor.h>\n"
         "#include <box.h>\n"
+        "#include <version.h>\n"
         "#include <contour.h>\n"
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
