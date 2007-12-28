@@ -64,9 +64,11 @@ ornament.c  \
 ornament.h  \
 painter_bwps.c  \
 painter_bwps.h  \
-painter.c  \
 painter_gdk.c  \
 painter_gdk.h  \
+painter_cairo.c \
+painter_cairo.h \
+painter.c  \
 painter.h  \
 ticket.c  \
 ticket.h \

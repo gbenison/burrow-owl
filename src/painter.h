@@ -25,10 +25,7 @@
 #include "finite-state-machine/contour-fsm.h"
 #include "contour.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_PAINTER              (hos_painter_get_type())
 #define HOS_PAINTER(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_PAINTER, HosPainter))
@@ -91,8 +88,6 @@ void painter_view_world(HosPainter *painter);
 
 GType hos_painter_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_PAINTER_H */

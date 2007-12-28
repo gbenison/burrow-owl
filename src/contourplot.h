@@ -37,14 +37,22 @@ typedef struct _HosContourPlotClass HosContourPlotClass;
 struct _HosContourPlotClass
 {
   HosCanvasItemClass parent_class;
+
+  void(*configuration_changed)(HosContourPlot *contour_plot);
 };
 
 struct _HosContourPlot
 {
   HosCanvasItem parent_instance;
+
+  HosPainter  *painter;
 };
 
 GType hos_contour_plot_get_type(void);
+void contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum);
+void contour_plot_set_contour(HosContourPlot *self, HosContour *contour);
+HosSpectrum* contour_plot_get_spectrum(HosContourPlot *self);
+HosContour* contour_plot_get_contour(HosContourPlot *self);
 
 G_END_DECLS
 

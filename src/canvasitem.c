@@ -21,6 +21,7 @@
 #include "canvasitem.h"
 
 enum {
+  ITEM_CONFIGURE,
   LAST_SIGNAL
 };
 
@@ -31,6 +32,16 @@ G_DEFINE_ABSTRACT_TYPE (HosCanvasItem, hos_canvas_item, G_TYPE_OBJECT)
 static void
 hos_canvas_item_class_init(HosCanvasItemClass *klass)
 {
+
+  canvas_item_signals[ITEM_CONFIGURE] =
+    g_signal_new ("item-configure",
+		  G_OBJECT_CLASS_TYPE(klass),
+		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET(HosCanvasItemClass, item_configure),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__VOID,
+		  G_TYPE_NONE, 0);
+
   /* FIXME */
 }
 
@@ -47,5 +58,12 @@ canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event)
   if (class->expose) class->expose(self, event);
 }
 
+void
+canvas_item_configure(HosCanvasItem *self)
+{
+  g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
+
+  g_signal_emit(self, canvas_item_signals[ITEM_CONFIGURE], 0);
+}
 
 

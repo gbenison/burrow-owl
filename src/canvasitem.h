@@ -39,7 +39,8 @@ typedef struct _HosCanvasItemClass HosCanvasItemClass;
 struct _HosCanvasItemClass
 {
   GObjectClass parent_class;
-  void (*expose) (HosCanvasItem* self, GdkEventExpose *event);
+  void (*expose)         (HosCanvasItem* self, GdkEventExpose *event);
+  void (*item_configure) (HosCanvasItem* self);
 };
 
 struct _HosCanvasItem
@@ -52,6 +53,7 @@ struct _HosCanvasItem
 
 GType hos_canvas_item_get_type(void);
 void canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event);
+void canvas_item_configure(HosCanvasItem *self);
 
 G_END_DECLS
 
