@@ -74,8 +74,12 @@ void canvas_ppm2view(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_view2pt(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y);
 
+void canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
 void canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y);
 void canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y);
+
+GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
+GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
 
 void canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region);
 

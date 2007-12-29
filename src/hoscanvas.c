@@ -22,6 +22,9 @@
 #include "painter_gdk.h"
 #include "marshal.h"
 
+#define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \
+                                         gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
+
 enum {
   CLICKED,
   LAST_SIGNAL
@@ -131,7 +134,7 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 
   x = event->x;
   y = event->y;
-  canvas_view2ppm(canvas, &x, &y);
+  canvas_view2world(canvas, &x, &y);
 
 
 #ifdef UNDEF
@@ -626,4 +629,41 @@ canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
     *y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
       * window_height;
 
+}
+
+void
+canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn)
+{
+  canvas->x1 = x1;
+  canvas->y1 = y1;
+  canvas->xn = xn;
+  canvas->yn = yn;
+  gtk_widget_queue_draw(GTK_WIDGET(canvas));
+  /* FIXME emit 'canvas-configured' signal or similar? */
+}
+
+GtkAdjustment*
+adjustment_for_canvas_x(HosCanvas* canvas)
+{
+  gdouble min = canvas->x1;
+  gdouble max = canvas->xn;
+
+  ENSURE_ORDER_GDOUBLE(min, max);
+
+  return GTK_ADJUSTMENT(gtk_adjustment_new((min + max) / 2.0, min, max,
+					   (max - min) / 2000.0,
+					   0, 0));
+}
+
+GtkAdjustment*
+adjustment_for_canvas_y(HosCanvas* canvas)
+{
+  gdouble min = canvas->y1;
+  gdouble max = canvas->yn;
+
+  ENSURE_ORDER_GDOUBLE(min, max);
+
+  return GTK_ADJUSTMENT(gtk_adjustment_new((min + max) / 2.0, min, max,
+					   (max - min) / 2000.0,
+					   0, 0));
 }

@@ -399,10 +399,9 @@ canvas_add_marker(HosCanvas *canvas)
   HosSpectrum *spectrum = canvas_get_spectrum(canvas);
 
   HosMarker* result = g_object_new(HOS_TYPE_MARKER, NULL);
-  if (spectrum != NULL)
-    marker_set_adjustments(result,
-			   adjustment_for_spectrum(spectrum, 0),
-			   adjustment_for_spectrum(spectrum, 1));
+  marker_set_adjustments(result,
+			 adjustment_for_canvas_x(canvas),
+			 adjustment_for_canvas_y(canvas));
   canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
 
   return result;
