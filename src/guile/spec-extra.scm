@@ -134,12 +134,16 @@
   spec)
 
 ; ----- ornamental considerations -------
-(define-public (ornaments-allow-simultaneous-grab . args)
-  (if (not (null? args))
-      (let ((id (ornament-get-group-id (car args))))
-	(for-each (lambda(orn)
-		    (ornament-set-group-id orn id))
-		  args))))
+(define-public (ornaments-allow-simultaneous-grab . ornaments)
+  (define (process-ornament ornament)
+    (connect ornament 'acquire
+	     (lambda args
+	       (for-each (lambda (other)
+			   (if (not (eq? other ornament))
+			       (if (get other 'mouse-over)
+				   (ornament-acquire other))))
+			 ornaments))))
+  (for-each process-ornament ornaments))
 
 (define-public (spectrum-extract-2d-ppm spec x1 y1 xn yn)
   (let* ((s1 (spectrum-extract-ppm spec x1 xn))
@@ -153,9 +157,9 @@
     #:upper (spectrum-orig-ppm spectrum dim)
     #:step-increment (/ (spectrum-sw-ppm spectrum dim) 2000.0)))
 	
-
-
-
+(define-public (marker-set-movable marker movable)
+  (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
+  (set marker 'sensitive movable))
 
 ; ------- assignment lists ------
 

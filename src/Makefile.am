@@ -16,18 +16,20 @@ burrowincludedir=$(includedir)/burrow
 burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
 include_HEADERS=burrow.h
 
+# disabled sources -- awaiting updating
+# box.c 
+# box.h 
+
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
 boomerang.c  \
 boomerang.h  \
-box.c  \
-box.h  \
 burrow.h  \
 contour.c  \
 contour.h  \
-cursor.c  \
-cursor.h  \
+contourplot.c \
+contourplot.h \
 filebuf.c  \
 filebuf.h  \
 hosbackingblock.c  \
@@ -42,6 +44,8 @@ hosbackingsim.c  \
 hosbackingsim.h  \
 hoscanvas.c  \
 hoscanvas.h  \
+canvasitem.c \
+canvasitem.h \
 hosdimensionblock.c  \
 hosdimensionblock.h  \
 hosdimension.c  \
@@ -52,17 +56,21 @@ hosspectrum.c  \
 burrow/spectrum.h  \
 marker.c  \
 marker.h  \
-marker_text.c  \
-marker_text.h  \
+cursor.c \
+cursor.h \
+marker_text.c \
+marker_text.h \
 nih.c  \
 burrow/nih.h  \
 ornament.c  \
 ornament.h  \
 painter_bwps.c  \
 painter_bwps.h  \
-painter.c  \
 painter_gdk.c  \
 painter_gdk.h  \
+painter_cairo.c \
+painter_cairo.h \
+painter.c  \
 painter.h  \
 ticket.c  \
 ticket.h \

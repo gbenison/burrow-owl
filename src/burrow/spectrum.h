@@ -23,10 +23,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_SPECTRUM              (hos_spectrum_get_type())
 #define HOS_SPECTRUM(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_SPECTRUM, HosSpectrum))
@@ -116,11 +113,7 @@ gdouble* spectrum_traverse_blocking(HosSpectrum *spec);
 
 GType hos_spectrum_get_type (void);
 
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
+G_END_DECLS
 
 #endif /* not  _HOS_HAVE_SPECTRUM_H  */
 

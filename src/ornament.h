@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,20 +27,13 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
-#include <gdk/gdk.h>
 #include <burrow/spectrum.h>
+#include "canvasitem.h"
 
 typedef struct _HosOrnament       HosOrnament;
 typedef struct _HosOrnamentClass  HosOrnamentClass;
 
-
-#include "hoscanvas.h"
-
-
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_ORNAMENT              (hos_ornament_get_type())
 #define HOS_ORNAMENT(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_ORNAMENT, HosOrnament))
@@ -50,64 +43,46 @@ extern "C" {
 #define HOS_ORNAMENT_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_ORNAMENT, HosOrnamentClass))
 
 
-
 struct _HosOrnamentClass
 {
-  GObjectClass parent_class;
+  HosCanvasItemClass parent_class;
 
-  void (*paint)(HosOrnament *ornament);
-
-  void (*set_pos)(HosOrnament *ornament, gdouble x, gdouble y);
-  void (*sync_region)(HosOrnament *self);
-  gboolean (*overlap_region)(HosOrnament *ornament,
-			     gdouble x1,
-			     gdouble y1,
-			     gdouble xn,
-			     gdouble yn);
-
-  gboolean (*point_overlap)(HosOrnament *ornament,
-			    gdouble x, gdouble y);
-
-  void (*acquire)(HosOrnament *ornament);
-  void (*motion_event)(HosOrnament *ornament, gdouble x, gdouble y);
-  void (*release)(HosOrnament *ornament);
+  void       (*paint)             (HosOrnament *ornament, HosCanvas *canvas);
+  GdkRegion* (*calculate_region)  (HosOrnament *ornament);
+  void       (*acquire)           (HosOrnament *ornament);
+  void       (*release)           (HosOrnament *ornament);
+  void       (*enter)             (HosOrnament *ornament);
+  void       (*leave)             (HosOrnament *ornament);
+  void       (*configure)         (HosOrnament *ornament);
+  void       (*move_relative)     (HosOrnament *ornament, gdouble dx, gdouble dy);
 
 };
 
 struct _HosOrnament
 {
-  GObject parent_instance;
+  HosCanvasItem parent_instance;
+
+  gboolean mouse_over;
+  gboolean grabbed;
+  gboolean visible;
+  gboolean sensitive;
 
   GdkRegion *region;
-  HosCanvas *canvas;
-  gulong group_id;
 
+  gulong button_press_signal_id;
+  gulong drag_signal_id;
+  gdouble save_x;
+  gdouble save_y;
 };
 
-
-
-gboolean ornament_overlap_region (HosOrnament *ornament,
-				  gdouble x1,
-				  gdouble y1,
-				  gdouble xn,
-				  gdouble yn);
-
-void ornament_redraw(HosOrnament *self);
-void ornament_release(HosOrnament *self);
-void ornament_move (HosOrnament *ornament, gdouble x, gdouble y);
-gboolean ornament_test_grab(HosOrnament *self, gdouble x_ppm, gdouble y_ppm);
-gulong ornament_get_group_id(HosOrnament *self);
-void ornament_set_group_id(HosOrnament *self, gulong id);
-
-void ornament_set_region(HosOrnament *self, GdkRegion* region);
-void ornament_invalidate_region(HosOrnament *self);
-void ornament_sync_region(HosOrnament *self);
-void ornament_pick_up(HosOrnament* ornament);
-
-GtkAdjustment* adjustment_for_spectrum(HosSpectrum *spec, guint dim);
-
+void ornament_acquire   (HosOrnament *self);
+void ornament_release   (HosOrnament *self);
+void ornament_configure (HosOrnament* ornament);
 
 GType hos_ornament_get_type (void);
+
+
+G_END_DECLS
 
 
 #endif  /* HAVE_ORNAMENT_H */

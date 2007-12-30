@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,16 +22,17 @@
 #include "painter_gdk.h"
 #include "marshal.h"
 
+#define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \
+                                         gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
+
 enum {
   CLICKED,
+  WORLD_CONFIGURE,
   LAST_SIGNAL
 };
 
-static GObjectClass *parent_class = NULL;
 static guint canvas_signals[LAST_SIGNAL] = { 0 };
 
-static void hos_canvas_class_init (HosCanvasClass *klass);
-static void hos_canvas_init(HosCanvas  *canvas);
 static void hos_canvas_set_property (GObject         *object,
 				       guint            prop_id,
 				       const GValue    *value,
@@ -40,8 +41,6 @@ static void hos_canvas_get_property (GObject         *object,
 				       guint            prop_id,
 				       GValue          *value,
 				       GParamSpec      *pspec);
-static void hos_canvas_init(HosCanvas *spec);
-
 
 static gboolean canvas_button_press(GtkWidget *widget, GdkEventButton *event);
 static gboolean canvas_button_release(GtkWidget *widget, GdkEventButton *event);
@@ -49,45 +48,13 @@ static gboolean canvas_expose_event(GtkWidget *widget, GdkEventExpose *event);
 static gboolean canvas_configure_event(GtkWidget *widget, GdkEventConfigure *event);
 static void canvas_realize(GtkWidget *widget);
 static gboolean canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event);
-static void canvas_redraw_ornaments(HosCanvas *self);
 static void canvas_painter_ready(HosPainter *painter, gpointer data);
 static void canvas_painter_configure(HosPainter *painter, gpointer data);
 static void canvas_painter_sync_xform(HosCanvas *canvas, HosPainter *painter);
 static void canvas_get_geometry(HosCanvas *canvas, gdouble *width, gdouble *height);
-static GList* g_list_append_circular(GList* list, gpointer elem);
-static void g_list_assert_circular(GList* list);
-static void ornament_release_cb(HosOrnament* ornament, gpointer data);
 static void canvas_drop_all_ornaments(HosCanvas *canvas);
 
-
-GType
-hos_canvas_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosCanvasClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_canvas_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosCanvas),
-	2,		/* n_preallocs */
-	(GInstanceInitFunc) hos_canvas_init,
-      };
-
-      type = g_type_register_static (GTK_TYPE_DRAWING_AREA,
-				     "HosCanvas",
-				     &_info,
-				     0);
-    }
-
-  return type;
-}
+G_DEFINE_TYPE (HosCanvas, hos_canvas, GTK_TYPE_DRAWING_AREA)
 
 static void
 hos_canvas_class_init (HosCanvasClass *klass)
@@ -98,8 +65,6 @@ hos_canvas_class_init (HosCanvasClass *klass)
   gobject_class = G_OBJECT_CLASS (klass);
   widget_class = GTK_WIDGET_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_canvas_set_property;
   gobject_class->get_property = hos_canvas_get_property;
 
@@ -121,114 +86,49 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
 
-}
+  canvas_signals[WORLD_CONFIGURE] =
+    g_signal_new("world-configure",
+		 G_OBJECT_CLASS_TYPE(gobject_class),
+		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		 0,
+		 NULL, NULL,
+		 g_cclosure_marshal_VOID__VOID,
+		 G_TYPE_NONE, 0);
 
-static gboolean
-canvas_configure_ornament_cb(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
-{
-  HosOrnament *ornament = HOS_ORNAMENT(data);
-  ornament_sync_region(ornament);
-  return FALSE;
-}
-
-void
-canvas_add_ornament(HosCanvas *self, HosOrnament *ornament)
-{
-  g_return_if_fail(HOS_IS_CANVAS(self));
-  g_return_if_fail(HOS_IS_ORNAMENT(ornament));
-
-  /* add new ornament to this canvas's list */
-  self->ornaments = g_list_append_circular(self->ornaments, ornament);
-
-  ornament->canvas = self;
-
-  HosOrnamentClass *class = HOS_ORNAMENT_GET_CLASS(ornament);
-  g_signal_connect(self, "configure-event", G_CALLBACK(canvas_configure_ornament_cb), ornament);
-
-  g_object_ref(ornament);
-}
-
-static GList*
-g_list_append_circular(GList* list, gpointer elem)
-{
-  GList* new_entry = g_new(GList, 1);
-
-  new_entry->data = elem;
-  /* note: assertion will fix up prev links */
-  g_list_assert_circular(list);
-  if (list == NULL)
-    list = new_entry;
-  else
-    list->prev->next = new_entry;
-  new_entry->next = list;
-  g_list_assert_circular(list);
-
-  return list;
-}
-
-/*
- * make sure list is circular with a sanity check for # of iterations
- * and fix up ->prev links
- */
-static void
-g_list_assert_circular(GList* list)
-{
-  int i = 0;
-  static const int max = 10000;
-  GList* orig = list;
-
-  if (list == NULL)
-    return;
-
-  while (1)
-    {
-      assert(list != NULL);
-      assert(i < max);
-      ++i;
-      list->next->prev = list;
-      list = list->next;
-      if (list == orig)
-	break;
-    }
-}
-
-/*
- * Spin the wheel of circularly linked ornaments so that the next in
- * line is the first to be picked up.
- */
-static void
-canvas_shuffle_ornaments(HosCanvas *self)
-{
-  g_list_assert_circular(self->ornaments);
-
-  if (self->ornaments)
-    self->ornaments = self->ornaments->next;
 }
 
 static void
-canvas_redraw_ornaments(HosCanvas *self)
+hos_canvas_init(HosCanvas  *canvas)
 {
-  GList* ptr = self->ornaments;
+  GtkWidget *widget = GTK_WIDGET(canvas);
 
-  if (ptr == NULL)
-    return;
+  gtk_widget_add_events(widget,
+			GDK_BUTTON_PRESS_MASK |
+			GDK_BUTTON_RELEASE_MASK |
+			GDK_POINTER_MOTION_MASK |
+			GDK_POINTER_MOTION_HINT_MASK);
 
-  /* adapt to circular list... first member of list acts as sentinel */
-  while (1)
-    {
-      assert(ptr != NULL);
-      ornament_redraw(HOS_ORNAMENT(ptr->data));
-      ptr = ptr->next;
-      assert(ptr != NULL);
-      if (ptr == self->ornaments)
-	break;
-    }
-}
+  canvas_set_painter(canvas, painter_gdk_new());
 
-static void
-ornament_release_cb(HosOrnament* ornament, gpointer data)
-{
-  ornament_release(ornament);
+  {
+    GdkColor bg_color;
+
+    bg_color.red = 0xF;
+    bg_color.blue = 0xF;
+    bg_color.green = 0xF;
+
+    gdk_colormap_alloc_color(gdk_colormap_get_system(),
+			     &bg_color,
+			     FALSE, TRUE);
+
+    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
+  }
+
+  canvas->x1 = 0;
+  canvas->y1 = 0;
+  canvas->xn = 100;
+  canvas->yn = 100;
+
 }
 
 /* callback for button press events on canvas widget */
@@ -244,7 +144,12 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 
   x = event->x;
   y = event->y;
-  canvas_view2ppm(canvas, &x, &y);
+  canvas_view2world(canvas, &x, &y);
+
+
+#ifdef UNDEF
+
+  /* FIXME this block to be moved to ornament signal handlers */
 
   /* there shouldn't be any active ornament, but release to be sure... */
   canvas_drop_all_ornaments(canvas);
@@ -278,14 +183,14 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 	
       }
 
-  canvas_shuffle_ornaments(canvas);
+#endif /* UNDEF */
 
   g_signal_emit(canvas,
 		canvas_signals[CLICKED],
 		0, x, y);
 
-  if(GTK_WIDGET_CLASS(parent_class)->button_press_event)
-    return GTK_WIDGET_CLASS(parent_class)->button_press_event(widget, event);
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event(widget, event);
   else
     return FALSE;
 
@@ -294,12 +199,17 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 static void
 canvas_drop_all_ornaments(HosCanvas *canvas)
 {
+  /*
+
+    FIXME this functionality to be moved to ornaments' button signal handlers
+
   if (canvas->active_ornaments != NULL)
     {
       g_list_foreach(canvas->active_ornaments, (GFunc)ornament_release_cb, NULL);
       g_list_free(canvas->active_ornaments);
       canvas->active_ornaments = NULL;
     }
+  */
 }
 
 /* callback for button release events on canvas widget */
@@ -313,8 +223,8 @@ canvas_button_release(GtkWidget *widget, GdkEventButton *event)
 
   canvas_drop_all_ornaments(canvas);
   
-  if(GTK_WIDGET_CLASS(parent_class)->button_release_event)
-    return GTK_WIDGET_CLASS(parent_class)->button_release_event(widget, event);
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event(widget, event);
   else
     return FALSE;
 
@@ -327,8 +237,8 @@ canvas_expose_event(GtkWidget *widget, GdkEventExpose *event)
   HosCanvas *canvas = HOS_CANVAS(widget);
 
   /* chain up */
-  if (GTK_WIDGET_CLASS(parent_class)->expose_event)
-    GTK_WIDGET_CLASS(parent_class)->expose_event(widget, event);
+  if (GTK_WIDGET_CLASS(hos_canvas_parent_class)->expose_event)
+    GTK_WIDGET_CLASS(hos_canvas_parent_class)->expose_event(widget, event);
 
   /* redraw the affected canvas portion */
   x1 = event->area.x;
@@ -339,7 +249,9 @@ canvas_expose_event(GtkWidget *widget, GdkEventExpose *event)
   canvas_view2pt(canvas, &xn, &yn);
   painter_redraw_region(HOS_PAINTER(canvas->painter), x1, y1, xn, yn);
 
-  canvas_redraw_ornaments(canvas);
+  GList* ptr;
+  for (ptr = canvas->items; ptr != NULL; ptr = ptr->next)
+    canvas_item_expose(HOS_CANVAS_ITEM(ptr->data), event);
 
   return FALSE;
 }
@@ -398,8 +310,8 @@ canvas_configure_event(GtkWidget *widget,
   gtk_widget_queue_draw(widget);
   
   /* chain up */
-  if (GTK_WIDGET_CLASS(parent_class)->configure_event)
-    return GTK_WIDGET_CLASS(parent_class)->configure_event(widget, event);
+  if (GTK_WIDGET_CLASS(hos_canvas_parent_class)->configure_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->configure_event(widget, event);
   else
     return FALSE;
 }
@@ -409,7 +321,7 @@ canvas_realize(GtkWidget *widget)
 {
   HosCanvas *canvas = HOS_CANVAS(widget);
 
-  (GTK_WIDGET_CLASS(parent_class))->realize(widget);
+  (GTK_WIDGET_CLASS(hos_canvas_parent_class))->realize(widget);
 
   canvas->gc = gdk_gc_new(widget->window);
 
@@ -433,14 +345,19 @@ canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event)
   y = event->y;
   canvas_view2ppm(canvas, &x, &y);
 
+  /*
+
+    FIXME ornaments are now responsible for their own movement through signal handlers
+
   {
     GList* ptr;
     for (ptr = canvas->active_ornaments; ptr != NULL; ptr = ptr->next)
       ornament_move(HOS_ORNAMENT(ptr->data), x, y);
   }
+  */
 
-  if(GTK_WIDGET_CLASS(parent_class)->motion_notify_event)
-    return GTK_WIDGET_CLASS(parent_class)->motion_notify_event(widget, event);
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event(widget, event);
   else
     return FALSE;
 }
@@ -556,33 +473,6 @@ canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y)
 
 }
 
-static void
-hos_canvas_init(HosCanvas  *canvas)
-{
-  GtkWidget *widget = GTK_WIDGET(canvas);
-
-  gtk_widget_add_events(widget,
-			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
-			| GDK_POINTER_MOTION_MASK);
-
-
-  canvas_set_painter(canvas, painter_gdk_new());
-
-  {
-    GdkColor bg_color;
-
-    bg_color.red = 0xF;
-    bg_color.blue = 0xF;
-    bg_color.green = 0xF;
-
-    gdk_colormap_alloc_color(gdk_colormap_get_system(),
-			     &bg_color,
-			     FALSE, TRUE);
-
-    gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
-  }
-
-}
 
 static void
 hos_canvas_set_property (GObject         *object,
@@ -691,3 +581,114 @@ canvas_get_painter(HosCanvas *self)
   return HOS_PAINTER(self->painter);
 }
 
+void
+canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
+{
+  g_return_if_fail(HOS_IS_CANVAS(self));
+  g_return_if_fail(HOS_IS_CANVAS_ITEM(canvasitem));
+
+  canvas_item_set_canvas(canvasitem, self);
+
+  if (!g_list_find(self->items, canvasitem))
+    {
+      g_object_ref(canvasitem);
+      self->items = g_list_append(self->items, canvasitem);
+    }
+}
+
+void
+canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+  if (GTK_WIDGET_DRAWABLE(canvas))
+    gdk_window_invalidate_region(GTK_WIDGET(canvas)->window, region, TRUE);
+}
+
+void
+canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  if (GTK_WIDGET_REALIZED(canvas))
+    {
+      gint window_width, window_height;
+      gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			  &window_width, &window_height);
+      
+      if (x != NULL)
+	*x = (*x / window_width)
+	  * (canvas->xn - canvas->x1) + canvas->x1;
+      if (y != NULL)
+	*y = (*y / window_height)
+	  * (canvas->yn - canvas->y1) + canvas->y1;
+    }
+  else
+    {
+      if (x != NULL) *x = 0;
+      if (y != NULL) *y = 0;
+    }
+}
+
+void
+canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  if (GTK_WIDGET_REALIZED(canvas))
+    {
+      gint window_width, window_height;
+      gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			  &window_width, &window_height);
+      
+      if (x != NULL)
+	*x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
+	  * window_width;
+      
+      if (y != NULL)
+	*y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
+	  * window_height;
+    }
+  else
+    {
+      if (x != NULL) *x = 0;
+      if (y != NULL) *y = 0;
+    }
+
+}
+
+void
+canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn)
+{
+  canvas->x1 = x1;
+  canvas->y1 = y1;
+  canvas->xn = xn;
+  canvas->yn = yn;
+  g_signal_emit(canvas, canvas_signals[WORLD_CONFIGURE], 0);
+  gtk_widget_queue_draw(GTK_WIDGET(canvas));
+}
+
+GtkAdjustment*
+adjustment_for_canvas_x(HosCanvas* canvas)
+{
+  gdouble min = canvas->x1;
+  gdouble max = canvas->xn;
+
+  ENSURE_ORDER_GDOUBLE(min, max);
+
+  return GTK_ADJUSTMENT(gtk_adjustment_new((min + max) / 2.0, min, max,
+					   (max - min) / 2000.0,
+					   0, 0));
+}
+
+GtkAdjustment*
+adjustment_for_canvas_y(HosCanvas* canvas)
+{
+  gdouble min = canvas->y1;
+  gdouble max = canvas->yn;
+
+  ENSURE_ORDER_GDOUBLE(min, max);
+
+  return GTK_ADJUSTMENT(gtk_adjustment_new((min + max) / 2.0, min, max,
+					   (max - min) / 2000.0,
+					   0, 0));
+}
