@@ -39,7 +39,6 @@ enum {
 };
 
 enum {
-  GRABBED,
   MOVED,
   DROPPED,
   LAST_SIGNAL
@@ -48,18 +47,17 @@ enum {
 static guint marker_signals[LAST_SIGNAL] = { 0 };
 
 static void hos_marker_set_property (GObject         *object,
-				      guint            prop_id,
-				      const GValue    *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     const GValue    *value,
+				     GParamSpec      *pspec);
 static void hos_marker_get_property (GObject         *object,
-				      guint            prop_id,
-				      GValue          *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     GValue          *value,
+				     GParamSpec      *pspec);
 
 
 static void marker_paint(HosOrnament *self, HosCanvas *canvas);
 static void marker_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
-static void marker_acquire_method(HosOrnament *self);
 static void marker_motion_event(HosOrnament *self, gdouble x, gdouble y);
 static void marker_release_method(HosOrnament *self);
 
@@ -84,7 +82,6 @@ hos_marker_class_init (HosMarkerClass *klass)
 
   ornament_class->paint = marker_paint;
   ornament_class->calculate_region = marker_calculate_region;
-  ornament_class->acquire = marker_acquire_method;
   ornament_class->release = marker_release_method;
   ornament_class->motion_event = marker_motion_event;
   
@@ -98,21 +95,11 @@ hos_marker_class_init (HosMarkerClass *klass)
 							0.0,
 							G_PARAM_READWRITE));
 
-  marker_signals[GRABBED] =
-    g_signal_new("grabbed",
-		 G_OBJECT_CLASS_TYPE(gobject_class),
-		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
-		 NULL, NULL,
-		 g_cclosure_marshal_VOID__UINT,
-		 G_TYPE_NONE, 1,
-		 G_TYPE_UINT);
-  
   marker_signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
+		 G_STRUCT_OFFSET(HosMarkerClass, dropped),
 		 NULL, NULL,
 		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
 		 G_TYPE_NONE, 2,
@@ -123,7 +110,7 @@ hos_marker_class_init (HosMarkerClass *klass)
     g_signal_new("moved",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
+		 G_STRUCT_OFFSET(HosMarkerClass, moved),
 		 NULL, NULL,
 		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
 		 G_TYPE_NONE, 2,
@@ -233,17 +220,6 @@ marker_calculate_region(HosOrnament *self)
 }
 
 static void
-marker_acquire_method(HosOrnament *self)
-{
-  HosMarker *marker = HOS_MARKER(self);
-  marker->active = TRUE;
-
-  if (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->acquire)
-    (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->acquire)(self);
-
-}
-
-static void
 marker_motion_event(HosOrnament *self, gdouble x, gdouble y)
 {
   /* HosMarker *marker = HOS_MARKER(self); */
@@ -261,7 +237,6 @@ marker_release_method(HosOrnament *self)
   gdouble x, y;
   HosMarker *marker = HOS_MARKER(self);
 
-  marker->active = FALSE;
   marker_get_pos(marker, &x, &y);
   g_signal_emit_by_name(marker, "dropped", x, y);
 
@@ -345,13 +320,15 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
   gdouble new_x;
   gdouble new_y;
 
+  gboolean need_configure = FALSE;
+
   new_x = GTK_IS_ADJUSTMENT(adjustment_x) ? gtk_adjustment_get_value(adjustment_x) : 0;
   new_y = GTK_IS_ADJUSTMENT(adjustment_y) ? gtk_adjustment_get_value(adjustment_y) : 0;
 
   g_return_if_fail(HOS_IS_MARKER(marker));
   if (marker->adjustment_x != adjustment_x)
     {
-
+      need_configure = TRUE;
       if (marker->adjustment_x)
         {
 	  g_signal_handlers_disconnect_by_func (marker->adjustment_x,
@@ -372,7 +349,7 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
     }
   if (marker->adjustment_y != adjustment_y)
     {
-
+      need_configure = TRUE;
       if (marker->adjustment_y)
         {
 	  g_signal_handlers_disconnect_by_func (marker->adjustment_y,
@@ -390,7 +367,7 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
 			    marker);
         }
     }
-  ornament_configure(HOS_ORNAMENT(marker));
+  if (need_configure) ornament_configure(HOS_ORNAMENT(marker));
 }
 
 /*

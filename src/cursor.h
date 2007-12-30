@@ -59,7 +59,6 @@ struct _HosCursorClass
 {
   HosOrnamentClass parent_class;
 
-  void (*grabbed)(HosCursor *Cursor);
   void (*moved)(HosCursor *Cursor, gdouble position);
   void (*dropped)(HosCursor *Cursor, gdouble position);
 

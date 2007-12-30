@@ -52,7 +52,6 @@ struct _HosMarker
   guint style;
 
   gboolean movable;
-  gboolean active;
 
 };
 
@@ -60,7 +59,6 @@ struct _HosMarkerClass
 {
   HosOrnamentClass parent_class;
 
-  void (*grabbed) (HosMarker *marker);
   void (*moved)   (HosMarker *marker, gdouble x, gdouble y);
   void (*dropped) (HosMarker *marker, gdouble x, gdouble y);
 
