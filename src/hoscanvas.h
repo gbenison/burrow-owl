@@ -64,19 +64,19 @@ struct _HosCanvasClass
 
 };
 
-HosPainter* canvas_get_painter(HosCanvas *self);
-void canvas_set_painter(HosCanvas *self, HosPainterGdk *painter);
-HosSpectrum* canvas_get_spectrum(HosCanvas *self);
-void canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem);
+HosPainter*  canvas_get_painter   (HosCanvas *self);
+void         canvas_set_painter   (HosCanvas *self, HosPainterGdk *painter);
+HosSpectrum* canvas_get_spectrum  (HosCanvas *self);
+void         canvas_add_item      (HosCanvas *self, HosCanvasItem *canvasitem);
 
-void canvas_view2ppm(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_ppm2view(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2pt(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_view2ppm (HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_ppm2view (HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_view2pt  (HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_pt2view  (HosCanvas *canvas, gdouble *x, gdouble *y);
 
-void canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
-void canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_set_world  (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
+void canvas_world2view (HosCanvas *canvas, gdouble *x, gdouble *y);
+void canvas_view2world (HosCanvas *canvas, gdouble *x, gdouble *y);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);

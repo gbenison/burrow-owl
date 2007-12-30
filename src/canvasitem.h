@@ -54,10 +54,10 @@ struct _HosCanvasItem
 };
 
 
-GType hos_canvas_item_get_type(void);
-void canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event);
-void canvas_item_configure(HosCanvasItem *self);
-void canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas);
+GType   hos_canvas_item_get_type (void);
+void    canvas_item_expose       (HosCanvasItem *self, GdkEventExpose *event);
+void    canvas_item_configure    (HosCanvasItem *self);
+void    canvas_item_set_canvas   (HosCanvasItem *self, HosCanvas *canvas);
 
 G_END_DECLS
 

@@ -82,9 +82,9 @@ hos_cursor_class_init (HosCursorClass *klass)
 
   g_object_class_install_property (gobject_class,
                                    PROP_POSITION,
-                                   g_param_spec_double ("Position",
+                                   g_param_spec_double ("position",
 							"Position",
-							"coordinate (ppm)",
+							"coordinate (world)",
 							-G_MAXDOUBLE,
 							G_MAXDOUBLE,
 							0.0,
@@ -124,14 +124,11 @@ hos_cursor_set_property (GObject         *object,
 			 const GValue    *value,
 			 GParamSpec      *pspec)
 {
-  HosCursor *cursor = HOS_CURSOR(object);
-
-  cursor=cursor; /* to eliminate warning */
-
   switch (prop_id)
     {
     case PROP_POSITION:
-      /* FIXME */
+      gtk_adjustment_set_value(HOS_CURSOR(object)->adjustment,
+			       g_value_get_double(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -145,12 +142,11 @@ hos_cursor_get_property (GObject         *object,
 			 GValue          *value,
 			 GParamSpec      *pspec)
 {
-  HosCursor *cursor = HOS_CURSOR(object);
-
-  cursor=cursor; /* to eliminate warning */
-
   switch (prop_id)
     {
+    case PROP_POSITION:
+      g_value_set_double(value, cursor_get_position(HOS_CURSOR(object)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

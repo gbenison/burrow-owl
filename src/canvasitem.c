@@ -76,7 +76,6 @@ hos_canvas_item_class_init(HosCanvasItemClass *klass)
 static void
 hos_canvas_item_init(HosCanvasItem *self)
 {
-  /* FIXME */
 }
 
 static void canvas_item_set_property (GObject         *object,
@@ -100,9 +99,9 @@ static void canvas_item_set_property (GObject         *object,
 }
 
 static void canvas_item_get_property (GObject         *object,
-				       guint            prop_id,
-				       GValue          *value,
-				       GParamSpec      *pspec)
+				      guint            prop_id,
+				      GValue          *value,
+				      GParamSpec      *pspec)
 {
   HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(object);
   HosCanvas *canvas;

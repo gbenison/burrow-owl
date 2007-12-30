@@ -88,9 +88,19 @@ hos_marker_class_init (HosMarkerClass *klass)
   
   g_object_class_install_property (gobject_class,
                                    PROP_X,
-                                   g_param_spec_double ("X",
+                                   g_param_spec_double ("x",
 							"X",
-							"X coordinate (ppm)",
+							"X coordinate (world)",
+							-G_MAXDOUBLE,
+							G_MAXDOUBLE,
+							0.0,
+							G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_Y,
+                                   g_param_spec_double ("y",
+							"Y",
+							"Y coordinate (world)",
 							-G_MAXDOUBLE,
 							G_MAXDOUBLE,
 							0.0,
@@ -253,18 +263,19 @@ hos_marker_init(HosMarker *marker)
 
 static void
 hos_marker_set_property (GObject         *object,
-			  guint            prop_id,
-			  const GValue    *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 const GValue    *value,
+			 GParamSpec      *pspec)
 {
-  HosMarker *marker = HOS_MARKER(object);
-
-  marker=marker; /* to eliminate warning */
-
   switch (prop_id)
     {
     case PROP_X:
-      /* FIXME */
+      gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_x,
+			       g_value_get_double(value));
+      break;
+    case PROP_Y:
+      gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_y,
+			       g_value_get_double(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -278,12 +289,14 @@ hos_marker_get_property (GObject         *object,
 			 GValue          *value,
 			 GParamSpec      *pspec)
 {
-  HosMarker *marker = HOS_MARKER(object);
-
-  marker=marker; /* to eliminate warning */
-
   switch (prop_id)
     {
+    case PROP_X:
+      g_value_set_double(value, marker_get_x(HOS_MARKER(object)));
+      break;
+    case PROP_Y:
+      g_value_set_double(value, marker_get_y(HOS_MARKER(object)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
