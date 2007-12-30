@@ -41,13 +41,11 @@ static void contour_plot_get_property (GObject         *object,
 				       guint            prop_id,
 				       GValue          *value,
 				       GParamSpec      *pspec);
-static void contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event);
-static gboolean contour_plot_painter_configure(HosPainter *painter,
-					       HosContourPlot *contour_plot);
-static void contour_plot_item_configure(HosCanvasItem *self);
-static void contour_plot_set_painter(HosContourPlot *self, HosPainter *painter);
-
-
+static void     contour_plot_expose            (HosCanvasItem *self, GdkEventExpose *event);
+static gboolean contour_plot_painter_configure (HosPainter *painter,
+						HosContourPlot *contour_plot);
+static void     contour_plot_item_configure    (HosCanvasItem *self);
+static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 
 G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CANVAS_ITEM)
 
