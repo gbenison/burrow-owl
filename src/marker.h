@@ -51,8 +51,6 @@ struct _HosMarker
   guint size;
   guint style;
 
-  gboolean movable;
-
 };
 
 struct _HosMarkerClass
@@ -65,7 +63,6 @@ struct _HosMarkerClass
 };
 
 void marker_set_size(HosMarker *marker, guint size);
-void marker_set_movable(HosMarker *marker, gboolean movable);
 void marker_set_adjustments(HosMarker *marker, GtkAdjustment *x_adjustment, GtkAdjustment *y_adjustment);
 GtkAdjustment* marker_get_x_adjustment(HosMarker *marker);
 GtkAdjustment* marker_get_y_adjustment(HosMarker *marker);

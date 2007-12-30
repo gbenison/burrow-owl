@@ -50,8 +50,6 @@ struct _HosCursor
 
   guint orientation;  /* HORIZONTAL or VERTICAL */
 
-  gboolean movable;
-
 };
 
 struct _HosCursorClass
@@ -65,7 +63,6 @@ struct _HosCursorClass
 
 void cursor_set_orientation(HosCursor *cursor, guint orientation);
 GtkAdjustment* cursor_get_adjustment(HosCursor *cursor);
-void cursor_set_movable(HosCursor *cursor, gboolean movable);
 void cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment);
 void cursor_set_pos(HosCursor *cursor, gdouble position);
 HosCursor* canvas_add_cursor_horizontal(HosCanvas *canvas);

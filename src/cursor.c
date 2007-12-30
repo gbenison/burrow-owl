@@ -54,13 +54,13 @@ static void hos_cursor_get_property (GObject         *object,
 				     GValue          *value,
 				     GParamSpec      *pspec);
 
-static void cursor_paint(HosOrnament *self, HosCanvas *canvas);
-static void cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
-static GdkRegion* cursor_calculate_region(HosOrnament *self);
-static void cursor_release_method(HosOrnament *self);
-static void cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y);
-
-static void cursor_adjustment_value_changed(GtkAdjustment *adjustment, HosCursor *cursor);
+static void       cursor_paint                  (HosOrnament *self, HosCanvas *canvas);
+static void       cursor_set_pos_method         (HosOrnament *self, gdouble x, gdouble y);
+static GdkRegion* cursor_calculate_region       (HosOrnament *self);
+static void       cursor_release_method         (HosOrnament *self);
+static void       cursor_motion_event_method    (HosOrnament *self, gdouble x, gdouble y);
+static void       cursor_adjustment_value_changed (GtkAdjustment *adjustment,
+						   HosCursor *cursor);
 
 G_DEFINE_TYPE (HosCursor, hos_cursor, HOS_TYPE_ORNAMENT)
 
@@ -117,7 +117,6 @@ hos_cursor_class_init (HosCursorClass *klass)
 static void
 hos_cursor_init(HosCursor  *cursor)
 {
-  cursor->movable = TRUE;
 }
 
 static void
@@ -257,13 +256,6 @@ cursor_get_adjustment(HosCursor *cursor)
     return NULL;
 
   return cursor->adjustment;
-}
-
-void
-cursor_set_movable(HosCursor *cursor, gboolean movable)
-{
-  g_return_if_fail(HOS_IS_CURSOR(cursor));
-  cursor->movable = movable;
 }
 
 void

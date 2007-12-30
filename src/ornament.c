@@ -35,7 +35,8 @@ enum {
   PROP_0,
   PROP_MOUSE_OVER,
   PROP_GRABBED,
-  PROP_VISIBLE
+  PROP_VISIBLE,
+  PROP_SENSITIVE
 };
 
 static guint ornament_signals[LAST_SIGNAL] = { 0 };
@@ -67,14 +68,15 @@ static gboolean ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *
 static void ornament_set_grabbed(HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over);
 static void ornament_set_visible(HosOrnament *self, gboolean visible);
-
+static void ornament_set_sensitive(HosOrnament *self, gboolean sensitive);
 
 G_DEFINE_ABSTRACT_TYPE (HosOrnament, hos_ornament, HOS_TYPE_CANVAS_ITEM)
 
 static void
 hos_ornament_init(HosOrnament *self)
 {
-  self->visible = TRUE;
+  ornament_set_sensitive(self, TRUE);
+  ornament_set_visible(self, TRUE);
 }
 
 static void
@@ -116,6 +118,14 @@ hos_ornament_class_init (HosOrnamentClass *klass)
                                    g_param_spec_boolean ("visible",
 							 "Visible",
 							 "If true, this ornament will be drawn on the screen",
+							 TRUE,
+							 G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_SENSITIVE,
+                                   g_param_spec_boolean ("sensitive",
+							 "Sensitive",
+							 "If true, this ornament will respond to mouse clicks",
 							 TRUE,
 							 G_PARAM_READABLE | G_PARAM_WRITABLE));
 
@@ -185,6 +195,9 @@ hos_ornament_set_property   (GObject         *object,
     case PROP_VISIBLE:
       ornament_set_visible(HOS_ORNAMENT(object), g_value_get_boolean(value));
       break;
+    case PROP_SENSITIVE:
+      ornament_set_sensitive(HOS_ORNAMENT(object), g_value_get_boolean(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -207,6 +220,9 @@ hos_ornament_get_property   (GObject         *object,
       break;
     case PROP_VISIBLE:
       g_value_set_boolean(value, HOS_ORNAMENT(object)->visible);
+      break;
+    case PROP_SENSITIVE:
+      g_value_set_boolean(value, HOS_ORNAMENT(object)->sensitive);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -376,7 +392,7 @@ ornament_canvas_button_release(GtkWidget *widget, GdkEventButton *event, HosOrna
 static gboolean
 ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrnament *self)
 {
-  if (event->button == 1)
+  if ((event->button == 1) && (self->sensitive))
     ornament_acquire(self);
   return FALSE;
 }
@@ -444,5 +460,17 @@ ornament_set_visible(HosOrnament *self, gboolean visible)
       g_object_notify(G_OBJECT(self), "visible");
       ornament_configure(self);
       /* FIXME emit a 'hide' or 'show' signal?? */
+    }
+}
+
+static void
+ornament_set_sensitive(HosOrnament *self, gboolean sensitive)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  if (sensitive != self->sensitive)
+    {
+      self->sensitive = sensitive;
+      g_object_notify(G_OBJECT(self), "sensitive");
     }
 }

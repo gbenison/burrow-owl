@@ -55,14 +55,13 @@ static void hos_marker_get_property (GObject         *object,
 				     GValue          *value,
 				     GParamSpec      *pspec);
 
-
-static void marker_paint(HosOrnament *self, HosCanvas *canvas);
-static void marker_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
-static void marker_motion_event(HosOrnament *self, gdouble x, gdouble y);
-static void marker_release_method(HosOrnament *self);
-
-static GdkRegion* marker_calculate_region(HosOrnament *self);
-static void marker_adjustment_value_changed(GtkAdjustment *adjustment, HosMarker *marker);
+static void marker_paint          (HosOrnament *self, HosCanvas *canvas);
+static void marker_set_pos_method (HosOrnament *self, gdouble x, gdouble y);
+static void marker_motion_event   (HosOrnament *self, gdouble x, gdouble y);
+static void marker_release_method (HosOrnament *self);
+static GdkRegion* marker_calculate_region   (HosOrnament *self);
+static void marker_adjustment_value_changed (GtkAdjustment *adjustment,
+					     HosMarker *marker);
 
 G_DEFINE_TYPE (HosMarker, hos_marker, HOS_TYPE_ORNAMENT)
 
@@ -245,16 +244,11 @@ marker_release_method(HosOrnament *self)
 
 }
 
-
 static void
 hos_marker_init(HosMarker *marker)
 {
-  /* Set a reasonable default size */
   marker->size = 10;
-  /* Set a reasonable default style */
   marker->style = MARKER_CROSS;
-
-  marker->movable = TRUE;
 }
 
 static void
@@ -280,9 +274,9 @@ hos_marker_set_property (GObject         *object,
 
 static void
 hos_marker_get_property (GObject         *object,
-			  guint            prop_id,
-			  GValue          *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 GValue          *value,
+			 GParamSpec      *pspec)
 {
   HosMarker *marker = HOS_MARKER(object);
 
@@ -305,13 +299,6 @@ marker_set_size(HosMarker *marker, guint size)
       marker->size = size;
       ornament_configure(HOS_ORNAMENT(marker));
     }
-}
-
-void
-marker_set_movable(HosMarker *marker, gboolean movable)
-{
-  g_return_if_fail(HOS_IS_MARKER(marker));
-  marker->movable = movable;
 }
 
 void
