@@ -259,6 +259,8 @@ canvas_expose_event(GtkWidget *widget, GdkEventExpose *event)
 /*
  * Set this painter's coordinate transform so that it fills the
  * canvas drawing area.
+ *
+ * FIXME deprecated-- moved to contourplot.c
  */
 static void
 canvas_painter_sync_xform(HosCanvas *canvas, HosPainter *painter)

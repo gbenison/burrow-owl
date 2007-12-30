@@ -393,6 +393,25 @@ painter_redraw_region(HosPainter* painter,
   
 }
 
+void
+painter_redraw_region_ppm(HosPainter* painter,
+			  gdouble x_lower,
+			  gdouble y_lower,
+			  gdouble x_upper,
+			  gdouble y_upper)
+{
+  g_return_if_fail(HOS_IS_PAINTER(painter));
+
+  HosSpectrum *spectrum = painter->spectrum;
+  g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+
+  painter_redraw_region(painter,
+			spectrum_ppm2pt(spectrum, 0, x_lower),
+			spectrum_ppm2pt(spectrum, 1, y_lower),
+			spectrum_ppm2pt(spectrum, 0, x_upper),
+			spectrum_ppm2pt(spectrum, 1, y_upper));
+}
+
 /*
  * Redraw the entire region of 'painter'.
  */

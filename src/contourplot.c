@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include "contourplot.h"
+#include "painter_gdk.h"
 #include "painter_cairo.h"
 
 enum {
@@ -31,7 +32,7 @@ enum {
   LAST_SIGNAL
 };
 
-static guint contour_plot_signals[LAST_SIGNAL] = { 0 };
+/* static guint contour_plot_signals[LAST_SIGNAL] = { 0 }; */
 
 static void contour_plot_set_property (GObject         *object,
 				       guint            prop_id,
@@ -46,6 +47,12 @@ static gboolean contour_plot_painter_configure (HosPainter *painter,
 						HosContourPlot *contour_plot);
 static void     contour_plot_item_configure    (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
+static void     contour_plot_sync_xform        (HosContourPlot *self);
+static void     contour_plot_set_canvas        (HosCanvasItem *self,
+						HosCanvas *old_canvas,
+						HosCanvas *canvas);
+
+static gboolean contour_plot_canvas_configure  (GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self);
 
 G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CANVAS_ITEM)
 
@@ -58,8 +65,9 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
   gobject_class->set_property = contour_plot_set_property;
   gobject_class->get_property = contour_plot_get_property;
 
-  canvas_item_class->expose = contour_plot_expose;
+  canvas_item_class->expose         = contour_plot_expose;
   canvas_item_class->item_configure = contour_plot_item_configure;
+  canvas_item_class->set_canvas     = contour_plot_set_canvas;
 
   g_object_class_install_property (gobject_class,
                                    PROP_SPECTRUM,
@@ -133,8 +141,9 @@ contour_plot_get_property (GObject         *object,
 static void
 hos_contour_plot_init(HosContourPlot *self)
 {
-  contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL));
-  /* FIXME */
+  /* FIXME this is for cairo types */
+  /*  contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL)); */
+  contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
 }
 
 
@@ -148,7 +157,28 @@ contour_plot_painter_configure(HosPainter *painter,
 static void
 contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 {
-  /* FIXME */
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+  HosContourPlot *contour_plot = HOS_CONTOUR_PLOT(self);
+
+  HosCanvas *canvas = self->canvas;
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
+
+  /* redraw the affected canvas portion */
+  gdouble x1 = event->area.x;
+  gdouble xn = event->area.x + event->area.width;
+  gdouble y1 = event->area.y;
+  gdouble yn = event->area.y + event->area.height;
+  canvas_view2world(canvas, &x1, &y1);
+  canvas_view2world(canvas, &xn, &yn);
+
+  painter_gdk_set_drawable_gc(painter_gdk,
+			      GDK_DRAWABLE(GTK_WIDGET(canvas)->window),
+			      canvas->gc);
+
+  painter_redraw_region_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
+
 }
 
 static void
@@ -157,6 +187,39 @@ contour_plot_item_configure(HosCanvasItem *self)
   /* FIXME invalidate the whole spectrum region */
 }
 
+static void
+contour_plot_sync_xform(HosContourPlot *self)
+{
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+
+  if (canvas && GTK_WIDGET_REALIZED(canvas))
+    {
+      g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+      HosPainter* painter = HOS_PAINTER(self->painter);
+      g_return_if_fail(HOS_IS_PAINTER(painter));
+
+      HosSpectrum *spectrum = painter_get_spectrum(painter);
+      g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+
+      gdouble x_0 = spectrum_pt2ppm(spectrum, 0, 0);
+      gdouble y_0 = spectrum_pt2ppm(spectrum, 1, 0);
+      canvas_world2view(canvas, &x_0, &y_0);
+      
+      gdouble x_1 = spectrum_pt2ppm(spectrum, 0, 1);
+      gdouble y_1 = spectrum_pt2ppm(spectrum, 1, 1);
+      canvas_world2view(canvas, &x_1, &y_1);
+
+      gdouble x_slope = x_1 - x_0;
+      gdouble y_slope = y_1 - y_0;
+
+      painter_set_xform(painter, x_0, y_0, x_slope, y_slope);
+
+    }
+  
+}
 
 static void
 contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
@@ -182,6 +245,44 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
 		       G_CALLBACK(contour_plot_painter_configure), self);
     }
 }
+
+static void
+contour_plot_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
+{
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  if (old_canvas)
+    {
+      g_signal_handlers_disconnect_matched (old_canvas,
+					    G_SIGNAL_MATCH_DATA,
+					    0,      /* id */
+					    0,      /* detail */
+					    NULL,   /* closure */
+					    NULL,   /* func */
+					    self);  /* data */
+    }
+
+  if (canvas)
+    {
+      g_signal_connect (canvas, "configure-event",
+			G_CALLBACK (contour_plot_canvas_configure),
+			self);
+    }
+}
+
+/*
+ * Callback for canvas widget's 'configure' signal
+ */
+static gboolean
+contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(widget));
+
+  contour_plot_sync_xform(self);
+  return FALSE;
+}
+
 
 void
 contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
