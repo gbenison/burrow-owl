@@ -61,13 +61,13 @@ struct _HosCursorClass
 
 };
 
-void cursor_set_orientation(HosCursor *cursor, guint orientation);
-GtkAdjustment* cursor_get_adjustment(HosCursor *cursor);
-void cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment);
-void cursor_set_pos(HosCursor *cursor, gdouble position);
-HosCursor* canvas_add_cursor_horizontal(HosCanvas *canvas);
-HosCursor* canvas_add_cursor_vertical(HosCanvas *canvas);
-gdouble cursor_get_position(HosCursor *cursor);
+void           cursor_set_orientation        (HosCursor *cursor, guint orientation);
+GtkAdjustment* cursor_get_adjustment         (HosCursor *cursor);
+void           cursor_set_adjustment         (HosCursor *cursor, GtkAdjustment *adjustment);
+void           cursor_set_pos                (HosCursor *cursor, gdouble position);
+HosCursor*     canvas_add_cursor_horizontal  (HosCanvas *canvas);
+HosCursor*     canvas_add_cursor_vertical    (HosCanvas *canvas);
+gdouble        cursor_get_position           (HosCursor *cursor);
 
 GType hos_cursor_get_type(void);
 

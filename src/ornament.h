@@ -54,7 +54,6 @@ struct _HosOrnamentClass
   void       (*enter)             (HosOrnament *ornament);
   void       (*leave)             (HosOrnament *ornament);
   void       (*configure)         (HosOrnament *ornament);
-  void       (*motion_event)      (HosOrnament *ornament, gdouble x, gdouble y);
   void       (*move_relative)     (HosOrnament *ornament, gdouble dx, gdouble dy);
 
 };
@@ -76,9 +75,9 @@ struct _HosOrnament
   gdouble save_y;
 };
 
-void ornament_acquire(HosOrnament *self);
-void ornament_release(HosOrnament *self);
-void ornament_configure(HosOrnament* ornament);
+void ornament_acquire   (HosOrnament *self);
+void ornament_release   (HosOrnament *self);
+void ornament_configure (HosOrnament* ornament);
 
 GtkAdjustment* adjustment_for_spectrum(HosSpectrum *spec, guint dim);
 

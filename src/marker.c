@@ -56,12 +56,13 @@ static void hos_marker_get_property (GObject         *object,
 				     GParamSpec      *pspec);
 
 static void marker_paint          (HosOrnament *self, HosCanvas *canvas);
-static void marker_set_pos_method (HosOrnament *self, gdouble x, gdouble y);
-static void marker_motion_event   (HosOrnament *self, gdouble x, gdouble y);
+static void marker_move_relative  (HosOrnament *self, gdouble dx, gdouble dy);
 static void marker_release_method (HosOrnament *self);
 static GdkRegion* marker_calculate_region   (HosOrnament *self);
 static void marker_adjustment_value_changed (GtkAdjustment *adjustment,
 					     HosMarker *marker);
+
+static void  gtk_adjustment_increment_value(GtkAdjustment* adjustment, gdouble delta);
 
 G_DEFINE_TYPE (HosMarker, hos_marker, HOS_TYPE_ORNAMENT)
 
@@ -82,7 +83,7 @@ hos_marker_class_init (HosMarkerClass *klass)
   ornament_class->paint = marker_paint;
   ornament_class->calculate_region = marker_calculate_region;
   ornament_class->release = marker_release_method;
-  ornament_class->motion_event = marker_motion_event;
+  ornament_class->move_relative = marker_move_relative;
   
   g_object_class_install_property (gobject_class,
                                    PROP_X,
@@ -187,14 +188,6 @@ marker_paint(HosOrnament *self, HosCanvas *canvas)
 
 }
 
-static void
-marker_set_pos_method(HosOrnament *self, gdouble x, gdouble y)
-{
-  HosMarker *marker = HOS_MARKER(self);
-  gtk_adjustment_set_value(marker->adjustment_x, x);
-  gtk_adjustment_set_value(marker->adjustment_y, y);
-}
-
 static GdkRegion*
 marker_calculate_region(HosOrnament *self)
 {
@@ -216,18 +209,6 @@ marker_calculate_region(HosOrnament *self)
     }
   else
     return gdk_region_new();
-}
-
-static void
-marker_motion_event(HosOrnament *self, gdouble x, gdouble y)
-{
-  /* HosMarker *marker = HOS_MARKER(self); */
-  /* FIXME */
-  /* Maybe emit a 'moved' signal?? */
-  if (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->motion_event)
-    (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->motion_event)(self, x, y);
-  g_signal_emit_by_name(self, "moved", x, y);
-
 }
 
 static void
@@ -395,9 +376,23 @@ marker_adjustment_value_changed(GtkAdjustment *adjustment, HosMarker *marker)
     return;
 
   ornament_configure(HOS_ORNAMENT(marker));
-  g_signal_emit_by_name(marker, "moved", x, y);
+  g_signal_emit(marker, marker_signals[MOVED], 0, x, y);
 
 }
 
+static void
+gtk_adjustment_increment_value(GtkAdjustment* adjustment, gdouble delta)
+{
+  gtk_adjustment_set_value(adjustment,
+			   gtk_adjustment_get_value(adjustment) + delta);
+}
+
+static void
+marker_move_relative(HosOrnament *self, gdouble x, gdouble y)
+{
+  HosMarker *marker = HOS_MARKER(self);
+  gtk_adjustment_increment_value(marker->adjustment_x, x);
+  gtk_adjustment_increment_value(marker->adjustment_y, y);
+}
 
 
