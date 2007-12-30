@@ -504,7 +504,7 @@ ornament_canvas_drag(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self
   if (class->move_relative)
     class->move_relative(self, dx, dy);
   
-  return TRUE;  /* No further processing of motion signals needed */
+  return FALSE;
 }
 
 static void
