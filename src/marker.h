@@ -62,14 +62,15 @@ struct _HosMarkerClass
 
 };
 
-void marker_set_size(HosMarker *marker, guint size);
-void marker_set_adjustments(HosMarker *marker, GtkAdjustment *x_adjustment, GtkAdjustment *y_adjustment);
-GtkAdjustment* marker_get_x_adjustment(HosMarker *marker);
-GtkAdjustment* marker_get_y_adjustment(HosMarker *marker);
-HosMarker* canvas_add_marker(HosCanvas *canvas);
-gboolean marker_get_pos(HosMarker *self, gdouble *x, gdouble *y);
-
-GType hos_marker_get_type(void);
+void           marker_set_size          (HosMarker *marker, guint size);
+void           marker_set_adjustments   (HosMarker *marker,
+					 GtkAdjustment *x_adjustment,
+					 GtkAdjustment *y_adjustment);
+GtkAdjustment* marker_get_x_adjustment  (HosMarker *marker);
+GtkAdjustment* marker_get_y_adjustment  (HosMarker *marker);
+gdouble        marker_get_x             (HosMarker *marker);
+gdouble        marker_get_y             (HosMarker *marker);
+HosMarker*     canvas_add_marker        (HosCanvas *canvas);
 
 G_END_DECLS
 

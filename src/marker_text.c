@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #endif
 
 #include <assert.h>
-#include "marshal.h"
 #include "marker_text.h"
 #include <burrow/spectrum.h>
 
@@ -39,12 +38,8 @@ enum {
   LAST_SIGNAL
 };
 
-static GObjectClass *parent_class = NULL;
 /* static guint signals[LAST_SIGNAL] = { 0 }; */
 
-
-static void hos_marker_text_init(HosMarkerText  *marker);
-static void hos_marker_text_class_init (HosMarkerTextClass *klass);
 static void hos_marker_text_set_property (GObject         *object,
 					  guint            prop_id,
 					  const GValue    *value,
@@ -55,41 +50,11 @@ static void hos_marker_text_get_property (GObject         *object,
 					  GParamSpec      *pspec);
 
 
-static void marker_text_paint_method(HosOrnament *self);
-static void marker_text_get_patch_bbox(HosMarkerText* self, GdkRectangle *rect);
-static gboolean marker_text_point_overlap_method(HosOrnament *self,
-						 gdouble x_ppm, gdouble y_ppm);
-static void marker_text_sync_region(HosOrnament *self);
+static void       marker_text_paint(HosOrnament *self, HosCanvas *canvas);
+static void       marker_text_get_patch_bbox(HosMarkerText* self, GdkRectangle *rect);
+static GdkRegion* marker_text_calculate_region(HosOrnament *self);
 
-
-GType
-hos_marker_text_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosMarkerTextClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_marker_text_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosMarkerText),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_marker_text_init,
-      };
-
-      type = g_type_register_static (HOS_TYPE_MARKER,
-				     "HosMarkerText",
-				     &_info,
-				     0);
-    }
-
-  return type;
-}
+G_DEFINE_TYPE (HosMarkerText, hos_marker_text, HOS_TYPE_MARKER)
 
 static void
 hos_marker_text_class_init (HosMarkerTextClass *klass)
@@ -102,13 +67,11 @@ hos_marker_text_class_init (HosMarkerTextClass *klass)
   ornament_class = HOS_ORNAMENT_CLASS (klass);
   marker_class = HOS_MARKER_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_marker_text_set_property;
   gobject_class->get_property = hos_marker_text_get_property;
 
-  ornament_class->paint = marker_text_paint_method;
-  ornament_class->sync_region = marker_text_sync_region;
+  ornament_class->paint = marker_text_paint;
+  ornament_class->calculate_region = marker_text_calculate_region;
 
   g_object_class_install_property (gobject_class,
                                    PROP_LABEL,
@@ -122,64 +85,66 @@ hos_marker_text_class_init (HosMarkerTextClass *klass)
 }
 
 static void
-marker_text_sync_region(HosOrnament *self)
+hos_marker_text_init(HosMarkerText *marker_text)
 {
-  gdouble x, y;
+  HosMarker* marker = HOS_MARKER(marker_text);
+
+  marker->size = 20;
+  marker_text->text_color.pixel = 0;
+  marker_text->text_color.red = 0xFFFF;
+  marker_text->text_color.green = 0xFFFF;
+  marker_text->text_color.blue = 0xFFFF;
+
+}
+
+static GdkRegion*
+marker_text_calculate_region(HosOrnament *self)
+{
   GdkRectangle patch_rectangle;
   GdkRectangle text_rectangle;
-  HosCanvas *canvas = self->canvas;
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   HosMarkerText* marker_text = HOS_MARKER_TEXT(self);
 
-  if (marker_get_pos(HOS_MARKER(self), &x, &y))
-    {
-      ornament_invalidate_region(self);
+  gdouble x = marker_get_x(HOS_MARKER(self));
+  gdouble y = marker_get_y(HOS_MARKER(self));
 
-      marker_text_get_patch_bbox(marker_text, &patch_rectangle);
+  marker_text_get_patch_bbox(marker_text, &patch_rectangle);
       
-      canvas_ppm2view(canvas, &x, &y);
-      text_rectangle.x = x;
-      text_rectangle.y = y;
-      text_rectangle.width = 0;
-      text_rectangle.height = 0;
-
-      if (marker_text->layout)
-	{
-	  pango_layout_get_pixel_size(marker_text->layout, &text_rectangle.width, &text_rectangle.height);
-	  text_rectangle.y -= text_rectangle.height;
-	  text_rectangle.width += 2;
-	}
-      gdk_rectangle_union(&patch_rectangle, &text_rectangle, &patch_rectangle);
-
-      ornament_set_region(self, gdk_region_rectangle(&patch_rectangle));
-      ornament_invalidate_region(self);
+  canvas_world2view(canvas, &x, &y);
+  text_rectangle.x = x;
+  text_rectangle.y = y;
+  text_rectangle.width = 0;
+  text_rectangle.height = 0;
+  
+  if (marker_text->layout)
+    {
+      pango_layout_get_pixel_size(marker_text->layout, &text_rectangle.width, &text_rectangle.height);
+      text_rectangle.y -= text_rectangle.height;
+      text_rectangle.width += 2;
     }
+  gdk_rectangle_union(&patch_rectangle, &text_rectangle, &patch_rectangle);
+  
+  return gdk_region_rectangle(&patch_rectangle);
 
 }
 
 static void
-marker_text_paint_method(HosOrnament *self)
+marker_text_paint(HosOrnament *self, HosCanvas *canvas)
 {
 
   HosMarker *marker = HOS_MARKER(self);
   HosMarkerText *marker_text = HOS_MARKER_TEXT(self);
-  HosCanvas *canvas;
   GtkWidget *widget;
-  gdouble x;
-  gdouble y;
   GdkGC *gc;
-
-  canvas = HOS_CANVAS(self->canvas);
-  
-  if (canvas == NULL)
-    return;
 
   widget = GTK_WIDGET(canvas);
 
   if (!(GTK_WIDGET_MAPPED(widget)))
     return;
 
-  marker_get_pos(marker, &x, &y);
-  canvas_ppm2view(canvas, &x, &y);
+  gdouble x = marker_get_x(marker);
+  gdouble y = marker_get_y(marker);
+  canvas_world2view(canvas, &x, &y);
 
   gc = canvas->gc;
 
@@ -225,18 +190,19 @@ marker_text_get_patch_bbox(HosMarkerText* self, GdkRectangle *rect)
 
   HosMarker* marker = HOS_MARKER(self);
   HosOrnament* ornament = HOS_ORNAMENT(self);
-  HosCanvas* canvas = ornament->canvas;
+  HosCanvas* canvas = HOS_CANVAS_ITEM(ornament)->canvas;
   gdouble x1, y1, xn, yn;
 
   gint x_view, y_view;
 
-  marker_get_pos(marker, &x1, &y1);
+  x1 = marker_get_x(marker);
+  y1 = marker_get_y(marker);
   /* note: the sign is due to ppm/ view conventions */
   xn = x1 - self->patch_width;
   yn = y1 - self->patch_height;
 
-  canvas_ppm2view(canvas, &x1, &y1);
-  canvas_ppm2view(canvas, &xn, &yn);
+  canvas_world2view(canvas, &x1, &y1);
+  canvas_world2view(canvas, &xn, &yn);
 
   rect->x = x1 < xn ? x1 : xn;
   rect->y = y1 < yn ? y1 : yn;
@@ -255,41 +221,18 @@ marker_text_get_patch_bbox(HosMarkerText* self, GdkRectangle *rect)
 void
 marker_text_set_label(HosMarkerText* marker_text, const gchar *text)
 {
-  HosCanvas *canvas = (HOS_ORNAMENT(marker_text))->canvas;
+  HosCanvas *canvas = (HOS_CANVAS_ITEM(marker_text))->canvas;
 
   if (canvas)
     {
       marker_text->layout =
 	gtk_widget_create_pango_layout (GTK_WIDGET(canvas), NULL);
       pango_layout_set_markup(marker_text->layout, text, -1);
+      ornament_configure(HOS_ORNAMENT(marker_text));
     }
 }
 
 
-
-static gboolean
-marker_text_point_overlap_method(HosOrnament *self,
-			    gdouble x_ppm, gdouble y_ppm)
-{
-  /* FIXME */
-  /* compensate for text offset, etc? */
-  marker_text_point_overlap_method(NULL, 0, 0);  /* elim warning */
-  return TRUE;
-}
-
-static void
-hos_marker_text_init(HosMarkerText *marker_text)
-{
-  HosMarker* marker = HOS_MARKER(marker_text);
-
-  marker->size = 20;
-  marker->movable = TRUE;
-  marker_text->text_color.pixel = 0;
-  marker_text->text_color.red = 0xFFFF;
-  marker_text->text_color.green = 0xFFFF;
-  marker_text->text_color.blue = 0xFFFF;
-
-}
 
 void
 marker_text_set_color(HosMarkerText* self, guint16 red, guint16 green, guint16 blue)
@@ -298,7 +241,7 @@ marker_text_set_color(HosMarkerText* self, guint16 red, guint16 green, guint16 b
   self->text_color.green = green;
   self->text_color.blue = blue;
 
-  ornament_invalidate_region(HOS_ORNAMENT(self));
+  ornament_configure(HOS_ORNAMENT(self));
 }
 
 static void
@@ -345,25 +288,23 @@ hos_marker_text_get_property (GObject         *object,
 HosMarkerText*
 canvas_add_marker_text(HosCanvas *canvas, const gchar *text)
 {
-  HosSpectrum *spectrum = canvas_get_spectrum(canvas);
 
   HosMarkerText* result = g_object_new(HOS_TYPE_MARKER_TEXT, NULL);
   HosMarker* marker = HOS_MARKER(result);
 
-  if (spectrum != NULL)
-    marker_set_adjustments(marker,
-			   adjustment_for_spectrum(spectrum, 0),
-			   adjustment_for_spectrum(spectrum, 1));
+  marker_set_adjustments(marker,
+			 adjustment_for_canvas_x(canvas),
+			 adjustment_for_canvas_y(canvas));
 
-  canvas_add_ornament(canvas, HOS_ORNAMENT(result));
+  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
   marker_text_set_label(result, text);
 
   return result;
 }
 
 /*
- * Set the size of the 'patch region'; the blanked-out, specified-in-ppm box that
- * shows how big a hard copy version of this label might be.
+ * Set the size of the 'patch region'; the blanked-out region specified in world coordinates
+ * that shows how big a hard copy version of this label might be.
  */
 void
 marker_text_set_patch(HosMarkerText* self, gdouble width, gdouble height)
@@ -371,6 +312,8 @@ marker_text_set_patch(HosMarkerText* self, gdouble width, gdouble height)
   g_return_if_fail(HOS_IS_MARKER_TEXT(self));
   self->patch_width = width;
   self->patch_height = height;
+
+  ornament_configure(HOS_ORNAMENT(self));
 }
 
 

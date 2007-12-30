@@ -62,7 +62,8 @@ static GdkRegion* marker_calculate_region   (HosOrnament *self);
 static void marker_adjustment_value_changed (GtkAdjustment *adjustment,
 					     HosMarker *marker);
 
-static void  gtk_adjustment_increment_value(GtkAdjustment* adjustment, gdouble delta);
+static void     gtk_adjustment_increment_value (GtkAdjustment* adjustment, gdouble delta);
+static gboolean marker_get_pos                 (HosMarker *self, gdouble *x, gdouble *y);
 
 G_DEFINE_TYPE (HosMarker, hos_marker, HOS_TYPE_ORNAMENT)
 
@@ -120,7 +121,7 @@ hos_marker_class_init (HosMarkerClass *klass)
 
 }
 
-gboolean
+static gboolean
 marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
 {
   g_return_if_fail(HOS_IS_MARKER(self));
@@ -139,6 +140,24 @@ marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
 	return FALSE;
     }
   return TRUE;
+}
+
+gdouble
+marker_get_x(HosMarker *self)
+{
+  g_return_val_if_fail(HOS_IS_MARKER(self), 0);
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(self->adjustment_x), 0);
+
+  return gtk_adjustment_get_value(self->adjustment_x);
+}
+
+gdouble
+marker_get_y(HosMarker *self)
+{
+  g_return_val_if_fail(HOS_IS_MARKER(self), 0);
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(self->adjustment_y), 0);
+
+  return gtk_adjustment_get_value(self->adjustment_y);
 }
 
 static void

@@ -19,8 +19,6 @@ include_HEADERS=burrow.h
 # disabled sources -- awaiting updating
 # box.c 
 # box.h 
-# marker_text.c
-# marker_text.h
 
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
@@ -60,6 +58,8 @@ marker.c  \
 marker.h  \
 cursor.c \
 cursor.h \
+marker_text.c \
+marker_text.h \
 nih.c  \
 burrow/nih.h  \
 ornament.c  \

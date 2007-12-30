@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,10 +24,7 @@
 #include <gtk/gtkadjustment.h>
 #include "marker.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_MARKER_TEXT              (hos_marker_text_get_type())
 #define HOS_MARKER_TEXT(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_MARKER_TEXT, HosMarkerText))
@@ -55,16 +52,13 @@ struct _HosMarkerTextClass
 };
 
 
-void marker_text_set_label(HosMarkerText* marker_text, const gchar *text);
-HosMarkerText* canvas_add_marker_text(HosCanvas *canvas, const gchar *text);
-void marker_text_set_patch(HosMarkerText* self, gdouble width, gdouble height);
-void marker_text_set_color(HosMarkerText* self, guint16 red, guint16 green, guint16 blue);
-
+void marker_text_set_label            (HosMarkerText* marker_text, const gchar *text);
+HosMarkerText* canvas_add_marker_text (HosCanvas *canvas, const gchar *text);
+void marker_text_set_patch            (HosMarkerText* self, gdouble width, gdouble height);
+void marker_text_set_color            (HosMarkerText* self, guint16 red, guint16 green, guint16 blue);
 
 GType hos_marker_text_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_MARKER_TEXT_H */
