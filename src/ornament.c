@@ -52,13 +52,17 @@ static void hos_ornament_get_property   (GObject         *object,
 
 static void ornament_acquire_handler(HosOrnament *self);
 static void ornament_release_handler(HosOrnament *self);
+static void ornament_enter_method(HosOrnament *self);
+static void ornament_leave_method(HosOrnament *self);
 static void ornament_expose(HosCanvasItem *self, GdkEventExpose *event);
 static void ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
 static gboolean ornament_overlap_region(HosOrnament *self, GdkRegion *region);
 static void ornament_configure_handler(HosOrnament *self);
 static GdkRegion* ornament_calculate_region(HosOrnament *self);
 
-static void ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_button_release(GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
 
 static void ornament_set_grabbed(HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over);
@@ -84,6 +88,8 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 
   klass->acquire   = ornament_acquire_handler;
   klass->release   = ornament_release_handler;
+  klass->enter     = ornament_enter_method;
+  klass->leave     = ornament_leave_method;
   klass->configure = ornament_configure_handler;
 
   canvas_item_class->expose     = ornament_expose;
@@ -218,6 +224,25 @@ ornament_release_handler(HosOrnament *self)
 {
 }
 
+
+static void
+ornament_enter_method(HosOrnament *self)
+{
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+  self->button_press_signal_id =
+    g_signal_connect (canvas, "button-press-event",
+		      G_CALLBACK (ornament_canvas_button_press),
+		      self);
+}
+
+static void
+ornament_leave_method(HosOrnament *self)
+{
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+  g_signal_handler_disconnect(canvas, self->button_press_signal_id);
+  self->button_press_signal_id = 0;
+}
+
 static void
 ornament_expose(HosCanvasItem *self, GdkEventExpose *event)
 {
@@ -332,21 +357,35 @@ ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canva
 
   if (canvas)
     {
-      /* FIXME link new signals */
       g_signal_connect (canvas, "motion-notify-event",
 			G_CALLBACK (ornament_canvas_motion_notify),
 			self);
-
-      /* link button press signal */
-      /* link button release signal */
+      g_signal_connect (canvas, "button-release-event",
+			G_CALLBACK (ornament_canvas_button_release),
+			self);
     }
+}
+
+static gboolean
+ornament_canvas_button_release(GtkWidget *widget, GdkEventButton *event, HosOrnament *self)
+{
+  ornament_release(self);
+  return FALSE;
+}
+
+static gboolean
+ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrnament *self)
+{
+  if (event->button == 1)
+    ornament_acquire(self);
+  return FALSE;
 }
 
 /*
  * Connected to the canvas 'motion-notify' signal; called when the pointer
  * moves over the canvas.
  */
-static void
+static gboolean
 ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self)
 {
 
@@ -360,6 +399,8 @@ ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnam
 
   /* move me?? */
   /* pick me up?? */
+
+  return FALSE;
 }
 
 static void

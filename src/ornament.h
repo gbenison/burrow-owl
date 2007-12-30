@@ -69,6 +69,7 @@ struct _HosOrnament
 
   GdkRegion *region;
 
+  gulong button_press_signal_id;
   gdouble save_x;
   gdouble save_y;
 };
