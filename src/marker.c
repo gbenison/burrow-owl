@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -325,7 +325,11 @@ void
 marker_set_size(HosMarker *marker, guint size)
 {
   g_return_if_fail(HOS_IS_MARKER(marker));
-  marker->size = size;
+  if (size != marker->size)
+    {
+      marker->size = size;
+      ornament_configure(HOS_ORNAMENT(marker));
+    }
 }
 
 void
@@ -396,7 +400,6 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
 HosMarker*
 canvas_add_marker(HosCanvas *canvas)
 {
-  HosSpectrum *spectrum = canvas_get_spectrum(canvas);
 
   HosMarker* result = g_object_new(HOS_TYPE_MARKER, NULL);
   marker_set_adjustments(result,

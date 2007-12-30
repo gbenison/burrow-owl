@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006 Greg Benison
+ *  Copyright (C) 2005, 2006, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -44,67 +44,27 @@ enum {
   LAST_SIGNAL
 };
 
-static GObjectClass *parent_class = NULL;
 static guint signals[LAST_SIGNAL] = { 0 };
 
-
-static void hos_cursor_init(HosCursor  *cursor);
-static void hos_cursor_class_init (HosCursorClass *klass);
 static void hos_cursor_set_property (GObject         *object,
-				      guint            prop_id,
-				      const GValue    *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     const GValue    *value,
+				     GParamSpec      *pspec);
 static void hos_cursor_get_property (GObject         *object,
-				      guint            prop_id,
-				      GValue          *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     GValue          *value,
+				     GParamSpec      *pspec);
 
-static void cursor_paint_method(HosOrnament *self);
+static void cursor_paint(HosOrnament *self, HosCanvas *canvas);
 static void cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
-static gboolean cursor_overlap_region_method(HosOrnament *self,
-					     gdouble x1,
-					     gdouble y1,
-					     gdouble xn,
-					     gdouble yn);
-static gboolean cursor_point_overlap_method(HosOrnament *self,
-					    gdouble x_ppm, gdouble y_ppm);
+static GdkRegion* cursor_calculate_region(HosOrnament *self);
 static void cursor_acquire_method(HosOrnament *self);
-static void cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y);
 static void cursor_release_method(HosOrnament *self);
+static void cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y);
 
-static void cursor_value_changed(GtkAdjustment *adjustment, HosCursor *cursor);
-static void cursor_sync_region(HosOrnament *cursor);
+static void cursor_adjustment_value_changed(GtkAdjustment *adjustment, HosCursor *cursor);
 
-static HosCursor* canvas_add_cursor(HosCanvas *canvas, guint orientation);
-
-GType
-hos_cursor_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosCursorClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_cursor_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosCursor),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_cursor_init,
-      };
-
-      type = g_type_register_static (HOS_TYPE_ORNAMENT,
-				     "HosCursor",
-				     &_info,
-				     0);
-    }
-
-  return type;
-}
+G_DEFINE_TYPE (HosCursor, hos_cursor, HOS_TYPE_ORNAMENT)
 
 static void
 hos_cursor_class_init (HosCursorClass *klass)
@@ -115,19 +75,14 @@ hos_cursor_class_init (HosCursorClass *klass)
   gobject_class = G_OBJECT_CLASS (klass);
   ornament_class = HOS_ORNAMENT_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_cursor_set_property;
   gobject_class->get_property = hos_cursor_get_property;
 
-  ornament_class->paint = cursor_paint_method;
-  ornament_class->set_pos = cursor_set_pos_method;
-  ornament_class->overlap_region = cursor_overlap_region_method;
-  ornament_class->point_overlap = cursor_point_overlap_method;
+  ornament_class->paint = cursor_paint;
+  ornament_class->calculate_region = cursor_calculate_region;
   ornament_class->acquire = cursor_acquire_method;
   ornament_class->motion_event = cursor_motion_event_method;
   ornament_class->release = cursor_release_method;
-  ornament_class->sync_region = cursor_sync_region;
 
   g_object_class_install_property (gobject_class,
                                    PROP_POSITION,
@@ -180,9 +135,9 @@ hos_cursor_init(HosCursor  *cursor)
 
 static void
 hos_cursor_set_property (GObject         *object,
-			  guint            prop_id,
-			  const GValue    *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 const GValue    *value,
+			 GParamSpec      *pspec)
 {
   HosCursor *cursor = HOS_CURSOR(object);
 
@@ -201,9 +156,9 @@ hos_cursor_set_property (GObject         *object,
 
 static void
 hos_cursor_get_property (GObject         *object,
-			  guint            prop_id,
-			  GValue          *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 GValue          *value,
+			 GParamSpec      *pspec)
 {
   HosCursor *cursor = HOS_CURSOR(object);
 
@@ -221,28 +176,19 @@ hos_cursor_get_property (GObject         *object,
 /** class callbacks **/
 
 static void
-cursor_paint_method(HosOrnament *self)
+cursor_paint(HosOrnament *self, HosCanvas *canvas)
 {
 
+  g_return_if_fail(HOS_IS_CURSOR(self));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+  g_return_if_fail(GTK_WIDGET_DRAWABLE(canvas));
+
   HosCursor *cursor = HOS_CURSOR(self);
-  HosCanvas *canvas;
-  GtkWidget *widget;
-  gdouble pos;
-  GdkGC *gc;
+  GtkWidget *widget = GTK_WIDGET(canvas);
+  GdkGC *gc = canvas->gc;
 
-  canvas = HOS_CANVAS(self->canvas);
-  
-  if (canvas == NULL)
-    return;
+  gdouble pos = cursor_get_position(cursor);
 
-  pos = cursor_get_position(cursor);
-
-  widget = GTK_WIDGET(canvas);
-
-  if (!(GTK_WIDGET_MAPPED(widget)))
-    return;
-
-  gc = canvas->gc;
   {
     GdkColor color = {0, 0xFFFF, 0xFFFF, 0xFFFF};
     gdk_gc_set_rgb_fg_color(gc, &color);
@@ -255,14 +201,14 @@ cursor_paint_method(HosOrnament *self)
 
   if (cursor->orientation == VERTICAL)
     {
-      canvas_ppm2view(canvas, &pos, NULL);
+      canvas_world2view(canvas, &pos, NULL);
       gdk_draw_line(widget->window,
 		    gc, pos, 0, pos, 1000000);
     }
   else
     {
       assert(cursor->orientation == HORIZONTAL);
-      canvas_ppm2view(canvas, NULL, &pos);
+      canvas_world2view(canvas, NULL, &pos);
       gdk_draw_line(widget->window,
 		    gc, 0, pos, 1000000, pos);
     }
@@ -280,60 +226,14 @@ cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y)
     gtk_adjustment_set_value(cursor->adjustment, new_pos);
 }
 
-static gboolean
-cursor_overlap_region_method(HosOrnament *self,
-			     gdouble x1,
-			     gdouble y1,
-			     gdouble xn,
-			     gdouble yn)
-{
-  /* FIXME */
-  return TRUE;
-}
-
-static gboolean
-cursor_point_overlap_method(HosOrnament *self,
-			    gdouble x_ppm, gdouble y_ppm)
-{
-  gdouble pos_self;
-  gdouble* pos_arg;
-  HosCursor *cursor = HOS_CURSOR(self);
-  HosCanvas *canvas = HOS_CANVAS(self->canvas);
-
-  pos_self = cursor_get_position(cursor);
-
-  if (cursor->movable == FALSE)
-    return FALSE;
-
-  if (cursor->orientation == VERTICAL)
-    {
-      pos_arg = &x_ppm;
-      canvas_ppm2view(canvas, pos_arg, NULL);
-      canvas_ppm2view(canvas, &pos_self, NULL);
-    }
-  else
-    {
-      assert(cursor->orientation == HORIZONTAL);
-      pos_arg = &y_ppm;
-      canvas_ppm2view(canvas, NULL, pos_arg);
-      canvas_ppm2view(canvas, NULL, &pos_self);
-    }
-
-  if ((fabs (*pos_arg - pos_self)) > CLICK_RADIUS)
-    return FALSE;
-
-  return TRUE;
-
-}
-
 static void
 cursor_acquire_method(HosOrnament *self)
 {
   HosCursor *cursor = HOS_CURSOR(self);
   cursor->active = TRUE;
 
-  if (HOS_ORNAMENT_CLASS(parent_class)->acquire)
-    (HOS_ORNAMENT_CLASS(parent_class)->acquire)(self);
+  if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->acquire)
+    (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->acquire)(self);
 
 }
 
@@ -342,8 +242,8 @@ cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y)
 {
   HosCursor *cursor = HOS_CURSOR(self);
 
-  if (HOS_ORNAMENT_CLASS(parent_class)->motion_event)
-    (HOS_ORNAMENT_CLASS(parent_class)->motion_event)(self, x, y);
+  if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->motion_event)
+    (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->motion_event)(self, x, y);
 
   g_signal_emit_by_name(self, "moved", cursor_get_position(cursor));
 
@@ -357,8 +257,8 @@ cursor_release_method(HosOrnament *self)
   cursor->active = FALSE;
   g_signal_emit_by_name(cursor, "dropped", cursor_get_position(cursor));
 
-  if (HOS_ORNAMENT_CLASS(parent_class)->release)
-    (HOS_ORNAMENT_CLASS(parent_class)->release)(self);
+  if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->release)
+    (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->release)(self);
 
 }
 
@@ -407,7 +307,7 @@ cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment)
       if (cursor->adjustment)
         {
 	  g_signal_handlers_disconnect_by_func (cursor->adjustment,
-						cursor_value_changed,
+						cursor_adjustment_value_changed,
 						cursor);
 	  g_object_unref (cursor->adjustment);
         }
@@ -417,12 +317,11 @@ cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment)
 	  g_object_ref (adjustment);
 	  gtk_object_sink (GTK_OBJECT (adjustment));
 	  g_signal_connect (adjustment, "value_changed",
-			    G_CALLBACK (cursor_value_changed),
+			    G_CALLBACK (cursor_adjustment_value_changed),
 			    cursor);
-	  /* cursor_value_changed(adjustment, cursor); */
-	  cursor_sync_region(cursor);
+	  /* cursor_adjustment_value_changed(adjustment, cursor); */
         }
-
+      ornament_configure(HOS_ORNAMENT(cursor));
     }
 }
 
@@ -430,31 +329,31 @@ cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment)
  * Callback triggered when a cursor's adjustment changes value.
  */
 static void
-cursor_value_changed(GtkAdjustment *adjustment, HosCursor *cursor)
+cursor_adjustment_value_changed(GtkAdjustment *adjustment, HosCursor *cursor)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
-  ornament_sync_region(HOS_ORNAMENT(cursor));
+  ornament_configure(HOS_ORNAMENT(cursor));
   g_signal_emit_by_name(cursor, "moved", gtk_adjustment_get_value(adjustment));
 }
 
-static void
-cursor_sync_region(HosOrnament *self)
+static GdkRegion*
+cursor_calculate_region(HosOrnament *self)
 {
   g_return_if_fail(HOS_IS_CURSOR(self));
   HosCursor *cursor = HOS_CURSOR(self);
+
   GtkAdjustment *adjustment = cursor->adjustment;
-  HosCanvas *canvas = self->canvas;
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
 
   if (GTK_IS_ADJUSTMENT(adjustment))
     {
-      ornament_invalidate_region(self);
 
       /* recalculate the update region */
       GdkRectangle rect;
       gdouble pos = gtk_adjustment_get_value(adjustment);
       if (cursor->orientation == VERTICAL)
 	{
-	  canvas_ppm2view(canvas, &pos, NULL);
+	  canvas_world2view(canvas, &pos, NULL);
 	  rect.x = pos - (CLICK_RADIUS / 2);
 	  rect.width = CLICK_RADIUS;
 	  rect.y = 0;
@@ -462,16 +361,17 @@ cursor_sync_region(HosOrnament *self)
 	}
       else /* HORIZONTAL */
 	{
-	  canvas_ppm2view(canvas, NULL, &pos);
+	  canvas_world2view(canvas, NULL, &pos);
 	  rect.y = pos - (CLICK_RADIUS / 2);
 	  rect.height = CLICK_RADIUS;
 	  rect.x = 0;
 	  rect.width = G_MAXINT;
 	}
 
-      ornament_set_region(self, gdk_region_rectangle(&rect));
-      ornament_invalidate_region(self);
+      return(gdk_region_rectangle(&rect));
     }
+  else
+    return gdk_region_new();
 }
 
 void
@@ -495,19 +395,19 @@ cursor_get_position(HosCursor *cursor)
   return gtk_adjustment_get_value(cursor->adjustment);
 }
 
-static HosCursor*
+HosCursor*
 canvas_add_cursor(HosCanvas *canvas, guint orientation)
 {
-  HosSpectrum *spectrum = canvas_get_spectrum(canvas);
-
   HosCursor* result = g_object_new(HOS_TYPE_CURSOR, NULL);
-  cursor_set_orientation(result, orientation);
-  if (spectrum != NULL)
-    cursor_set_adjustment(result,
-			  adjustment_for_spectrum(spectrum,
-						  (orientation == VERTICAL) ? 0 : 1));
 
-  canvas_add_ornament(canvas, HOS_ORNAMENT(result));
+  cursor_set_orientation(result, orientation);
+
+  cursor_set_adjustment(result,
+			orientation == VERTICAL ?
+			adjustment_for_canvas_x(canvas) :
+			adjustment_for_canvas_y(canvas));
+
+  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
 
   return result;
 

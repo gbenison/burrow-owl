@@ -25,10 +25,7 @@
 #include "hoscanvas.h"
 #include "ornament.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_CURSOR              (hos_cursor_get_type())
 #define HOS_CURSOR(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_CURSOR, HosCursor))
@@ -81,8 +78,6 @@ gdouble cursor_get_position(HosCursor *cursor);
 
 GType hos_cursor_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_CURSOR_H */

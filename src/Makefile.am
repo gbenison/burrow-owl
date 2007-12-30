@@ -19,8 +19,6 @@ include_HEADERS=burrow.h
 # disabled sources -- awaiting updating
 # box.c 
 # box.h 
-# cursor.c
-# cursor.h
 # marker_text.c
 # marker_text.h
 
@@ -60,6 +58,8 @@ hosspectrum.c  \
 burrow/spectrum.h  \
 marker.c  \
 marker.h  \
+cursor.c \
+cursor.h \
 nih.c  \
 burrow/nih.h  \
 ornament.c  \
