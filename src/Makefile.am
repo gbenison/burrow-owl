@@ -67,7 +67,9 @@ painter.h  \
 ticket.c  \
 ticket.h \
 endian.c \
-endian.h
+endian.h \
+version.c \
+version.h
 
 libburrow_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -module
 libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
