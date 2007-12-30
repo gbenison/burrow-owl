@@ -218,7 +218,7 @@ marker_calculate_region(HosOrnament *self)
 
   if (marker_get_pos(HOS_MARKER(self), &x, &y))
     {
-      canvas_ppm2view(canvas, &x, &y);
+      canvas_world2view(canvas, &x, &y);
 
       GdkRectangle rect;
       rect.x = x - marker->size;

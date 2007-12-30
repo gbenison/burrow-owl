@@ -51,6 +51,8 @@ struct _HosOrnamentClass
   GdkRegion* (*calculate_region)  (HosOrnament *ornament);
   void       (*acquire)           (HosOrnament *ornament);
   void       (*release)           (HosOrnament *ornament);
+  void       (*enter)             (HosOrnament *ornament);
+  void       (*leave)             (HosOrnament *ornament);
   void       (*configure)         (HosOrnament *ornament);
   void       (*motion_event)      (HosOrnament *ornament, gdouble x, gdouble y);
   void       (*move_relative)     (HosOrnament *ornament, gdouble dx, gdouble dy);
@@ -62,20 +64,15 @@ struct _HosOrnament
   HosCanvasItem parent_instance;
 
   gboolean mouse_over;
+  gboolean grabbed;
   GdkRegion *region;
 
   gdouble save_x;
   gdouble save_y;
 };
 
+void ornament_acquire(HosOrnament *self);
 void ornament_release(HosOrnament *self);
-void ornament_move (HosOrnament *ornament, gdouble x, gdouble y);
-gboolean ornament_test_grab(HosOrnament *self, gdouble x_ppm, gdouble y_ppm);
-
-void ornament_set_region(HosOrnament *self, GdkRegion* region);
-void ornament_invalidate_region(HosOrnament *self);
-void ornament_pick_up(HosOrnament* ornament);
-
 void ornament_configure(HosOrnament* ornament);
 
 GtkAdjustment* adjustment_for_spectrum(HosSpectrum *spec, guint dim);

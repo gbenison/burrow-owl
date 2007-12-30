@@ -25,12 +25,16 @@
 enum {
   ACQUIRE,
   RELEASE,
+  ENTER,
+  LEAVE,
   CONFIGURE,
   LAST_SIGNAL
 };
 
 enum {
-  PROP_0
+  PROP_0,
+  PROP_MOUSE_OVER,
+  PROP_GRABBED
 };
 
 static guint ornament_signals[LAST_SIGNAL] = { 0 };
@@ -54,6 +58,10 @@ static void ornament_configure_handler(HosOrnament *self);
 static GdkRegion* ornament_calculate_region(HosOrnament *self);
 
 static void ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+
+static void ornament_set_grabbed(HosOrnament *self, gboolean grabbed);
+static void ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over);
+
 
 G_DEFINE_ABSTRACT_TYPE (HosOrnament, hos_ornament, HOS_TYPE_CANVAS_ITEM)
 
@@ -79,6 +87,23 @@ hos_ornament_class_init (HosOrnamentClass *klass)
   canvas_item_class->expose     = ornament_expose;
   canvas_item_class->set_canvas = ornament_set_canvas;
 
+  g_object_class_install_property (gobject_class,
+                                   PROP_MOUSE_OVER,
+                                   g_param_spec_boolean ("mouse-over",
+							"Mouse Over",
+							"If true, the pointer is in this ornament's region",
+							FALSE,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_GRABBED,
+                                   g_param_spec_boolean ("grabbed",
+							"Grabbed",
+							"If true, this ornament is being dragged by the pointer",
+							FALSE,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+
   ornament_signals[ACQUIRE] =
     g_signal_new ("acquire",
 		  G_OBJECT_CLASS_TYPE(klass),
@@ -93,6 +118,24 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
 		  G_STRUCT_OFFSET(HosOrnamentClass, release),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__VOID,
+		  G_TYPE_NONE, 0);
+
+  ornament_signals[ENTER] =
+    g_signal_new ("enter",
+		  G_OBJECT_CLASS_TYPE(klass),
+		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET(HosOrnamentClass, enter),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__VOID,
+		  G_TYPE_NONE, 0);
+
+  ornament_signals[LEAVE] =
+    g_signal_new ("leave",
+		  G_OBJECT_CLASS_TYPE(klass),
+		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET(HosOrnamentClass, leave),
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
@@ -115,7 +158,18 @@ hos_ornament_set_property   (GObject         *object,
 			     const GValue    *value,
 			     GParamSpec      *pspec)
 {
-  /* FIXME */
+  switch (prop_id)
+    {
+    case PROP_MOUSE_OVER:
+      ornament_set_mouse_over(HOS_ORNAMENT(object), g_value_get_boolean(value));
+      break;
+    case PROP_GRABBED:
+      ornament_set_grabbed(HOS_ORNAMENT(object), g_value_get_boolean(value));
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 static void
@@ -124,7 +178,18 @@ hos_ornament_get_property   (GObject         *object,
 			     GValue          *value,
 			     GParamSpec      *pspec)
 {
-  /* FIXME */
+  switch (prop_id)
+    {
+    case PROP_MOUSE_OVER:
+      g_value_set_boolean(value, HOS_ORNAMENT(object)->mouse_over);
+      break;
+    case PROP_GRABBED:
+      g_value_set_boolean(value, HOS_ORNAMENT(object)->grabbed);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 static void
@@ -150,51 +215,6 @@ ornament_expose(HosCanvasItem *self, GdkEventExpose *event)
     ornament_class->paint(HOS_ORNAMENT(self), self->canvas);
 }
 
-void
-ornament_invalidate_region(HosOrnament *self)
-{
-  g_return_if_fail(HOS_IS_ORNAMENT(self));
-  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
-
-  if (HOS_IS_CANVAS(canvas_item->canvas))
-    {
-      GtkWidget *widget = GTK_WIDGET(canvas_item->canvas);
-      if (widget->window != NULL)
-	gdk_window_invalidate_region(widget->window, self->region, TRUE);
-    }
-}
-
-void
-ornament_set_region(HosOrnament *self, GdkRegion* region)
-{
-  if (self->region)
-    gdk_region_destroy(self->region);
-  self->region = region;
-}
-
-void
-ornament_move (HosOrnament *self, gdouble x, gdouble y)
-{
-
-  HosOrnamentClass *class;
-
-  g_return_if_fail(HOS_IS_ORNAMENT(self));
-  class = HOS_ORNAMENT_GET_CLASS(self);
-
-  /*
-    FIXME deprecate for move_relative ??
-    class->set_pos(self, x, y);
-  */
-
-}
-
-void
-ornament_release (HosOrnament* ornament)
-{
-  g_return_if_fail(HOS_IS_ORNAMENT(ornament));
-  g_signal_emit(ornament, ornament_signals[RELEASE], 0);
-}
-
 static GdkRegion*
 ornament_calculate_region(HosOrnament *self)
 {
@@ -203,37 +223,18 @@ ornament_calculate_region(HosOrnament *self)
     return class->calculate_region(self);
 }
 
-/*
- * Test if a click at x(ppm), y(ppm) is in the ornament's active area.
- * If yes: ornament emits 'acuire'; return TRUE
- */
-gboolean
-ornament_test_grab (HosOrnament *ornament, gdouble x_ppm, gdouble y_ppm)
+void
+ornament_acquire(HosOrnament* self)
 {
-  HosOrnamentClass *class;
-  gboolean result = FALSE;
-
-  if (!(HOS_IS_ORNAMENT(ornament)))
-    return FALSE;
-
-  class = HOS_ORNAMENT_GET_CLASS(ornament);
-
-  /*
-
-    FIXME use the standard region to test -- test-grab should not be exported-- this
-    should be handled as part of the button press signal handlers
-  result = class->point_overlap(HOS_ORNAMENT(ornament), x_ppm, y_ppm);
-
-  */
-
-  return result;
-
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+  ornament_set_grabbed(self, TRUE);
 }
 
 void
-ornament_pick_up(HosOrnament* ornament)
+ornament_release(HosOrnament* self)
 {
-  g_signal_emit(ornament, ornament_signals[ACQUIRE], 0);
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+  ornament_set_grabbed(self, FALSE);
 }
 
 /*
@@ -288,8 +289,11 @@ ornament_configure_handler(HosOrnament *self)
   gdk_region_destroy(old_region);
 }
 
-
-/* FIXME */
+/*
+ * Called whenever this ornament (as a CanvasItem) is associated
+ * with a canvas object.
+ * Connects to certain of the canvas' signals.
+ */
 static void
 ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
 {
@@ -326,8 +330,45 @@ ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canva
 static void
 ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self)
 {
-  /* FIXME */
+
+  /* Is the pointer in the ornament region? */
+  GdkModifierType state;
+  gint x, y;
+
+  gdk_window_get_pointer(event->window, &x, &y, &state);
+  ornament_set_mouse_over(self,
+			  gdk_region_point_in(self->region, x, y));
+
   /* move me?? */
   /* pick me up?? */
 }
 
+static void
+ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  if (mouse_over != self->mouse_over)
+    {
+      self->mouse_over = mouse_over;
+      g_object_notify(G_OBJECT(self), "mouse-over");
+      g_signal_emit(self,
+		    mouse_over ? ornament_signals[ENTER] : ornament_signals[LEAVE],
+		    0);
+    }
+}
+
+static void
+ornament_set_grabbed(HosOrnament *self, gboolean grabbed)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  if (grabbed != self->grabbed)
+    {
+      self->grabbed = grabbed;
+      g_object_notify(G_OBJECT(self), "grabbed");
+      g_signal_emit(self,
+		    grabbed ? ornament_signals[ACQUIRE] : ornament_signals[RELEASE],
+		    0);
+    }
+}
