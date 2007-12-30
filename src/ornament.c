@@ -62,11 +62,13 @@ static gboolean   ornament_overlap_region    (HosOrnament *self, GdkRegion *regi
 static GdkRegion* ornament_calculate_region  (HosOrnament *self);
 static void       ornament_save_pointer      (HosOrnament *self);
 
-static gboolean ornament_canvas_motion_notify  (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
-static gboolean ornament_canvas_drag           (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
-static gboolean ornament_canvas_button_release (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
-static gboolean ornament_canvas_button_press   (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
-static gboolean ornament_canvas_configure      (GtkWidget *widget, GdkEventConfigure *event, HosOrnament* self);
+static gboolean ornament_canvas_motion_notify   (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_drag            (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_button_release  (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_button_press    (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_configure       (GtkWidget *widget, GdkEventConfigure *event, HosOrnament* self);
+static void     ornament_canvas_realize         (GtkWidget *widget, HosOrnament* self);
+static void     ornament_canvas_world_configure (GtkWidget *widget, HosOrnament* self);
 
 static void ornament_set_grabbed      (HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over   (HosOrnament *self, gboolean mouse_over);
@@ -388,16 +390,19 @@ ornament_configure_handler(HosOrnament *self)
 {
   g_return_if_fail(HOS_IS_ORNAMENT(self));
   HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
-  g_return_if_fail(HOS_IS_CANVAS(canvas_item->canvas));
 
-  GdkRegion *old_region = self->region;
-  self->region = ornament_calculate_region(self);
-  gdk_region_union(old_region, self->region);
+  if(canvas_item->canvas)
+    {
+      g_return_if_fail(HOS_IS_CANVAS(canvas_item->canvas));
 
-  if (canvas_item->canvas)
-    canvas_invalidate_region(canvas_item->canvas, old_region);
+      GdkRegion *old_region = self->region;
+      self->region = ornament_calculate_region(self);
+      gdk_region_union(old_region, self->region);
+      
+      canvas_invalidate_region(canvas_item->canvas, old_region);
 
-  gdk_region_destroy(old_region);
+      gdk_region_destroy(old_region);
+    }
 }
 
 /*
@@ -433,6 +438,12 @@ ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canva
       g_signal_connect (canvas, "configure-event",
 			G_CALLBACK (ornament_canvas_configure),
 			self);
+      g_signal_connect (canvas, "realize",
+			G_CALLBACK (ornament_canvas_realize),
+			self);
+      g_signal_connect (canvas, "world-configure",
+			G_CALLBACK (ornament_canvas_world_configure),
+			self);
     }
 }
 
@@ -464,6 +475,27 @@ ornament_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosOrname
   self->region = ornament_calculate_region(self);
 
   return FALSE;
+}
+
+static void
+ornament_canvas_realize(GtkWidget *widget, HosOrnament* self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  gdk_region_destroy(self->region);
+  self->region = ornament_calculate_region(self);
+
+}
+
+static void
+ornament_canvas_world_configure(GtkWidget *widget, HosOrnament* self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  gdk_region_destroy(self->region);
+  self->region = ornament_calculate_region(self);
 }
 
 /*

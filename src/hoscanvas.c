@@ -27,6 +27,7 @@
 
 enum {
   CLICKED,
+  WORLD_CONFIGURE,
   LAST_SIGNAL
 };
 
@@ -84,6 +85,15 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_NONE, 2,
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
+
+  canvas_signals[WORLD_CONFIGURE] =
+    g_signal_new("world-configure",
+		 G_OBJECT_CLASS_TYPE(gobject_class),
+		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		 0,
+		 NULL, NULL,
+		 g_cclosure_marshal_VOID__VOID,
+		 G_TYPE_NONE, 0);
 
 }
 
@@ -599,17 +609,24 @@ canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
 {
   g_return_if_fail(HOS_IS_CANVAS(canvas));
 
-  gint window_width, window_height;
-  gdk_window_get_size(GTK_WIDGET(canvas)->window,
-		      &window_width, &window_height);
-
-  if (x != NULL)
-    *x = (*x / window_width)
-      * (canvas->xn - canvas->x1) + canvas->x1;
-  if (y != NULL)
-    *y = (*y / window_height)
-      * (canvas->yn - canvas->y1) + canvas->y1;
-
+  if (GTK_WIDGET_REALIZED(canvas))
+    {
+      gint window_width, window_height;
+      gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			  &window_width, &window_height);
+      
+      if (x != NULL)
+	*x = (*x / window_width)
+	  * (canvas->xn - canvas->x1) + canvas->x1;
+      if (y != NULL)
+	*y = (*y / window_height)
+	  * (canvas->yn - canvas->y1) + canvas->y1;
+    }
+  else
+    {
+      if (x != NULL) *x = 0;
+      if (y != NULL) *y = 0;
+    }
 }
 
 void
@@ -617,17 +634,25 @@ canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
 {
   g_return_if_fail(HOS_IS_CANVAS(canvas));
 
-  gint window_width, window_height;
-  gdk_window_get_size(GTK_WIDGET(canvas)->window,
-		      &window_width, &window_height);
-
-  if (x != NULL)
-    *x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
-      * window_width;
-
-  if (y != NULL)
-    *y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
-      * window_height;
+  if (GTK_WIDGET_REALIZED(canvas))
+    {
+      gint window_width, window_height;
+      gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			  &window_width, &window_height);
+      
+      if (x != NULL)
+	*x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
+	  * window_width;
+      
+      if (y != NULL)
+	*y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
+	  * window_height;
+    }
+  else
+    {
+      if (x != NULL) *x = 0;
+      if (y != NULL) *y = 0;
+    }
 
 }
 
@@ -638,8 +663,8 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->y1 = y1;
   canvas->xn = xn;
   canvas->yn = yn;
+  g_signal_emit(canvas, canvas_signals[WORLD_CONFIGURE], 0);
   gtk_widget_queue_draw(GTK_WIDGET(canvas));
-  /* FIXME emit 'canvas-configured' signal or similar? */
 }
 
 GtkAdjustment*

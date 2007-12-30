@@ -142,7 +142,9 @@ canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
       if(HOS_CANVAS_ITEM_GET_CLASS(self)->set_canvas)
 	HOS_CANVAS_ITEM_GET_CLASS(self)->set_canvas(self, self->canvas, canvas);
 
-      g_object_unref(self->canvas);
+      if (self->canvas)
+	g_object_unref(self->canvas);
+
       self->canvas = canvas;
 
       if (canvas != NULL)
