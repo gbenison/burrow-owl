@@ -337,7 +337,7 @@ canvas_expose_event(GtkWidget *widget, GdkEventExpose *event)
   yn = event->area.y + event->area.height;
   canvas_view2pt(canvas, &x1, &y1);
   canvas_view2pt(canvas, &xn, &yn);
-  painter_redraw(HOS_PAINTER(canvas->painter), x1, y1, xn, yn);
+  painter_redraw_region(HOS_PAINTER(canvas->painter), x1, y1, xn, yn);
 
   canvas_redraw_ornaments(canvas);
 
