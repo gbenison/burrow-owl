@@ -66,6 +66,7 @@ static gboolean ornament_canvas_motion_notify  (GtkWidget *widget, GdkEventMotio
 static gboolean ornament_canvas_drag           (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
 static gboolean ornament_canvas_button_release (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
 static gboolean ornament_canvas_button_press   (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_configure      (GtkWidget *widget, GdkEventConfigure *event, HosOrnament* self);
 
 static void ornament_set_grabbed      (HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over   (HosOrnament *self, gboolean mouse_over);
@@ -79,6 +80,7 @@ hos_ornament_init(HosOrnament *self)
 {
   ornament_set_sensitive(self, TRUE);
   ornament_set_visible(self, TRUE);
+  self->region = gdk_region_new();
 }
 
 static void
@@ -386,6 +388,7 @@ ornament_configure_handler(HosOrnament *self)
 {
   g_return_if_fail(HOS_IS_ORNAMENT(self));
   HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
+  g_return_if_fail(HOS_IS_CANVAS(canvas_item->canvas));
 
   GdkRegion *old_region = self->region;
   self->region = ornament_calculate_region(self);
@@ -427,6 +430,9 @@ ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canva
       g_signal_connect (canvas, "button-release-event",
 			G_CALLBACK (ornament_canvas_button_release),
 			self);
+      g_signal_connect (canvas, "configure-event",
+			G_CALLBACK (ornament_canvas_configure),
+			self);
     }
 }
 
@@ -446,6 +452,18 @@ ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrname
       return TRUE;
     }
   else return FALSE;
+}
+
+static gboolean
+ornament_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosOrnament *self)
+{
+  g_return_val_if_fail(HOS_IS_CANVAS(widget), FALSE);
+  g_return_val_if_fail(HOS_IS_ORNAMENT(self), FALSE);
+
+  gdk_region_destroy(self->region);
+  self->region = ornament_calculate_region(self);
+
+  return FALSE;
 }
 
 /*
