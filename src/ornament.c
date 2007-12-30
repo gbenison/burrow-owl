@@ -34,7 +34,8 @@ enum {
 enum {
   PROP_0,
   PROP_MOUSE_OVER,
-  PROP_GRABBED
+  PROP_GRABBED,
+  PROP_VISIBLE
 };
 
 static guint ornament_signals[LAST_SIGNAL] = { 0 };
@@ -61,14 +62,15 @@ static void ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *eve
 
 static void ornament_set_grabbed(HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over);
+static void ornament_set_visible(HosOrnament *self, gboolean visible);
 
 
 G_DEFINE_ABSTRACT_TYPE (HosOrnament, hos_ornament, HOS_TYPE_CANVAS_ITEM)
 
 static void
-hos_ornament_init(HosOrnament *ornament)
+hos_ornament_init(HosOrnament *self)
 {
-  /* FIXME */
+  self->visible = TRUE;
 }
 
 static void
@@ -102,6 +104,14 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 							"If true, this ornament is being dragged by the pointer",
 							FALSE,
 							G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_VISIBLE,
+                                   g_param_spec_boolean ("visible",
+							 "Visible",
+							 "If true, this ornament will be drawn on the screen",
+							 TRUE,
+							 G_PARAM_READABLE | G_PARAM_WRITABLE));
 
 
   ornament_signals[ACQUIRE] =
@@ -166,6 +176,9 @@ hos_ornament_set_property   (GObject         *object,
     case PROP_GRABBED:
       ornament_set_grabbed(HOS_ORNAMENT(object), g_value_get_boolean(value));
       break;
+    case PROP_VISIBLE:
+      ornament_set_visible(HOS_ORNAMENT(object), g_value_get_boolean(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -185,6 +198,9 @@ hos_ornament_get_property   (GObject         *object,
       break;
     case PROP_GRABBED:
       g_value_set_boolean(value, HOS_ORNAMENT(object)->grabbed);
+      break;
+    case PROP_VISIBLE:
+      g_value_set_boolean(value, HOS_ORNAMENT(object)->visible);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -211,16 +227,19 @@ ornament_expose(HosCanvasItem *self, GdkEventExpose *event)
   HosOrnamentClass *ornament_class = HOS_ORNAMENT_GET_CLASS(self);
   HosOrnament *ornament = HOS_ORNAMENT(self);
 
-  if(ornament_overlap_region(HOS_ORNAMENT(self), event->region))
-    ornament_class->paint(HOS_ORNAMENT(self), self->canvas);
+  if (HOS_ORNAMENT(self)->visible)
+    if(ornament_overlap_region(HOS_ORNAMENT(self), event->region))
+      ornament_class->paint(HOS_ORNAMENT(self), self->canvas);
 }
 
 static GdkRegion*
 ornament_calculate_region(HosOrnament *self)
 {
   HosOrnamentClass *class = HOS_ORNAMENT_GET_CLASS(self);
-  if (class->calculate_region)
+  if (self->visible && class->calculate_region)
     return class->calculate_region(self);
+  else
+    return gdk_region_new();
 }
 
 void
@@ -370,5 +389,19 @@ ornament_set_grabbed(HosOrnament *self, gboolean grabbed)
       g_signal_emit(self,
 		    grabbed ? ornament_signals[ACQUIRE] : ornament_signals[RELEASE],
 		    0);
+    }
+}
+
+static void
+ornament_set_visible(HosOrnament *self, gboolean visible)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  if (visible != self->visible)
+    {
+      self->visible = visible;
+      g_object_notify(G_OBJECT(self), "visible");
+      ornament_configure(self);
+      /* FIXME emit a 'hide' or 'show' signal?? */
     }
 }

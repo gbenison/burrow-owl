@@ -118,7 +118,6 @@ static void
 hos_cursor_init(HosCursor  *cursor)
 {
   cursor->movable = TRUE;
-  cursor->enabled = TRUE;
 }
 
 static void
@@ -265,14 +264,6 @@ cursor_set_movable(HosCursor *cursor, gboolean movable)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
   cursor->movable = movable;
-}
-
-void
-cursor_set_enabled(HosCursor *cursor, gboolean enabled)
-{
-  g_return_if_fail(HOS_IS_CURSOR(cursor));
-  cursor->enabled = enabled;
-  /* FIXME redraw canvas */
 }
 
 void

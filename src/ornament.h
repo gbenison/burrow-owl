@@ -65,6 +65,8 @@ struct _HosOrnament
 
   gboolean mouse_over;
   gboolean grabbed;
+  gboolean visible;
+
   GdkRegion *region;
 
   gdouble save_x;
