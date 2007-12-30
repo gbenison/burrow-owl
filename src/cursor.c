@@ -38,7 +38,6 @@ enum {
 };
 
 enum {
-  GRABBED,
   MOVED,
   DROPPED,
   LAST_SIGNAL
@@ -58,7 +57,6 @@ static void hos_cursor_get_property (GObject         *object,
 static void cursor_paint(HosOrnament *self, HosCanvas *canvas);
 static void cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
 static GdkRegion* cursor_calculate_region(HosOrnament *self);
-static void cursor_acquire_method(HosOrnament *self);
 static void cursor_release_method(HosOrnament *self);
 static void cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y);
 
@@ -80,7 +78,6 @@ hos_cursor_class_init (HosCursorClass *klass)
 
   ornament_class->paint = cursor_paint;
   ornament_class->calculate_region = cursor_calculate_region;
-  ornament_class->acquire = cursor_acquire_method;
   ornament_class->motion_event = cursor_motion_event_method;
   ornament_class->release = cursor_release_method;
 
@@ -94,15 +91,6 @@ hos_cursor_class_init (HosCursorClass *klass)
 							0.0,
 							G_PARAM_READWRITE));
 
-  signals[GRABBED] =
-    g_signal_new("grabbed",
-		 G_OBJECT_CLASS_TYPE(gobject_class),
-		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosCursorClass, grabbed),
-		 NULL, NULL,
-		 g_cclosure_marshal_VOID__VOID,
-		 G_TYPE_NONE, 0);
-  
   signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
@@ -227,17 +215,6 @@ cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y)
 }
 
 static void
-cursor_acquire_method(HosOrnament *self)
-{
-  HosCursor *cursor = HOS_CURSOR(self);
-  cursor->active = TRUE;
-
-  if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->acquire)
-    (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->acquire)(self);
-
-}
-
-static void
 cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y)
 {
   HosCursor *cursor = HOS_CURSOR(self);
@@ -253,8 +230,6 @@ static void
 cursor_release_method(HosOrnament *self)
 {
   HosCursor *cursor = HOS_CURSOR(self);
-
-  cursor->active = FALSE;
   g_signal_emit_by_name(cursor, "dropped", cursor_get_position(cursor));
 
   if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->release)
@@ -269,7 +244,11 @@ void
 cursor_set_orientation(HosCursor *cursor, guint orientation)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
-  cursor->orientation = orientation;
+  if (orientation != cursor->orientation)
+    {
+      cursor->orientation = orientation;
+      ornament_configure(HOS_ORNAMENT(cursor));
+    }
 }
 
 GtkAdjustment*

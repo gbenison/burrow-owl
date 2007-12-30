@@ -52,7 +52,6 @@ struct _HosCursor
 
   gboolean movable;
   gboolean enabled;
-  gboolean active;
 
 };
 
