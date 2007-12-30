@@ -55,10 +55,9 @@ static void hos_cursor_get_property (GObject         *object,
 				     GParamSpec      *pspec);
 
 static void       cursor_paint                  (HosOrnament *self, HosCanvas *canvas);
-static void       cursor_set_pos_method         (HosOrnament *self, gdouble x, gdouble y);
 static GdkRegion* cursor_calculate_region       (HosOrnament *self);
 static void       cursor_release_method         (HosOrnament *self);
-static void       cursor_motion_event_method    (HosOrnament *self, gdouble x, gdouble y);
+static void       cursor_move_relative          (HosOrnament *self, gdouble dx, gdouble dy);
 static void       cursor_adjustment_value_changed (GtkAdjustment *adjustment,
 						   HosCursor *cursor);
 
@@ -78,7 +77,7 @@ hos_cursor_class_init (HosCursorClass *klass)
 
   ornament_class->paint = cursor_paint;
   ornament_class->calculate_region = cursor_calculate_region;
-  ornament_class->motion_event = cursor_motion_event_method;
+  ornament_class->move_relative = cursor_move_relative;
   ornament_class->release = cursor_release_method;
 
   g_object_class_install_property (gobject_class,
@@ -158,9 +157,6 @@ hos_cursor_get_property (GObject         *object,
     }
 }
 
-
-/** class callbacks **/
-
 static void
 cursor_paint(HosOrnament *self, HosCanvas *canvas)
 {
@@ -201,27 +197,17 @@ cursor_paint(HosOrnament *self, HosCanvas *canvas)
 }
 
 /*
- * x, y in ppm
+ * x, y in world coordinates
  */
 static void
-cursor_set_pos_method(HosOrnament *self, gdouble x, gdouble y)
+cursor_move_relative(HosOrnament *self, gdouble x, gdouble y)
 {
   HosCursor *cursor = HOS_CURSOR(self);
-  gdouble new_pos = (cursor->orientation == VERTICAL) ? x : y;
+  gdouble delta = cursor->orientation == VERTICAL ? x : y;
   if (GTK_IS_ADJUSTMENT(cursor->adjustment))
-    gtk_adjustment_set_value(cursor->adjustment, new_pos);
-}
-
-static void
-cursor_motion_event_method(HosOrnament *self, gdouble x, gdouble y)
-{
-  HosCursor *cursor = HOS_CURSOR(self);
-
-  if (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->motion_event)
-    (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->motion_event)(self, x, y);
-
-  g_signal_emit_by_name(self, "moved", cursor_get_position(cursor));
-
+    gtk_adjustment_set_value(cursor->adjustment,
+			     gtk_adjustment_get_value(cursor->adjustment) +
+			     delta);
 }
 
 static void
@@ -234,9 +220,6 @@ cursor_release_method(HosOrnament *self)
     (HOS_ORNAMENT_CLASS(hos_cursor_parent_class)->release)(self);
 
 }
-
-/** end class callbacks **/
-
 
 void
 cursor_set_orientation(HosCursor *cursor, guint orientation)

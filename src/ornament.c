@@ -51,24 +51,26 @@ static void hos_ornament_get_property   (GObject         *object,
 					 GValue          *value,
 					 GParamSpec      *pspec);
 
-static void ornament_acquire_handler(HosOrnament *self);
-static void ornament_release_handler(HosOrnament *self);
-static void ornament_enter_method(HosOrnament *self);
-static void ornament_leave_method(HosOrnament *self);
-static void ornament_expose(HosCanvasItem *self, GdkEventExpose *event);
-static void ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
-static gboolean ornament_overlap_region(HosOrnament *self, GdkRegion *region);
-static void ornament_configure_handler(HosOrnament *self);
-static GdkRegion* ornament_calculate_region(HosOrnament *self);
+static void       ornament_acquire_handler   (HosOrnament *self);
+static void       ornament_release_handler   (HosOrnament *self);
+static void       ornament_enter_method      (HosOrnament *self);
+static void       ornament_leave_method      (HosOrnament *self);
+static void       ornament_configure_handler (HosOrnament *self);
+static void       ornament_expose            (HosCanvasItem *self, GdkEventExpose *event);
+static void       ornament_set_canvas        (HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
+static gboolean   ornament_overlap_region    (HosOrnament *self, GdkRegion *region);
+static GdkRegion* ornament_calculate_region  (HosOrnament *self);
+static void       ornament_save_pointer      (HosOrnament *self);
 
-static gboolean ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
-static gboolean ornament_canvas_button_release(GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
-static gboolean ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_motion_notify  (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_drag           (GtkWidget *widget, GdkEventMotion *event, HosOrnament* self);
+static gboolean ornament_canvas_button_release (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
+static gboolean ornament_canvas_button_press   (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
 
-static void ornament_set_grabbed(HosOrnament *self, gboolean grabbed);
-static void ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over);
-static void ornament_set_visible(HosOrnament *self, gboolean visible);
-static void ornament_set_sensitive(HosOrnament *self, gboolean sensitive);
+static void ornament_set_grabbed      (HosOrnament *self, gboolean grabbed);
+static void ornament_set_mouse_over   (HosOrnament *self, gboolean mouse_over);
+static void ornament_set_visible      (HosOrnament *self, gboolean visible);
+static void ornament_set_sensitive    (HosOrnament *self, gboolean sensitive);
 
 G_DEFINE_ABSTRACT_TYPE (HosOrnament, hos_ornament, HOS_TYPE_CANVAS_ITEM)
 
@@ -231,20 +233,63 @@ hos_ornament_get_property   (GObject         *object,
 }
 
 static void
+ornament_save_pointer(HosOrnament *self)
+{
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+  g_return_if_fail(GTK_WIDGET_DRAWABLE(canvas));
+
+  GdkModifierType state;
+  gint x_int, y_int;
+
+  gdk_window_get_pointer(GTK_WIDGET(canvas)->window, &x_int, &y_int, &state);
+
+  gdouble x = x_int;
+  gdouble y = y_int;
+
+  canvas_view2world(canvas, &x, &y);
+  self->save_x = x;
+  self->save_y = y;
+}
+
+static void
 ornament_acquire_handler(HosOrnament *self)
 {
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+
+  self->drag_signal_id =
+    g_signal_connect (canvas, "motion-notify-event",
+		      G_CALLBACK (ornament_canvas_drag),
+		      self);
+
+  ornament_save_pointer(self);
+
 }
 
 static void
 ornament_release_handler(HosOrnament *self)
 {
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+
+  g_signal_handler_disconnect(canvas, self->drag_signal_id);
+  self->drag_signal_id = 0;
+
 }
 
 
 static void
 ornament_enter_method(HosOrnament *self)
 {
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+
   self->button_press_signal_id =
     g_signal_connect (canvas, "button-press-event",
 		      G_CALLBACK (ornament_canvas_button_press),
@@ -254,7 +299,10 @@ ornament_enter_method(HosOrnament *self)
 static void
 ornament_leave_method(HosOrnament *self)
 {
+  g_return_if_fail(HOS_IS_ORNAMENT(self));
+
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+
   g_signal_handler_disconnect(canvas, self->button_press_signal_id);
   self->button_press_signal_id = 0;
 }
@@ -393,8 +441,11 @@ static gboolean
 ornament_canvas_button_press(GtkWidget *widget, GdkEventButton *event, HosOrnament *self)
 {
   if ((event->button == 1) && (self->sensitive))
-    ornament_acquire(self);
-  return FALSE;
+    {
+      ornament_acquire(self);
+      return TRUE;
+    }
+  else return FALSE;
 }
 
 /*
@@ -413,10 +464,29 @@ ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnam
   ornament_set_mouse_over(self,
 			  gdk_region_point_in(self->region, x, y));
 
-  /* move me?? */
-  /* pick me up?? */
-
   return FALSE;
+}
+
+/*
+ * Called upon motion-notify-event when an ornament has been grabbed.
+ */
+static gboolean
+ornament_canvas_drag(GtkWidget *widget, GdkEventMotion *event, HosOrnament* self)
+{
+
+  gdouble old_x = self->save_x;
+  gdouble old_y = self->save_y;
+
+  ornament_save_pointer(self);
+  
+  gdouble dx = self->save_x - old_x;
+  gdouble dy = self->save_y - old_y;
+
+  HosOrnamentClass *class = HOS_ORNAMENT_GET_CLASS(self);
+  if (class->move_relative)
+    class->move_relative(self, dx, dy);
+  
+  return TRUE;  /* No further processing of motion signals needed */
 }
 
 static void
@@ -424,7 +494,7 @@ ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over)
 {
   g_return_if_fail(HOS_IS_ORNAMENT(self));
 
-  if (mouse_over != self->mouse_over)
+  if ((mouse_over != self->mouse_over) && (!self->grabbed))
     {
       self->mouse_over = mouse_over;
       g_object_notify(G_OBJECT(self), "mouse-over");
