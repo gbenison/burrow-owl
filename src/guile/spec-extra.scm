@@ -145,7 +145,9 @@
 	 (s3 (spectrum-extract-ppm s2 y1 yn)))
     (spectrum-transpose s3 1)))
 
-
+(define-public (marker-set-movable marker movable)
+  (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
+  (set marker 'sensitive movable))
 
 
 ; ------- assignment lists ------
