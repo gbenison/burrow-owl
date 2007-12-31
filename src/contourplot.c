@@ -185,7 +185,36 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 static void
 contour_plot_item_configure(HosCanvasItem *self)
 {
-  /* FIXME invalidate the whole spectrum region */
+  /* invalidate the whole spectrum region */
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
+  if (canvas && GTK_WIDGET_REALIZED(canvas))
+    {
+      HosPainter* painter = HOS_PAINTER(HOS_CONTOUR_PLOT(self)->painter);
+      g_return_if_fail(HOS_IS_PAINTER(painter));
+
+      HosSpectrum *spectrum = painter_get_spectrum(painter);
+      g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+
+      gdouble x1 = spectrum_giro_ppm(spectrum, 0);
+      gdouble y1 = spectrum_giro_ppm(spectrum, 1);
+      gdouble xn = spectrum_orig_ppm(spectrum, 0);
+      gdouble yn = spectrum_orig_ppm(spectrum, 1);
+
+      canvas_world2view(canvas, &x1, &y1);
+      canvas_world2view(canvas, &xn, &yn);
+
+      GdkRectangle rect;
+      rect.x = MIN(x1, xn);
+      rect.y = MIN(y1, xn);
+      rect.width = ABS(xn - x1);
+      rect.height = ABS(yn - y1);
+
+      GdkRegion *region = gdk_region_rectangle(&rect);
+      canvas_invalidate_region(canvas, region);
+      gdk_region_destroy(region);
+    }
 }
 
 static void
@@ -229,7 +258,7 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
 
   if (self->painter != NULL)
     {
-      /* FIXME detach the old painter */
+      /* detach the old painter */
       gint n_connections =
 	g_signal_handlers_disconnect_by_func(self->painter,
 					     G_CALLBACK(contour_plot_painter_configure), self);
