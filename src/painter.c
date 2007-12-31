@@ -41,8 +41,6 @@ enum {
   PROP_0
 };
 
-static void hos_painter_init(HosPainter  *painter);
-static void hos_painter_class_init (HosPainterClass *klass);
 static void hos_painter_set_property (GObject         *object,
 				      guint            prop_id,
 				      const GValue    *value,
@@ -51,41 +49,13 @@ static void hos_painter_get_property (GObject         *object,
 				      guint            prop_id,
 				      GValue          *value,
 				      GParamSpec      *pspec);
-static void painter_contour_configuration_changed(HosContour *contour, gpointer data);
-static void painter_trace_line(HosPainter*, struct hos_point*, const gint, gint, gboolean);
-static void painter_spectrum_ready(HosSpectrum *spectrum, gpointer data);
+static void painter_contour_configuration_changed  (HosContour *contour, gpointer data);
+static void painter_trace_line                     (HosPainter*, struct hos_point*, const gint, gint, gboolean);
+static void painter_spectrum_ready                 (HosSpectrum *spectrum, gpointer data);
 
-static GObjectClass *parent_class = NULL;
 static guint painter_signals[LAST_SIGNAL] = { 0 };
 
-GType
-hos_painter_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosPainterClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_painter_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosPainter),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_painter_init,
-      };
-
-      type = g_type_register_static (G_TYPE_OBJECT,
-				     "HosPainter",
-				     &_info,
-				     G_TYPE_FLAG_ABSTRACT);
-    }
-
-  return type;
-}
+G_DEFINE_ABSTRACT_TYPE(HosPainter, hos_painter, G_TYPE_OBJECT)
 
 static void
 hos_painter_class_init (HosPainterClass *klass)
@@ -94,8 +64,6 @@ hos_painter_class_init (HosPainterClass *klass)
 
   gobject_class = G_OBJECT_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_painter_set_property;
   gobject_class->get_property = hos_painter_get_property;
 
@@ -250,7 +218,7 @@ painter_set_contour(HosPainter *painter, HosContour *contour)
       painter->contour = contour;
       g_object_ref(contour);
 
-      /* FIXME connect to contour's configuration-changed signal */
+      /* connect to contour's configuration-changed signal */
       g_signal_connect(contour, "configuration-changed",
 		       G_CALLBACK(painter_contour_configuration_changed),
 		       painter);

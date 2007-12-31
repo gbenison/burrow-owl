@@ -172,14 +172,10 @@ canvas_realize(GtkWidget *widget)
 
 static void
 hos_canvas_set_property (GObject         *object,
-			  guint            prop_id,
-			  const GValue    *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 const GValue    *value,
+			 GParamSpec      *pspec)
 {
-  HosCanvas *canvas = HOS_CANVAS(object);
-
-  canvas=canvas; /* to eliminate warning */
-
   switch (prop_id)
     {
     default:
@@ -190,21 +186,12 @@ hos_canvas_set_property (GObject         *object,
 
 static void
 hos_canvas_get_property (GObject         *object,
-			  guint            prop_id,
-			  GValue          *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 GValue          *value,
+			 GParamSpec      *pspec)
 {
-  HosCanvas *canvas = HOS_CANVAS(object);
-
-  canvas=canvas; /* to eliminate warning */
-
   switch (prop_id)
     {
-      /*
-    case PROP_IMAGE:
-      g_value_set_object (value, (GObject *)priv->image);
-      break;
-      */
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
