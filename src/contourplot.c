@@ -53,6 +53,7 @@ static void     contour_plot_set_canvas        (HosCanvasItem *self,
 						HosCanvas *canvas);
 
 static gboolean contour_plot_canvas_configure  (GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self);
+static void     contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self);
 
 G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CANVAS_ITEM)
 
@@ -268,6 +269,9 @@ contour_plot_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *c
       g_signal_connect (canvas, "configure-event",
 			G_CALLBACK (contour_plot_canvas_configure),
 			self);
+      g_signal_connect (canvas, "world-configure",
+			G_CALLBACK (contour_plot_canvas_world_configure),
+			self);
     }
 }
 
@@ -277,12 +281,21 @@ contour_plot_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *c
 static gboolean
 contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self)
 {
-  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_val_if_fail(HOS_IS_CANVAS(widget), TRUE);
+  g_return_val_if_fail(HOS_IS_CONTOUR_PLOT(self), TRUE);
 
   contour_plot_sync_xform(self);
   return FALSE;
 }
 
+static void
+contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  contour_plot_sync_xform(self);
+}
 
 void
 contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)

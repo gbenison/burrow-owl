@@ -44,6 +44,7 @@ static void     hos_canvas_get_property (GObject         *object,
 static gboolean canvas_button_press     (GtkWidget *widget, GdkEventButton *event);
 static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *event);
 static void     canvas_realize          (GtkWidget *widget);
+static void     canvas_world_configure  (HosCanvas *self);
 
 G_DEFINE_TYPE (HosCanvas, hos_canvas, GTK_TYPE_DRAWING_AREA)
 
@@ -63,6 +64,8 @@ hos_canvas_class_init (HosCanvasClass *klass)
   widget_class->expose_event       = canvas_expose_event;
   widget_class->realize            = canvas_realize;
 
+  klass->world_configure           = canvas_world_configure;
+
   canvas_signals[CLICKED] =
     g_signal_new("clicked",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
@@ -78,7 +81,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
     g_signal_new("world-configure",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 0,
+		 G_STRUCT_OFFSET(HosCanvasClass, world_configure),
 		 NULL, NULL,
 		 g_cclosure_marshal_VOID__VOID,
 		 G_TYPE_NONE, 0);
@@ -110,10 +113,7 @@ hos_canvas_init(HosCanvas  *canvas)
     gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
   }
 
-  canvas->x1 = 0;
-  canvas->y1 = 0;
-  canvas->xn = 100;
-  canvas->yn = 100;
+  canvas_set_world(canvas, 0, 0, 100, 100);
 
 }
 
@@ -141,6 +141,13 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
   else
     return FALSE;
 
+}
+
+static void
+canvas_world_configure(HosCanvas *self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(self));
+  gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 static gboolean

@@ -58,7 +58,8 @@ struct _HosCanvasClass
 
   GtkDrawingAreaClass parent_class;
 
-  void (*clicked)(HosCanvas *canvas, gdouble x, gdouble y);
+  void (*clicked)        (HosCanvas *canvas, gdouble x, gdouble y);
+  void (*world_configure)(HosCanvas *canvas);
 
 };
 
