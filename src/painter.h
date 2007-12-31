@@ -64,27 +64,31 @@ struct _HosPainter
 typedef void(*trace_func)(HosPainter*, struct hos_point*, const gint, gint, gboolean);
 
 
-void painter_set_contour(HosPainter* painter, HosContour *contour);
-HosContour* painter_get_contour(HosPainter* painter);
+void          painter_set_contour  (HosPainter* painter, HosContour *contour);
+HosContour*   painter_get_contour  (HosPainter* painter);
+void          painter_set_spectrum (HosPainter* painter, HosSpectrum *spectrum);
+HosSpectrum*  painter_get_spectrum (HosPainter* painter);
 
-void painter_set_spectrum(HosPainter* painter, HosSpectrum *spectrum);
-HosSpectrum* painter_get_spectrum(HosPainter* painter);
+fsm_state_t*  painter_redraw_init  (HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
+void          painter_redraw_region(HosPainter* painter,
+				    int x_lower,
+				    int y_lower,
+				    int x_upper,
+				    int y_upper);
+void          painter_redraw_region_ppm(HosPainter* painter,
+					gdouble x_lower,
+					gdouble y_lower,
+					gdouble x_upper,
+					gdouble y_upper);
+void          painter_redraw       (HosPainter* painter);
+void          painter_set_xform    (HosPainter* painter,
+				    gdouble x_offset,
+				    gdouble y_offset,
+				    gdouble x_slope,
+				    gdouble y_slope);
 
-fsm_state_t* painter_redraw_init(HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
-void painter_redraw_region(HosPainter* painter,
-			   int x_lower,
-			   int y_lower,
-			   int x_upper,
-			   int y_upper);
-void painter_redraw(HosPainter* painter);
-void painter_set_xform(HosPainter* painter,
-		       gdouble x_offset,
-		       gdouble y_offset,
-		       gdouble x_slope,
-		       gdouble y_slope);
-
-void painter_view_ppm(HosPainter *painter);
-void painter_view_world(HosPainter *painter);
+void          painter_view_ppm     (HosPainter *painter);
+void          painter_view_world   (HosPainter *painter);
 
 GType hos_painter_get_type(void);
 

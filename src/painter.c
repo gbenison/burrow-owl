@@ -38,11 +38,11 @@ enum {
 };
 
 enum {
-  PROP_0
+  PROP_0,
+  PROP_SPECTRUM,
+  PROP_CONTOUR
 };
 
-static void hos_painter_init(HosPainter  *painter);
-static void hos_painter_class_init (HosPainterClass *klass);
 static void hos_painter_set_property (GObject         *object,
 				      guint            prop_id,
 				      const GValue    *value,
@@ -51,41 +51,13 @@ static void hos_painter_get_property (GObject         *object,
 				      guint            prop_id,
 				      GValue          *value,
 				      GParamSpec      *pspec);
-static void painter_contour_configuration_changed(HosContour *contour, gpointer data);
-static void painter_trace_line(HosPainter*, struct hos_point*, const gint, gint, gboolean);
-static void painter_spectrum_ready(HosSpectrum *spectrum, gpointer data);
+static void painter_contour_configuration_changed  (HosContour *contour, gpointer data);
+static void painter_trace_line                     (HosPainter*, struct hos_point*, const gint, gint, gboolean);
+static void painter_spectrum_ready                 (HosSpectrum *spectrum, gpointer data);
 
-static GObjectClass *parent_class = NULL;
 static guint painter_signals[LAST_SIGNAL] = { 0 };
 
-GType
-hos_painter_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosPainterClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_painter_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosPainter),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_painter_init,
-      };
-
-      type = g_type_register_static (G_TYPE_OBJECT,
-				     "HosPainter",
-				     &_info,
-				     G_TYPE_FLAG_ABSTRACT);
-    }
-
-  return type;
-}
+G_DEFINE_ABSTRACT_TYPE(HosPainter, hos_painter, G_TYPE_OBJECT)
 
 static void
 hos_painter_class_init (HosPainterClass *klass)
@@ -94,23 +66,25 @@ hos_painter_class_init (HosPainterClass *klass)
 
   gobject_class = G_OBJECT_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_painter_set_property;
   gobject_class->get_property = hos_painter_get_property;
 
   klass->ready = NULL;
 
-  /*
   g_object_class_install_property (gobject_class,
-                                   PROP_N_LVL,
-                                   g_param_spec_uint ("n-lvl",
-						      "N-lvl",
-						      "number of contour levels",
-						      0, 0xFFFF, 0,
-						      G_PARAM_READWRITE));
-  */
-
+                                   PROP_SPECTRUM,
+                                   g_param_spec_object ("spectrum",
+							"spectrum",
+							"2D spectrum that is drawn by this contour plot",
+							HOS_TYPE_SPECTRUM,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
+  g_object_class_install_property (gobject_class,
+                                   PROP_CONTOUR,
+                                   g_param_spec_object ("contour",
+							"contour",
+							"Contour parameters (threshold, etc.) for this contour plot",
+							HOS_TYPE_CONTOUR,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
   painter_signals[CONFIGURATION_CHANGED] =
     g_signal_new ("configuration-changed",
 		  G_OBJECT_CLASS_TYPE(klass),
@@ -144,12 +118,14 @@ hos_painter_set_property (GObject         *object,
 			  const GValue    *value,
 			  GParamSpec      *pspec)
 {
-  HosPainter *painter;
-  
-  painter = HOS_PAINTER(object);
-
   switch (prop_id)
     {
+    case PROP_SPECTRUM:
+      painter_set_spectrum(HOS_PAINTER(object), HOS_SPECTRUM(g_value_get_object(value)));
+      break;
+    case PROP_CONTOUR:
+      painter_set_contour(HOS_PAINTER(object), HOS_CONTOUR(g_value_get_object(value)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -162,17 +138,14 @@ hos_painter_get_property (GObject         *object,
 			  GValue          *value,
 			  GParamSpec      *pspec)
 {
-  HosPainter *painter = HOS_PAINTER(object);
-
-  painter=painter; /* to eliminate warning */
-
   switch (prop_id)
     {
-      /*
-    case PROP_IMAGE:
-      g_value_set_object (value, (GObject *)priv->image);
+    case PROP_SPECTRUM:
+      g_value_set_object(value, G_OBJECT(painter_get_spectrum(HOS_PAINTER(object))));
       break;
-      */
+    case PROP_CONTOUR:
+      g_value_set_object(value, G_OBJECT(painter_get_contour(HOS_PAINTER(object))));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -250,7 +223,7 @@ painter_set_contour(HosPainter *painter, HosContour *contour)
       painter->contour = contour;
       g_object_ref(contour);
 
-      /* FIXME connect to contour's configuration-changed signal */
+      /* connect to contour's configuration-changed signal */
       g_signal_connect(contour, "configuration-changed",
 		       G_CALLBACK(painter_contour_configuration_changed),
 		       painter);
@@ -391,6 +364,31 @@ painter_redraw_region(HosPainter* painter,
 
   fsm_state_free(state);
   
+}
+
+void
+painter_redraw_region_ppm(HosPainter* painter,
+			  gdouble x_lower,
+			  gdouble y_lower,
+			  gdouble x_upper,
+			  gdouble y_upper)
+{
+  g_return_if_fail(HOS_IS_PAINTER(painter));
+
+  HosSpectrum *spectrum = painter->spectrum;
+  g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+
+  gint x1 = spectrum_ppm2pt(spectrum, 0, x_lower);
+  gint y1 = spectrum_ppm2pt(spectrum, 1, y_lower);
+  gint xn = spectrum_ppm2pt(spectrum, 0, x_upper);
+  gint yn = spectrum_ppm2pt(spectrum, 1, y_upper);
+
+  /* padding ensures that the whole ppm region will be redrawn */
+  painter_redraw_region(painter,
+			MIN(x1, xn) - 1,
+			MIN(y1, yn) - 1,
+			MAX(x1, xn) + 1,
+			MAX(y1, yn) + 1);
 }
 
 /*

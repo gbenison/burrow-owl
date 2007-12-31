@@ -22,7 +22,6 @@
 
 #include <gtk/gtk.h>
 #include <burrow/spectrum.h>
-#include "painter_gdk.h"
 
 G_BEGIN_DECLS
 
@@ -43,7 +42,6 @@ struct _HosCanvas
   GtkDrawingArea parent_instance;
 
   GdkGC *gc;
-  HosPainterGdk *painter;
 
   GList *items;
   
@@ -60,28 +58,20 @@ struct _HosCanvasClass
 
   GtkDrawingAreaClass parent_class;
 
-  void (*clicked)(HosCanvas *canvas, gdouble x, gdouble y);
+  void (*clicked)        (HosCanvas *canvas, gdouble x, gdouble y);
+  void (*world_configure)(HosCanvas *canvas);
 
 };
 
-HosPainter*  canvas_get_painter   (HosCanvas *self);
-void         canvas_set_painter   (HosCanvas *self, HosPainterGdk *painter);
-HosSpectrum* canvas_get_spectrum  (HosCanvas *self);
-void         canvas_add_item      (HosCanvas *self, HosCanvasItem *canvasitem);
-
-void canvas_view2ppm (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_ppm2view (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2pt  (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_pt2view  (HosCanvas *canvas, gdouble *x, gdouble *y);
-
-void canvas_set_world  (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
-void canvas_world2view (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2world (HosCanvas *canvas, gdouble *x, gdouble *y);
+HosCanvasItem* canvas_add_item          (HosCanvas *self, HosCanvasItem *canvasitem);
+HosCanvasItem* canvas_get_item          (HosCanvas *self, guint idx);
+void           canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
+void           canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
-
-void canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region);
 
 GType hos_canvas_get_type(void);
 

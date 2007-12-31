@@ -21,6 +21,7 @@
 #define HAVE_CONTOUR_PLOT_H
 
 #include "canvasitem.h"
+#include "painter.h"
 
 G_BEGIN_DECLS
 
@@ -48,11 +49,11 @@ struct _HosContourPlot
   HosPainter  *painter;
 };
 
-GType hos_contour_plot_get_type(void);
-void contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum);
-void contour_plot_set_contour(HosContourPlot *self, HosContour *contour);
-HosSpectrum* contour_plot_get_spectrum(HosContourPlot *self);
-HosContour* contour_plot_get_contour(HosContourPlot *self);
+GType        hos_contour_plot_get_type (void);
+void         contour_plot_set_spectrum (HosContourPlot *self, HosSpectrum *spectrum);
+void         contour_plot_set_contour  (HosContourPlot *self, HosContour *contour);
+HosSpectrum* contour_plot_get_spectrum (HosContourPlot *self);
+HosContour*  contour_plot_get_contour  (HosContourPlot *self);
 
 G_END_DECLS
 

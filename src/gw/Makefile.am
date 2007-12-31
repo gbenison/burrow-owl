@@ -19,6 +19,7 @@ $(headers_dir)/painter_bwps.h
 
 HEADERS_2= \
 $(headers_dir)/hoscanvas.h \
+$(headers_dir)/canvasitem.h \
 $(headers_dir)/ornament.h \
 $(headers_dir)/hosbackingsim.h \
 $(headers_dir)/hosdimensionsim.h \
@@ -27,7 +28,8 @@ $(headers_dir)/version.h
 HEADERS_3= \
 $(headers_dir)/marker.h \
 $(headers_dir)/cursor.h \
-$(headers_dir)/marker_text.h
+$(headers_dir)/marker_text.h \
+$(headers_dir)/contourplot.h
 # $(headers_dir)/box.h
 
 H2DEF=@srcdir@/h2def.py
