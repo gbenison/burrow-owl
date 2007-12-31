@@ -54,17 +54,34 @@
 
 ; ------------- canvas commands -------------
 
+(define (canvas-ensure-contour-plot canv)
+  (let loop ((n 0))
+    (let ((candidate (canvas-get-item canv n)))
+      (cond ((not candidate)(canvas-add-item canv (make <hos-contour-plot>)))
+	    ((is-a? candidate <hos-contour-plot>) candidate)
+	    (else (loop (+ n 1)))))))
+
 (define-public (canvas-set-spectrum canv spec)
-  (painter-set-spectrum (canvas-get-painter canv) spec))
+  (let ((contour-plot (canvas-ensure-contour-plot canv)))
+    (canvas-set-world canv
+		      (spectrum-orig-ppm spec 0)
+		      (spectrum-giro-ppm spec 1)
+		      (spectrum-giro-ppm spec 0)
+		      (spectrum-orig-ppm spec 1))
+    (set contour-plot 'spectrum spec)))
 
 (define-public (canvas-set-thres canv thres)
-  (contour-set-thres-adjustment
-   (painter-get-contour (canvas-get-painter canv)) thres))
+  (warn "use of deprecated function canvas-set-thres")
+  (let* ((contour-plot (canvas-ensure-contour-plot canv))
+	 (contour (get contour-plot 'contour)))
+    (contour-set-thres-adjustment contour thres)))
 
 (define-public (canvas-set-draw-negative canv neg?)
-  (contour-set-draw-negative
-   (painter-get-contour
-    (canvas-get-painter canv)) neg?))
+  (warn "use of deprecated function canvas-set-draw-negative")
+  (let* ((contour-plot (canvas-ensure-contour-plot canv))
+	 (contour (get contour-plot 'contour)))
+    (contour-set-draw-negative contour neg?)))
+
 
 (define-public (painter-set-thres painter thres)
   (let ((adj (contour-get-thres-adjustment (painter-get-contour painter))))
@@ -152,11 +169,14 @@
     (spectrum-transpose s3 1)))
 
 (define-public (adjustment-for-spectrum spectrum dim)
-  (make <gtk-adjustment>
-    #:lower (spectrum-giro-ppm spectrum dim)
-    #:upper (spectrum-orig-ppm spectrum dim)
-    #:step-increment (/ (spectrum-sw-ppm spectrum dim) 2000.0)))
-	
+  (let ((lower (spectrum-giro-ppm spectrum dim))
+	(upper (spectrum-orig-ppm spectrum dim)))
+    (make <gtk-adjustment>
+      #:lower lower
+      #:upper upper
+      #:value (* 0.5 (+ upper lower))
+      #:step-increment (/ (spectrum-sw-ppm spectrum dim) 2000.0))))
+
 (define-public (marker-set-movable marker movable)
   (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
   (set marker 'sensitive movable))

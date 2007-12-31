@@ -205,11 +205,11 @@ hos_canvas_get_property (GObject         *object,
     }
 }
 
-void
+HosCanvasItem*
 canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
 {
-  g_return_if_fail(HOS_IS_CANVAS(self));
-  g_return_if_fail(HOS_IS_CANVAS_ITEM(canvasitem));
+  g_return_val_if_fail(HOS_IS_CANVAS(self), NULL);
+  g_return_val_if_fail(HOS_IS_CANVAS_ITEM(canvasitem), NULL);
 
   canvas_item_set_canvas(canvasitem, self);
 
@@ -218,6 +218,20 @@ canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
       g_object_ref(canvasitem);
       self->items = g_list_append(self->items, canvasitem);
     }
+
+  return canvasitem;
+}
+
+/*
+ * returns: canvas item number 'idx' from 'self,
+ * or NULL if idx out of range
+ */
+HosCanvasItem*
+canvas_get_item
+(HosCanvas *self, guint idx)
+{
+  g_return_val_if_fail(HOS_IS_CANVAS(self), NULL);
+  return (idx < g_list_length(self->items)) ? HOS_CANVAS_ITEM(g_list_nth_data(self->items, idx)) : NULL;
 }
 
 void

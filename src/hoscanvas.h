@@ -63,11 +63,12 @@ struct _HosCanvasClass
 
 };
 
-void canvas_add_item          (HosCanvas *self, HosCanvasItem *canvasitem);
-void canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
-void canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
+HosCanvasItem* canvas_add_item          (HosCanvas *self, HosCanvasItem *canvasitem);
+HosCanvasItem* canvas_get_item          (HosCanvas *self, guint idx);
+void           canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
+void           canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
