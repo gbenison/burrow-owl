@@ -378,11 +378,17 @@ painter_redraw_region_ppm(HosPainter* painter,
   HosSpectrum *spectrum = painter->spectrum;
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
 
+  gint x1 = spectrum_ppm2pt(spectrum, 0, x_lower);
+  gint y1 = spectrum_ppm2pt(spectrum, 1, y_lower);
+  gint xn = spectrum_ppm2pt(spectrum, 0, x_upper);
+  gint yn = spectrum_ppm2pt(spectrum, 1, y_upper);
+
+  /* padding ensures that the whole ppm region will be redrawn */
   painter_redraw_region(painter,
-			spectrum_ppm2pt(spectrum, 0, x_lower),
-			spectrum_ppm2pt(spectrum, 1, y_lower),
-			spectrum_ppm2pt(spectrum, 0, x_upper),
-			spectrum_ppm2pt(spectrum, 1, y_upper));
+			MIN(x1, xn) - 1,
+			MIN(y1, yn) - 1,
+			MAX(x1, xn) + 1,
+			MAX(y1, yn) + 1);
 }
 
 /*
