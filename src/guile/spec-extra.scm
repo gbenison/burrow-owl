@@ -181,6 +181,10 @@
   (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
   (set marker 'sensitive movable))
 
+(define-public (cursor-set-movable cursor movable)
+  (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")
+  (set cursor 'sensitive movable))
+
 ; ------- assignment lists ------
 
 ; example assignment:

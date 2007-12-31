@@ -28,6 +28,7 @@
 	   (cursor-vert (canvas-add-cursor-vertical canv)))
       (marker-text-set-color marker-text #xFFFF #x2000 #x2000)
       (marker-set-movable marker-2 #f)
+      (cursor-set-movable cursor-vert #t)
       (cursor-set-adjustment cursor-horiz (cursor-get-adjustment cursor-vert))
       (connect marker 'acquire (lambda args 'ok))
       (connect marker 'dropped
