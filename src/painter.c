@@ -385,10 +385,10 @@ painter_redraw_region_ppm(HosPainter* painter,
 
   /* padding ensures that the whole ppm region will be redrawn */
   painter_redraw_region(painter,
-			MIN(x1, xn) - 1,
-			MIN(y1, yn) - 1,
-			MAX(x1, xn) + 1,
-			MAX(y1, yn) + 1);
+			MIN(x1, xn) - 2,
+			MIN(y1, yn) - 2,
+			MAX(x1, xn) + 2,
+			MAX(y1, yn) + 2);
 }
 
 /*
