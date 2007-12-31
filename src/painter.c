@@ -38,7 +38,9 @@ enum {
 };
 
 enum {
-  PROP_0
+  PROP_0,
+  PROP_SPECTRUM,
+  PROP_CONTOUR
 };
 
 static void hos_painter_set_property (GObject         *object,
@@ -69,16 +71,20 @@ hos_painter_class_init (HosPainterClass *klass)
 
   klass->ready = NULL;
 
-  /*
   g_object_class_install_property (gobject_class,
-                                   PROP_N_LVL,
-                                   g_param_spec_uint ("n-lvl",
-						      "N-lvl",
-						      "number of contour levels",
-						      0, 0xFFFF, 0,
-						      G_PARAM_READWRITE));
-  */
-
+                                   PROP_SPECTRUM,
+                                   g_param_spec_object ("spectrum",
+							"spectrum",
+							"2D spectrum that is drawn by this contour plot",
+							HOS_TYPE_SPECTRUM,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
+  g_object_class_install_property (gobject_class,
+                                   PROP_CONTOUR,
+                                   g_param_spec_object ("contour",
+							"contour",
+							"Contour parameters (threshold, etc.) for this contour plot",
+							HOS_TYPE_CONTOUR,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
   painter_signals[CONFIGURATION_CHANGED] =
     g_signal_new ("configuration-changed",
 		  G_OBJECT_CLASS_TYPE(klass),
@@ -112,12 +118,14 @@ hos_painter_set_property (GObject         *object,
 			  const GValue    *value,
 			  GParamSpec      *pspec)
 {
-  HosPainter *painter;
-  
-  painter = HOS_PAINTER(object);
-
   switch (prop_id)
     {
+    case PROP_SPECTRUM:
+      painter_set_spectrum(HOS_PAINTER(object), HOS_SPECTRUM(g_value_get_object(value)));
+      break;
+    case PROP_CONTOUR:
+      painter_set_contour(HOS_PAINTER(object), HOS_CONTOUR(g_value_get_object(value)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -130,17 +138,14 @@ hos_painter_get_property (GObject         *object,
 			  GValue          *value,
 			  GParamSpec      *pspec)
 {
-  HosPainter *painter = HOS_PAINTER(object);
-
-  painter=painter; /* to eliminate warning */
-
   switch (prop_id)
     {
-      /*
-    case PROP_IMAGE:
-      g_value_set_object (value, (GObject *)priv->image);
+    case PROP_SPECTRUM:
+      g_value_set_object(value, G_OBJECT(painter_get_spectrum(HOS_PAINTER(object))));
       break;
-      */
+    case PROP_CONTOUR:
+      g_value_set_object(value, G_OBJECT(painter_get_contour(HOS_PAINTER(object))));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
