@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006 Greg Benison
+ *  Copyright (C) 2005, 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,15 +15,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- */
-
-/*
- * Base type for the 'spectrum' abstraction--
- * An object which is capable of providing iterators
- *
- * intended to be subclassed to provide things like
- * convoluted spectra, specific spectrum implementations
- * i.e. block float format, simulated spectra
  */
 
 /*
@@ -79,15 +70,18 @@ struct _traverse_data {
   GList *backing_list;
 };
 
-static GObjectClass *parent_class = NULL;
 enum {
   READY,
   LAST_SIGNAL
 };
+
+enum {
+  PROP_0,
+  PROP_READY
+};
+
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
 
-static void hos_spectrum_class_init (HosSpectrumClass *klass);
-static void hos_spectrum_init(HosSpectrum  *spectrum);
 static void hos_spectrum_set_property (GObject         *object,
 				       guint            prop_id,
 				       const GValue    *value,
@@ -97,28 +91,31 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static void set_buffer_stride(GList*, guint *stride);
-static gint compare_cost(GList *A, GList *B);
-static void g_list_foreach_recursive(GList *list, guint lvl, GFunc callback, gpointer data);
-static void check_replace_backing(HosDimension *dimen, struct _foreach_data* data);
-static void replace_backing(HosDimension *dimen, struct _foreach_data* data);
-static void g_object_ref_data(GObject *obj, gpointer data);
-static HosSpectrum* spectrum_copy(HosSpectrum *src);
-static gdouble* dimension_traverse_internal(GList*, gdouble*, GList*, gboolean*);
-static void dimension_extract_cb_ppm(HosDimension* dimen, struct _foreach_data* data);
-static void dimension_extract_cb(HosDimension* dimen, struct _foreach_data* data);
-static void spectrum_invalidate_cache(HosSpectrum *self);
-static gdouble* spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list);
-static gdouble* spectrum_traverse_how(HosSpectrum *spec, gboolean block);
-static gpointer traverse_async_internal(struct _traverse_data* data);
-static void backing_unlock_cb(HosBacking* self, gpointer data);
-static void backing_lock_set(HosBacking* self, gulong *id);
-static void notify_spectrum_finalize(gpointer data, HosSpectrum *spec);
-static gboolean spectrum_ready(struct _traverse_data* data);
-static guint dimen_list_lookup_nth(GList* list, guint n);
-static GList* dimen_list_get_nth(GList* dimens, guint idx);
-static HosDimension* dimen_list_get_nth_first(GList* dimens, guint idx);
-static gpointer g_list_nth_first(GList* list, guint n);
+static void          set_buffer_stride          (GList*, guint *stride);
+static gint          compare_cost               (GList *A, GList *B);
+static void          g_list_foreach_recursive   (GList *list,
+					         guint lvl, GFunc callback, gpointer data);
+static void          check_replace_backing      (HosDimension *dimen, struct _foreach_data* data);
+static void          replace_backing            (HosDimension *dimen, struct _foreach_data* data);
+static void          g_object_ref_data          (GObject *obj, gpointer data);
+static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
+static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*, gboolean*);
+static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
+static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
+static void          spectrum_invalidate_cache  (HosSpectrum *self);
+static gdouble*      spectrum_traverse_internal (HosSpectrum* spec, GList* backing_list);
+static gdouble*      spectrum_traverse_how      (HosSpectrum *spec, gboolean block);
+static gpointer      traverse_async_internal    (struct _traverse_data* data);
+static void          backing_unlock_cb          (HosBacking* self, gpointer data);
+static void          backing_lock_set           (HosBacking* self, gulong *id);
+static void          notify_spectrum_finalize   (gpointer data, HosSpectrum *spec);
+static gboolean      spectrum_ready             (struct _traverse_data* data);
+static guint         dimen_list_lookup_nth      (GList* list, guint n);
+static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
+static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
+static gpointer      g_list_nth_first           (GList* list, guint n);
+
+G_DEFINE_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
 /*
  * Add this dimension's backing to this list,
@@ -1243,42 +1240,6 @@ dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list, gboo
 
 }
 
-
-
-
-GType
-hos_spectrum_get_type (void)
-{
-  static GType spectrum_type = 0;
-
-  if (!spectrum_type)
-    {
-      static const GTypeInfo spectrum_info =
-      {
-	sizeof (HosSpectrumClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_spectrum_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosSpectrum),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_spectrum_init,
-      };
-
-      spectrum_type = g_type_register_static (G_TYPE_OBJECT,
-					      "HosSpectrum",
-					      &spectrum_info,
-					      0);
-
-      /* FIXME this got to go somewhere! */
-      /*      if (!g_thread_supported ()) g_thread_init (NULL); */
-
-    }
-
-  return spectrum_type;
-}
-
 static void
 hos_spectrum_finalize(GObject *object)
 {
@@ -1297,7 +1258,7 @@ hos_spectrum_finalize(GObject *object)
     g_mutex_free(spectrum->status_lock);
 */
 
-  G_OBJECT_CLASS(parent_class)->finalize (object);
+  G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
 }
 
@@ -1308,8 +1269,6 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 
   gobject_class = G_OBJECT_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_spectrum_set_property;
   gobject_class->get_property = hos_spectrum_get_property;
 
@@ -1326,15 +1285,15 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
+  g_object_class_install_property (gobject_class,
+                                   PROP_READY,
+                                   g_param_spec_boolean ("ready",
+							 "Ready",
+							 "The spectrum is ready to be accessed.",
+							 FALSE,
+							 G_PARAM_READABLE));
+
   
-/*
-
-  PROPERTIES GO HERE
-  PRIVATE GOES HERE:
-
-  g_type_class_add_private (gobject_class, sizeof (GtkButtonPrivate));  
-
-*/
 }
 
 static void
@@ -1376,17 +1335,13 @@ hos_spectrum_get_property (GObject         *object,
 			   GValue          *value,
 			   GParamSpec      *pspec)
 {
-  HosSpectrum *spec = HOS_SPECTRUM(object);
-
-  spec=spec; /* to eliminate warning */
 
   switch (prop_id)
     {
-      /*
-    case PROP_IMAGE:
-      g_value_set_object (value, (GObject *)priv->image);
+    case PROP_READY:
+      /* FIXME not yet implemented.  For now, spectra are always 'ready'. */
+      g_value_set_boolean (value, TRUE);
       break;
-      */
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

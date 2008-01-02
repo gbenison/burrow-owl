@@ -21,6 +21,7 @@
 #include "contourplot.h"
 #include "painter_gdk.h"
 #include "painter_cairo.h"
+#include "cairo_shapes.h"
 
 enum {
   PROP_0,
@@ -164,21 +165,44 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   HosCanvas *canvas = self->canvas;
   g_return_if_fail(HOS_IS_CANVAS(canvas));
 
-  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
+  HosSpectrum* spectrum;
+  g_object_get(G_OBJECT(self), "spectrum", &spectrum, NULL);
 
-  /* redraw the affected canvas portion */
-  gdouble x1 = event->area.x;
-  gdouble xn = event->area.x + event->area.width;
-  gdouble y1 = event->area.y;
-  gdouble yn = event->area.y + event->area.height;
-  canvas_view2world(canvas, &x1, &y1);
-  canvas_view2world(canvas, &xn, &yn);
+  gboolean ready;
+  g_object_get(G_OBJECT(spectrum), "ready", &ready, NULL);
 
-  painter_gdk_set_drawable_gc(painter_gdk,
-			      GDK_DRAWABLE(GTK_WIDGET(canvas)->window),
-			      canvas->gc);
+  if (ready)
+    {
+      HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
+      
+      /* redraw the affected canvas portion */
+      gdouble x1 = event->area.x;
+      gdouble xn = event->area.x + event->area.width;
+      gdouble y1 = event->area.y;
+      gdouble yn = event->area.y + event->area.height;
+      canvas_view2world(canvas, &x1, &y1);
+      canvas_view2world(canvas, &xn, &yn);
+      
+      painter_gdk_set_drawable_gc(painter_gdk,
+				  GDK_DRAWABLE(GTK_WIDGET(canvas)->window),
+				  canvas->gc);
+      
+      painter_redraw_region_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
+    }
+  else
+    {
+      /* spectrum not ready */
+      cairo_t* cr = canvas_get_cairo_context(canvas);
 
-  painter_redraw_region_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
+      gint window_width, window_height;
+      gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			  &window_width, &window_height);
+      
+      cairo_translate (cr, window_width / 2, window_height / 2);
+      cairo_shape_hourglass(cr, 15, 25);
+
+      cairo_destroy(cr);
+    }
 
 }
 
@@ -207,7 +231,7 @@ contour_plot_item_configure(HosCanvasItem *self)
 
       GdkRectangle rect;
       rect.x = MIN(x1, xn);
-      rect.y = MIN(y1, xn);
+      rect.y = MIN(y1, yn);
       rect.width = ABS(xn - x1);
       rect.height = ABS(yn - y1);
 

@@ -69,6 +69,7 @@ void           canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble 
 void           canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
 void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
 void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
+cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);

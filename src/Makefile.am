@@ -62,6 +62,8 @@ marker_text.c \
 marker_text.h \
 nih.c  \
 burrow/nih.h  \
+cairo_shapes.c \
+cairo_shapes.h \
 ornament.c  \
 ornament.h  \
 painter_bwps.c  \

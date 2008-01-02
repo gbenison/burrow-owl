@@ -314,7 +314,7 @@ painter_trace_line(HosPainter* painter, struct hos_point* points, const gint n_p
   (HOS_PAINTER_GET_CLASS(painter))->trace_line(painter, points, n_point, (lvl), (closed));
 }
 
-fsm_state_t*
+gpointer
 painter_redraw_init(HosPainter* painter,
 		    gint x1, gint xn, gint y1, gint yn)
 {
@@ -337,6 +337,29 @@ painter_redraw_init(HosPainter* painter,
 		    painter);
 
   return result;
+}
+
+/*
+ * Returns:  true: more drawing remains.
+ *           false: drawing is done; 'state' is no longer valid.
+ */
+gboolean
+painter_redraw_tick(gpointer state)
+{
+  g_return_val_if_fail(state != NULL, FALSE);
+  gboolean result = contour_fsm((fsm_state_t*)state) ? FALSE : TRUE;
+
+  if (!result)
+    fsm_state_free(state);
+
+  return result;
+}
+
+void
+painter_redraw_cancel(gpointer state)
+{
+  g_assert(state != NULL);
+  fsm_state_free(state);
 }
 
 /*
