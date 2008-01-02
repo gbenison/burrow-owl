@@ -27,7 +27,7 @@
 enum {
   PROP_0,
   PROP_SPECTRUM,
-  PROP_CONTOUR
+  PROP_CONTOUR,
 };
 
 enum {
@@ -152,9 +152,8 @@ contour_plot_get_property (GObject         *object,
 static void
 hos_contour_plot_init(HosContourPlot *self)
 {
-  /* FIXME this is for cairo types */
-  /*  contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL)); */
   self->configure_id = 1;
+  self->painter_cairo = g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
 }
 
@@ -164,6 +163,10 @@ contour_plot_painter_configure(HosPainter *painter,
 			       HosContourPlot *contour_plot)
 {
   ++contour_plot->configure_id;
+  painter_set_contour(HOS_PAINTER(contour_plot->painter_cairo),
+		      painter_get_contour(contour_plot->painter));
+  painter_set_spectrum(HOS_PAINTER(contour_plot->painter_cairo),
+		       painter_get_spectrum(contour_plot->painter));
   canvas_item_configure(HOS_CANVAS_ITEM(contour_plot));
 }
 
@@ -310,6 +313,8 @@ contour_plot_sync_xform(HosContourPlot *self)
       HosPainter* painter = HOS_PAINTER(self->painter);
       g_return_if_fail(HOS_IS_PAINTER(painter));
 
+      g_return_if_fail(HOS_IS_PAINTER_CAIRO(self->painter_cairo));
+
       HosSpectrum *spectrum = painter_get_spectrum(painter);
       g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
 
@@ -325,6 +330,7 @@ contour_plot_sync_xform(HosContourPlot *self)
       gdouble y_slope = y_1 - y_0;
 
       painter_set_xform(painter, x_0, y_0, x_slope, y_slope);
+      painter_set_xform(HOS_PAINTER(self->painter_cairo), x_0, y_0, x_slope, y_slope);
 
     }
   
@@ -353,6 +359,8 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
       g_signal_connect(painter, "configuration-changed",
 		       G_CALLBACK(contour_plot_painter_configure), self);
     }
+  painter_set_contour(HOS_PAINTER(self->painter_cairo), painter_get_contour(self->painter));
+  painter_set_spectrum(HOS_PAINTER(self->painter_cairo), painter_get_spectrum(self->painter));
 }
 
 static void
