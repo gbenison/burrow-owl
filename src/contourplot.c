@@ -28,6 +28,7 @@ enum {
   PROP_0,
   PROP_SPECTRUM,
   PROP_CONTOUR,
+  PROP_SMOOTHED
 };
 
 enum {
@@ -62,6 +63,8 @@ static gboolean contour_plot_smooth_ready      (HosContourPlot *self);
 
 static gboolean contour_plot_canvas_configure  (GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self);
 static void     contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self);
+static void     contour_plot_set_smoothed      (HosContourPlot* self, gboolean smoothed);
+static void     contour_plot_sync_painters     (HosContourPlot *self);
 
 static GTimer* contour_plot_timer = NULL;
 
@@ -97,6 +100,14 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
 							HOS_TYPE_CONTOUR,
 							G_PARAM_READABLE | G_PARAM_WRITABLE));
 
+  g_object_class_install_property (gobject_class,
+                                   PROP_SMOOTHED,
+                                   g_param_spec_boolean ("smoothed",
+							 "Smoothed",
+							 "If true: this contour plot will draw itself first using fast GDK operations, then with antialiased lines",
+							 TRUE,
+							 G_PARAM_READABLE | G_PARAM_WRITABLE));
+
 
 }
 
@@ -120,6 +131,10 @@ contour_plot_set_property (GObject         *object,
       contour = HOS_CONTOUR(g_value_get_object(value));
       contour_plot_set_contour(contour_plot, contour);
       break;
+    case PROP_SMOOTHED:
+      contour_plot_set_smoothed(HOS_CONTOUR_PLOT(object),
+				g_value_get_boolean(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -142,6 +157,9 @@ contour_plot_get_property (GObject         *object,
     case PROP_CONTOUR:
       g_value_set_object(value, G_OBJECT(contour_plot_get_contour(HOS_CONTOUR_PLOT(object))));
       break;
+    case PROP_SMOOTHED:
+      g_value_set_boolean(value, HOS_CONTOUR_PLOT(object)->smoothed);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -163,10 +181,7 @@ contour_plot_painter_configure(HosPainter *painter,
 			       HosContourPlot *contour_plot)
 {
   ++contour_plot->configure_id;
-  painter_set_contour(HOS_PAINTER(contour_plot->painter_cairo),
-		      painter_get_contour(contour_plot->painter));
-  painter_set_spectrum(HOS_PAINTER(contour_plot->painter_cairo),
-		       painter_get_spectrum(contour_plot->painter));
+  contour_plot_sync_painters(contour_plot);
   canvas_item_configure(HOS_CANVAS_ITEM(contour_plot));
 }
 
@@ -359,9 +374,21 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
       g_signal_connect(painter, "configuration-changed",
 		       G_CALLBACK(contour_plot_painter_configure), self);
     }
-  painter_set_contour(HOS_PAINTER(self->painter_cairo), painter_get_contour(self->painter));
-  painter_set_spectrum(HOS_PAINTER(self->painter_cairo), painter_get_spectrum(self->painter));
+  contour_plot_sync_painters(self);
 }
+
+static void
+contour_plot_sync_painters(HosContourPlot *self)
+{
+  HosSpectrum *spectrum = painter_get_spectrum(self->painter);
+  HosContour  *contour  = painter_get_contour(self->painter);
+
+  if (HOS_IS_CONTOUR(contour))
+    painter_set_contour(HOS_PAINTER(self->painter_cairo), contour);
+  if (HOS_IS_SPECTRUM(spectrum))
+    painter_set_spectrum(HOS_PAINTER(self->painter_cairo), spectrum);
+}
+
 
 static void
 contour_plot_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
@@ -413,6 +440,17 @@ contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
 
   ++self->configure_id;
   contour_plot_sync_xform(self);
+}
+
+static void
+contour_plot_set_smoothed(HosContourPlot* self, gboolean smoothed)
+{
+  g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+  if (smoothed != self->smoothed)
+    {
+      self->smoothed = smoothed;
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
+    }
 }
 
 void

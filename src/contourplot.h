@@ -47,6 +47,8 @@ struct _HosContourPlot
 {
   HosCanvasItem parent_instance;
 
+  gboolean smoothed;
+
   gulong configure_id;
   HosPainter      *painter;
   HosPainterCairo *painter_cairo;
