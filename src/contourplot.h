@@ -22,6 +22,7 @@
 
 #include "canvasitem.h"
 #include "painter.h"
+#include "painter_cairo.h"
 
 G_BEGIN_DECLS
 
@@ -46,7 +47,17 @@ struct _HosContourPlot
 {
   HosCanvasItem parent_instance;
 
-  HosPainter  *painter;
+  gboolean smoothed;
+
+  gboolean        cairo_ready;
+  gboolean        cairo_tracing;
+  gpointer        cairo_trace_state;
+  cairo_surface_t *backing;
+  cairo_t         *cr;
+
+  gulong configure_id;
+  HosPainter      *painter;
+  HosPainterCairo *painter_cairo;
 };
 
 GType        hos_contour_plot_get_type (void);
