@@ -305,6 +305,13 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   gtk_widget_queue_draw(GTK_WIDGET(canvas));
 }
 
+cairo_t*
+canvas_get_cairo_context (HosCanvas *canvas)
+{
+  g_return_val_if_fail(GTK_WIDGET_DRAWABLE(canvas), NULL);
+  return gdk_cairo_create(GTK_WIDGET(canvas)->window);
+}
+
 GtkAdjustment*
 adjustment_for_canvas_x(HosCanvas* canvas)
 {
