@@ -207,7 +207,7 @@ contour_plot_item_configure(HosCanvasItem *self)
 
       GdkRectangle rect;
       rect.x = MIN(x1, xn);
-      rect.y = MIN(y1, xn);
+      rect.y = MIN(y1, yn);
       rect.width = ABS(xn - x1);
       rect.height = ABS(yn - y1);
 
