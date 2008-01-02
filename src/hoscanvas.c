@@ -46,6 +46,8 @@ static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *even
 static void     canvas_realize          (GtkWidget *widget);
 static void     canvas_world_configure  (HosCanvas *self);
 
+static gboolean canvas_is_double_buffered = TRUE;
+
 G_DEFINE_TYPE (HosCanvas, hos_canvas, GTK_TYPE_DRAWING_AREA)
 
 static void
@@ -98,6 +100,8 @@ hos_canvas_init(HosCanvas  *canvas)
 			GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK |
 			GDK_POINTER_MOTION_HINT_MASK);
+
+  gtk_widget_set_double_buffered(widget, canvas_is_double_buffered);
 
   {
     GdkColor bg_color;
@@ -158,6 +162,13 @@ canvas_expose_event(GtkWidget *widget, GdkEventExpose *event)
   /* chain up */
   if (GTK_WIDGET_CLASS(hos_canvas_parent_class)->expose_event)
     GTK_WIDGET_CLASS(hos_canvas_parent_class)->expose_event(widget, event);
+
+  if (canvas_is_double_buffered == FALSE)
+    gdk_window_clear_area(widget->window,
+			  event->area.x,
+			  event->area.y,
+			  event->area.width,
+			  event->area.height);
 
   GList* ptr;
   for (ptr = canvas->items; ptr != NULL; ptr = ptr->next)

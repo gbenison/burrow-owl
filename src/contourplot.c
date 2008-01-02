@@ -22,6 +22,7 @@
 #include "painter_gdk.h"
 #include "painter_cairo.h"
 #include "cairo_shapes.h"
+#include "boomerang.h"
 
 enum {
   PROP_0,
@@ -32,6 +33,11 @@ enum {
 enum {
   LAST_SIGNAL
 };
+
+/* The time to spend tracing contours before checking for more events */
+static gdouble contour_plot_draw_interval = 0.003; /* sec */
+/* The time to spend in the main loop, taking a break from contour tracing */
+static guint contour_plot_sleep_interval = 1;  /* msec */
 
 /* static guint contour_plot_signals[LAST_SIGNAL] = { 0 }; */
 
@@ -52,9 +58,12 @@ static void     contour_plot_sync_xform        (HosContourPlot *self);
 static void     contour_plot_set_canvas        (HosCanvasItem *self,
 						HosCanvas *old_canvas,
 						HosCanvas *canvas);
+static gboolean contour_plot_smooth_ready      (HosContourPlot *self);
 
 static gboolean contour_plot_canvas_configure  (GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self);
 static void     contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self);
+
+static GTimer* contour_plot_timer = NULL;
 
 G_DEFINE_TYPE (HosContourPlot, hos_contour_plot, HOS_TYPE_CANVAS_ITEM)
 
@@ -145,6 +154,7 @@ hos_contour_plot_init(HosContourPlot *self)
 {
   /* FIXME this is for cairo types */
   /*  contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL)); */
+  self->configure_id = 1;
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
 }
 
@@ -153,6 +163,7 @@ static gboolean
 contour_plot_painter_configure(HosPainter *painter,
 			       HosContourPlot *contour_plot)
 {
+  ++contour_plot->configure_id;
   canvas_item_configure(HOS_CANVAS_ITEM(contour_plot));
 }
 
@@ -173,21 +184,58 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 
   if (ready)
     {
-      HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
+      if (contour_plot_smooth_ready(contour_plot))
+	{
+	  /* FIXME */
+	  /* draw smoothed contours... if they're available */
+	}
+      else
+	{
+	  /* fallback... draw with GDK */
+	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
       
-      /* redraw the affected canvas portion */
-      gdouble x1 = event->area.x;
-      gdouble xn = event->area.x + event->area.width;
-      gdouble y1 = event->area.y;
-      gdouble yn = event->area.y + event->area.height;
-      canvas_view2world(canvas, &x1, &y1);
-      canvas_view2world(canvas, &xn, &yn);
-      
-      painter_gdk_set_drawable_gc(painter_gdk,
-				  GDK_DRAWABLE(GTK_WIDGET(canvas)->window),
-				  canvas->gc);
-      
-      painter_redraw_region_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
+	  /* redraw the affected canvas portion */
+	  gdouble x1 = event->area.x;
+	  gdouble xn = event->area.x + event->area.width;
+	  gdouble y1 = event->area.y;
+	  gdouble yn = event->area.y + event->area.height;
+	  canvas_view2world(canvas, &x1, &y1);
+	  canvas_view2world(canvas, &xn, &yn);
+	  
+	  painter_gdk_set_drawable_gc(painter_gdk,
+				      GDK_DRAWABLE(GTK_WIDGET(canvas)->window),
+				      canvas->gc);
+
+	  gpointer state =
+	    painter_redraw_init_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
+
+	  gulong configure_id = contour_plot->configure_id;
+
+	  if (contour_plot_timer == NULL)
+	    {
+	      contour_plot_timer = g_timer_new();
+	      g_timer_start(contour_plot_timer);
+	    }
+
+	  gdouble start_time = g_timer_elapsed(contour_plot_timer, NULL);
+
+	  while (1)
+	    {
+	      if (configure_id != contour_plot->configure_id)
+		{
+		  painter_redraw_cancel(state);
+		  break;
+		}
+	      if (painter_redraw_tick(state) == FALSE)
+		break;
+	      if ((g_timer_elapsed(contour_plot_timer, NULL) - start_time) > contour_plot_draw_interval)
+		{
+		  gdk_display_flush(gdk_display_get_default());
+		  boomerang_throw(contour_plot_sleep_interval);
+		  start_time = g_timer_elapsed(contour_plot_timer, NULL);
+		}
+	    }
+	}
     }
   else
     {
@@ -204,6 +252,13 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
       cairo_destroy(cr);
     }
 
+}
+
+static gboolean
+contour_plot_smooth_ready(HosContourPlot *self)
+{
+  /* FIXME have the cairo contours been traced? */
+  return FALSE;
 }
 
 static void
@@ -337,6 +392,7 @@ contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosCo
   g_return_val_if_fail(HOS_IS_CANVAS(widget), TRUE);
   g_return_val_if_fail(HOS_IS_CONTOUR_PLOT(self), TRUE);
 
+  ++self->configure_id;
   contour_plot_sync_xform(self);
   return FALSE;
 }
@@ -347,6 +403,7 @@ contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
   g_return_if_fail(HOS_IS_CANVAS(canvas));
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
+  ++self->configure_id;
   contour_plot_sync_xform(self);
 }
 
