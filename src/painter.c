@@ -326,8 +326,13 @@ painter_redraw_init(HosPainter* painter,
   HosContour *contour = HOS_CONTOUR(painter->contour);
   g_return_val_if_fail(HOS_IS_CONTOUR(contour), NULL);
 
+  gdouble* buffer = spectrum_traverse(spectrum);
+
+  if (buffer == NULL)
+    return NULL;
+
   fsm_state_t* result =
-    fsm_state_init (spectrum_traverse(spectrum),
+    fsm_state_init (buffer,
 		    spectrum_np(spectrum, 0),
 		    spectrum_np(spectrum, 1),
 		    x1, xn, y1, yn,

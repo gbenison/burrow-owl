@@ -91,6 +91,7 @@ fsm_state_init(double* buffer,
 	       trace_func_t trace_method,
 	       gpointer trace_data)
 {
+  assert(buffer != NULL);
   fsm_state_t* result = g_new0(fsm_state_t, 1);
 
   /* bounds checking */
