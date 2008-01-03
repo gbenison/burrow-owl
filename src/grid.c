@@ -140,8 +140,10 @@ grid_set_property (GObject         *object,
   switch (prop_id)
     {
     case PROP_ANCHOR_HORIZONTAL:
+      grid_set_anchor_horizontal(HOS_GRID(object), g_value_get_double(value));
       break;
     case PROP_ANCHOR_VERTICAL:
+      grid_set_anchor_vertical(HOS_GRID(object), g_value_get_double(value));
       break;
     case PROP_SPACING_HORIZONTAL:
       grid_set_spacing_horizontal(HOS_GRID(object), g_value_get_double(value));
@@ -251,12 +253,48 @@ grid_item_configure(HosCanvasItem *self)
 {
 }
 
+static gboolean
+grid_canvas_configure(GtkWidget *widget,
+		      GdkEventConfigure *event, HosGrid *self)
+{
+  grid_auto_configure(self);
+}
+
+static void
+grid_canvas_world_configure(HosCanvas *canvas, HosGrid *self)
+{
+  grid_auto_configure(self);
+}
+
 static void
 grid_set_canvas(HosCanvasItem *self,
 		HosCanvas *old_canvas,
 		HosCanvas *canvas)
 {
+  g_return_if_fail(HOS_IS_GRID(self));
+  if (old_canvas)
+    {
+      g_signal_handlers_disconnect_matched (old_canvas,
+					    G_SIGNAL_MATCH_DATA,
+					    0,      /* id */
+					    0,      /* detail */
+					    NULL,   /* closure */
+					    NULL,   /* func */
+					    self);  /* data */
+    }
+  if (canvas)
+    {
+      g_signal_connect (canvas, "configure-event",
+			G_CALLBACK (grid_canvas_configure),
+			self);
+      g_signal_connect (canvas, "world-configure",
+			G_CALLBACK (grid_canvas_world_configure),
+			self);
+    }
+  grid_auto_configure(HOS_GRID(self));
 }
+
+
 
 static void
 grid_set_spacing_horizontal(HosGrid* self, gdouble spacing)
