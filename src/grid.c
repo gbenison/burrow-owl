@@ -259,7 +259,19 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
 
   cairo_t* cr = canvas_get_cairo_context(canvas);
 
-  cairo_set_source_rgba(cr, 1, 1, 1, 0.7);
+  static gdouble grey = 0.8;
+  static gdouble alpha = 0.7;
+  cairo_set_source_rgba(cr, grey, grey, grey, alpha);
+  cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+  cairo_set_line_width(cr, 1);
+   
+  double dashes[] = {8.0,  /* ink */
+		     7.0,  /* skip */
+  };
+  int    ndash  = sizeof (dashes)/sizeof(dashes[0]);
+  double offset = 0.0;
+ 
+  cairo_set_dash (cr, dashes, ndash, offset);
 
   gint window_width, window_height;
   gdk_window_get_size(GTK_WIDGET(canvas)->window,
@@ -268,7 +280,6 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
   g_return_if_fail(grid->spacing_vertical > 0);
   g_return_if_fail(grid->spacing_horizontal > 0);
  
-  /* FIXME draw with fancy, dashed lines!! */
   gdouble x1 = MIN(canvas->x1, canvas->xn);
   gdouble xn = MAX(canvas->x1, canvas->xn);
   gdouble y1 = MIN(canvas->y1, canvas->yn);
@@ -280,6 +291,7 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
     {
       gdouble x_view = x;
       canvas_world2view(canvas, &x_view, NULL);
+      x_view = ceil(x_view) + 0.5;
       cairo_move_to(cr, x_view, 0);
       cairo_rel_line_to(cr, 0, window_height);
       x += grid->spacing_vertical;
@@ -291,6 +303,7 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
     {
       gdouble y_view = y;
       canvas_world2view(canvas, NULL, &y_view);
+      y_view = ceil(y_view) + 0.5;
       cairo_move_to(cr, 0, y_view);
       cairo_rel_line_to(cr, window_width, 0);
       y += grid->spacing_horizontal;
