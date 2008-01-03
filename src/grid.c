@@ -325,6 +325,7 @@ grid_canvas_configure(GtkWidget *widget,
 		      GdkEventConfigure *event, HosGrid *self)
 {
   grid_auto_configure(self);
+  return FALSE;
 }
 
 static void
