@@ -212,7 +212,8 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	{
 	  cairo_t* cr = canvas_get_cairo_context(canvas);
 	  cairo_set_source_surface(cr, contour_plot->backing, 0, 0);
-	  cairo_paint(cr);
+	  cairo_rectangle(cr, event->area.x, event->area.y, event->area.width, event->area.height);
+	  cairo_fill(cr);
 	  cairo_destroy(cr);
 	}
       else
