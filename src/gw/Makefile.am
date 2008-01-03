@@ -28,6 +28,7 @@ $(headers_dir)/version.h
 HEADERS_3= \
 $(headers_dir)/marker.h \
 $(headers_dir)/cursor.h \
+$(headers_dir)/grid.h \
 $(headers_dir)/marker_text.h \
 $(headers_dir)/contourplot.h
 # $(headers_dir)/box.h

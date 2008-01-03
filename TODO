@@ -1,5 +1,3 @@
 
-- don't enforce cairo tracing if contour plot isn't visible;
-  e.g. see sequential-assigner
 - throw exceptions when bmrb files fail to read
 

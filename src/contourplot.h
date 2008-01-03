@@ -45,9 +45,9 @@ struct _HosContourPlotClass
 
 struct _HosContourPlot
 {
-  HosCanvasItem parent_instance;
+  HosCanvasItem   parent_instance;
 
-  gboolean smoothed;
+  gboolean        smoothed;
 
   gboolean        cairo_ready;
   gboolean        cairo_tracing;
@@ -55,7 +55,7 @@ struct _HosContourPlot
   cairo_surface_t *backing;
   cairo_t         *cr;
 
-  gulong configure_id;
+  gulong          configure_id;
   HosPainter      *painter;
   HosPainterCairo *painter_cairo;
 };

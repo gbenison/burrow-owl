@@ -32,7 +32,7 @@ G_BEGIN_DECLS
 
 #define HOS_TYPE_CANVAS_ITEM              (hos_canvas_item_get_type())
 #define HOS_CANVAS_ITEM(obj)              (G_TYPE_CHECK_INSTANCE_CAST((obj), HOS_TYPE_CANVAS_ITEM, HosCanvasItem))
-#define HOS_CANVAS_ITEM_CLASS(klass)      (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS_ITEM, HosCanvasItemClass)
+#define HOS_CANVAS_ITEM_CLASS(klass)      (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS_ITEM, HosCanvasItemClass))
 #define HOS_IS_CANVAS_ITEM(obj)           (G_TYPE_CHECK_INSTANCE_TYPE((obj), HOS_TYPE_CANVAS_ITEM))
 #define HOS_IS_CANVAS_ITEM_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS_ITEM))
 #define HOS_CANVAS_ITEM_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS_ITEM, HosCanvasItemClass))
