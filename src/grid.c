@@ -223,21 +223,26 @@ grid_auto_configure(HosGrid* self)
 static gdouble
 round_sig_figs(gdouble x, gint sig_figs)
 {
+  gint sanity = 0;
+#define SANITY_CHECK {++sanity; g_return_val_if_fail(sanity < 100, 0);}
   gdouble factor = 1.0;
   while (x >= 10)
     {
       x /= 10.0;
       factor *= 10.0;
+      SANITY_CHECK;
     }
   while (x < 1)
     {
       x *= 10.0;
       factor *= 0.1;
+      SANITY_CHECK;
     }
   for (; sig_figs > 1; --sig_figs)
     {
       x *= 10.0;
       factor *= 0.1;
+      SANITY_CHECK;
     }
 
   return factor * floor(x);
@@ -246,6 +251,55 @@ round_sig_figs(gdouble x, gint sig_figs)
 static void
 grid_expose(HosCanvasItem *self, GdkEventExpose *event)
 {
+  g_return_if_fail(HOS_IS_GRID(self));
+  HosGrid* grid = HOS_GRID(self);
+
+  HosCanvas* canvas = HOS_CANVAS_ITEM(self)->canvas;
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
+  cairo_t* cr = canvas_get_cairo_context(canvas);
+
+  cairo_set_source_rgba(cr, 1, 1, 1, 0.7);
+
+  gint window_width, window_height;
+  gdk_window_get_size(GTK_WIDGET(canvas)->window,
+		      &window_width, &window_height);
+
+  g_return_if_fail(grid->spacing_vertical > 0);
+  g_return_if_fail(grid->spacing_horizontal > 0);
+ 
+  /* FIXME draw with fancy, dashed lines!! */
+  gdouble x1 = MIN(canvas->x1, canvas->xn);
+  gdouble xn = MAX(canvas->x1, canvas->xn);
+  gdouble y1 = MIN(canvas->y1, canvas->yn);
+  gdouble yn = MAX(canvas->y1, canvas->yn);
+
+  gdouble x = grid->anchor_vertical
+    + grid->spacing_vertical * (ceil ((x1 - grid->anchor_vertical) / grid->spacing_vertical));
+  while (x < xn)
+    {
+      gdouble x_view = x;
+      canvas_world2view(canvas, &x_view, NULL);
+      cairo_move_to(cr, x_view, 0);
+      cairo_rel_line_to(cr, 0, window_height);
+      x += grid->spacing_vertical;
+    }
+
+  gdouble y = grid->anchor_horizontal
+    + grid->spacing_horizontal * (ceil ((y1 - grid->anchor_horizontal) / grid->spacing_horizontal));
+  while (y < yn)
+    {
+      gdouble y_view = y;
+      canvas_world2view(canvas, NULL, &y_view);
+      cairo_move_to(cr, 0, y_view);
+      cairo_rel_line_to(cr, window_width, 0);
+      y += grid->spacing_horizontal;
+    }
+
+  cairo_stroke(cr);
+
+  cairo_destroy(cr);
+
 }
 
 static void
