@@ -128,7 +128,7 @@ hos_grid_class_init(HosGridClass *klass)
 static void
 hos_grid_init(HosGrid* self)
 {
-  self->auto_spacing = 50;
+  self->auto_spacing = 80;
 }
 
 static void
@@ -210,11 +210,11 @@ grid_auto_configure(HosGrid* self)
 		      &window_width, &window_height);
 
   /* spacing = world / n_tics;  n_tics = view / auto_spacing */
-  self->spacing_horizontal =
+  self->spacing_vertical =
     round_sig_figs((canvas->xn - canvas->x1) /
 		   (window_width / self->auto_spacing), 2);
 
-  self->spacing_vertical =
+  self->spacing_horizontal =
     round_sig_figs((canvas->yn - canvas->y1) /
 		   (window_height / self->auto_spacing), 2);
 
