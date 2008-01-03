@@ -56,6 +56,8 @@ hosspectrum.c  \
 burrow/spectrum.h  \
 marker.c  \
 marker.h  \
+grid.c \
+grid.h \
 cursor.c \
 cursor.h \
 marker_text.c \

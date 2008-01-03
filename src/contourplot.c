@@ -61,7 +61,8 @@ static void     contour_plot_set_canvas        (HosCanvasItem *self,
 						HosCanvas *canvas);
 static gboolean contour_plot_smooth_ready      (HosContourPlot *self);
 
-static gboolean contour_plot_canvas_configure  (GtkWidget *widget, GdkEventConfigure *event, HosContourPlot *self);
+static gboolean contour_plot_canvas_configure  (GtkWidget *widget,
+						GdkEventConfigure *event, HosContourPlot *self);
 static void     contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self);
 static void     contour_plot_set_smoothed      (HosContourPlot* self, gboolean smoothed);
 static void     contour_plot_sync_painters     (HosContourPlot *self);
