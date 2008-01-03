@@ -211,11 +211,11 @@ grid_auto_configure(HosGrid* self)
 
   /* spacing = world / n_tics;  n_tics = view / auto_spacing */
   self->spacing_vertical =
-    round_sig_figs((canvas->xn - canvas->x1) /
+    round_sig_figs(fabs(canvas->xn - canvas->x1) /
 		   (window_width / self->auto_spacing), 2);
 
   self->spacing_horizontal =
-    round_sig_figs((canvas->yn - canvas->y1) /
+    round_sig_figs(fabs(canvas->yn - canvas->y1) /
 		   (window_height / self->auto_spacing), 2);
 
 }
