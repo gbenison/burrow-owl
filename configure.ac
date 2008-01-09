@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
+AC_INIT(burrow, 1.3, [gbenison@gmail.com])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
 # AC_CONFIG_HEADER([config.h])
 
