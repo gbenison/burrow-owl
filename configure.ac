@@ -6,26 +6,18 @@ AC_INIT(burrow, 1.3, [gbenison@gmail.com])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
 # AC_CONFIG_HEADER([config.h])
 
-guile-config --version || AC_MSG_ERROR([
-
---------------------
-Configuration failed; is guile
-(with headers / development package) installed?
---------------------
- 
-])
+GUILE_PROGS
+GUILE_FLAGS
 
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
+AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
+
 PKG_CHECK_MODULES(GLIB, glib-2.0)
 PKG_CHECK_MODULES(GTK, gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
-
-# FIXME use pkg-config --variable=prefix to
-# find installed library location; then use this to set
-# path in guile-conv
 
 AC_CONFIG_SUBDIRS(nmr-utils)
 
@@ -57,8 +49,6 @@ PKG_CHECK_MODULES(G_WRAP, g-wrap-2.0-guile >= 1.9.8,
   AC_SUBST(G_WRAP_INSTALLED_LIB_DIR, $g_wrap_libs)
 })
 
-GUILE_PROGS
-GUILE_FLAGS
 
 # Checks for header files.
 AC_HEADER_STDC
