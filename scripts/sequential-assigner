@@ -878,7 +878,7 @@
 ; that calculates the length explicitly.
 ;
 (define (add-ui-from-string ui str)
-  (gtk-ui-manager-add-ui-from-string ui str (string-length str)))
+  (gtk-ui-manager-add-ui-from-string ui str))
 
 ;; Set up a UI manager that contains a menu which can select which strip plots
 ;; are displayed.

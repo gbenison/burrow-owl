@@ -27,51 +27,18 @@ enum {
   PROP_0
 };
 
-static HosPainterClass *parent_class = NULL;
-
-
-static void hos_painter_gdk_init(HosPainterGdk  *painter);
-static void hos_painter_gdk_class_init (HosPainterGdkClass *klass);
 static void hos_painter_gdk_set_property (GObject         *object,
-				      guint            prop_id,
-				      const GValue    *value,
-				      GParamSpec      *pspec);
+					  guint            prop_id,
+					  const GValue    *value,
+					  GParamSpec      *pspec);
 static void hos_painter_gdk_get_property (GObject         *object,
-				      guint            prop_id,
-				      GValue          *value,
-				      GParamSpec      *pspec);
+					  guint            prop_id,
+					  GValue          *value,
+					  GParamSpec      *pspec);
 
 static void gdk_trace_line(HosPainterGdk*, struct hos_point*, const gint, gint, gboolean);
 
-
-GType
-hos_painter_gdk_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosPainterGdkClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_painter_gdk_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosPainterGdk),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_painter_gdk_init,
-      };
-
-      type = g_type_register_static (HOS_TYPE_PAINTER,
-				     "HosPainterGdk",
-				     &_info,
-				     0);
-    }
-
-  return type;
-}
+G_DEFINE_TYPE(HosPainterGdk, hos_painter_gdk, HOS_TYPE_PAINTER)
 
 static void
 hos_painter_gdk_class_init (HosPainterGdkClass *klass)
@@ -79,28 +46,16 @@ hos_painter_gdk_class_init (HosPainterGdkClass *klass)
   GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
   HosPainterClass *painter_class = HOS_PAINTER_CLASS(klass);
   
-  parent_class = g_type_class_peek_parent (klass);
-
   gobject_class->set_property = hos_painter_gdk_set_property;
   gobject_class->get_property = hos_painter_gdk_get_property;
 
   painter_class->trace_line = (trace_func)gdk_trace_line;
-
   
-/*
-
-  SIGNALS GO HERE
-  PRIVATE GOES HERE:
-
-  g_type_class_add_private (gobject_class, sizeof (GtkButtonPrivate));  
-
-*/
 }
 
 static void
 hos_painter_gdk_init(HosPainterGdk  *painter)
 {
-  /* FIXME */
 }
 
 static void
@@ -109,8 +64,6 @@ hos_painter_gdk_set_property (GObject         *object,
 			       const GValue    *value,
 			       GParamSpec      *pspec)
 {
-  /* HosPainterGdk *gdk = HOS_PAINTER_GDK(object); */
-
   switch (prop_id)
     {
     default:
@@ -121,21 +74,12 @@ hos_painter_gdk_set_property (GObject         *object,
 
 static void
 hos_painter_gdk_get_property (GObject         *object,
-			       guint            prop_id,
-			       GValue          *value,
-			       GParamSpec      *pspec)
+			      guint            prop_id,
+			      GValue          *value,
+			      GParamSpec      *pspec)
 {
-  HosPainterGdk *gdk = HOS_PAINTER_GDK(object);
-
-  gdk=gdk; /* to eliminate warning */
-
   switch (prop_id)
     {
-      /*
-    case PROP_IMAGE:
-      g_value_set_object (value, (GObject *)priv->image);
-      break;
-      */
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -200,21 +144,8 @@ gdk_trace_line(HosPainterGdk *self, struct hos_point* points, const gint n_point
     else
       gdk_draw_lines(self->drawable, self->gc, gdk_points, n_point);
   }
-
 }
 
-/*
- * Constructor for painter type.
- */
-HosPainterGdk*
-painter_gdk_new(void)
-{
-  HosPainterGdk *result = NULL;
-  result = g_object_new(HOS_TYPE_PAINTER_GDK, NULL);
-
-  return result;
-
-}
 
 
 

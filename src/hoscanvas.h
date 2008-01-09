@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,31 +22,35 @@
 
 #include <gtk/gtk.h>
 #include <burrow/spectrum.h>
-#include "painter_gdk.h"
+
+G_BEGIN_DECLS
+
+#define HOS_TYPE_CANVAS                  (hos_canvas_get_type())
+#define HOS_CANVAS(obj)                  (G_TYPE_CHECK_INSTANCE_CAST((obj), HOS_TYPE_CANVAS, HosCanvas))
+#define HOS_CANVAS_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS, HosCanvasClass)
+#define HOS_IS_CANVAS(obj)               (G_TYPE_CHECK_INSTANCE_TYPE((obj), HOS_TYPE_CANVAS))
+#define HOS_IS_CANVAS_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS))
+#define HOS_CANVAS_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS, HosCanvasClass))
 
 typedef struct _HosCanvas      HosCanvas;
 typedef struct _HosCanvasClass HosCanvasClass;
 
-
-#include "ornament.h"
-
-#define HOS_TYPE_CANVAS  (hos_canvas_get_type())
-#define HOS_CANVAS(obj)  (G_TYPE_CHECK_INSTANCE_CAST((obj), HOS_TYPE_CANVAS, HosCanvas))
-#define HOS_CANVAS_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CANVAS, HosCanvasClass)
-#define HOS_IS_CANVAS(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), HOS_TYPE_CANVAS))
-#define HOS_IS_CANVAS_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS))
-#define HOS_CANVAS_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS, HosCanvasClass))
-
+#include "canvasitem.h"
 
 struct _HosCanvas
 {
   GtkDrawingArea parent_instance;
 
   GdkGC *gc;
-  HosPainterGdk *painter;
 
-  GList *ornaments;
-  GList *active_ornaments;
+  GList *items;
+  
+  /* world coordinates */
+  gdouble x1;
+  gdouble y1;
+  gdouble xn;
+  gdouble yn;
+
 };
 
 struct _HosCanvasClass
@@ -54,22 +58,24 @@ struct _HosCanvasClass
 
   GtkDrawingAreaClass parent_class;
 
-  void (*clicked)(HosCanvas *canvas, gdouble x, gdouble y);
+  void (*clicked)        (HosCanvas *canvas, gdouble x, gdouble y);
+  void (*world_configure)(HosCanvas *canvas);
 
 };
 
-HosPainter* canvas_get_painter(HosCanvas *self);
-void canvas_set_painter(HosCanvas *self, HosPainterGdk *painter);
-HosSpectrum* canvas_get_spectrum(HosCanvas *self);
-void canvas_add_ornament(HosCanvas *self, HosOrnament *ornament);
+HosCanvasItem* canvas_add_item          (HosCanvas *self, HosCanvasItem *canvasitem);
+HosCanvasItem* canvas_get_item          (HosCanvas *self, guint idx);
+void           canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
+void           canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
+void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
 
-void canvas_view2ppm(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_ppm2view(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_view2pt(HosCanvas *canvas, gdouble *x, gdouble *y);
-void canvas_pt2view(HosCanvas *canvas, gdouble *x, gdouble *y);
+GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
+GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
 
 GType hos_canvas_get_type(void);
 
+G_END_DECLS
 
 #endif /* _HOS_HAVE_CANVAS_H */
 

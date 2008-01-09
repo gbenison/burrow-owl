@@ -25,10 +25,7 @@
 #include "finite-state-machine/contour-fsm.h"
 #include "contour.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_PAINTER              (hos_painter_get_type())
 #define HOS_PAINTER(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_PAINTER, HosPainter))
@@ -62,37 +59,39 @@ struct _HosPainter
 
   HosContour *contour;
   HosSpectrum *spectrum;
-  guint32 cancellation_id;
-  guint priority;   /* useful for overlayed drawings. */
-
-  char *marks;
-  int mark_stride;
 
 };
 typedef void(*trace_func)(HosPainter*, struct hos_point*, const gint, gint, gboolean);
 
-void painter_set_spectrum(HosPainter* painter, HosSpectrum *spectrum);
-void painter_set_contour(HosPainter* painter, HosContour *contour);
-HosContour* painter_get_contour(HosPainter* painter);
-void painter_cancel_redraws(HosPainter* painter);
-void painter_redraw(HosPainter* painter,
-		    int x_lower,
-		    int y_lower,
-		    int x_upper,
-		    int y_upper);
-void painter_set_xform(HosPainter* painter,
-		       gdouble x_offset,
-		       gdouble y_offset,
-		       gdouble x_slope,
-		       gdouble y_slope);
 
-void painter_view_ppm(HosPainter *painter);
-void painter_view_world(HosPainter *painter);
+void          painter_set_contour  (HosPainter* painter, HosContour *contour);
+HosContour*   painter_get_contour  (HosPainter* painter);
+void          painter_set_spectrum (HosPainter* painter, HosSpectrum *spectrum);
+HosSpectrum*  painter_get_spectrum (HosPainter* painter);
+
+fsm_state_t*  painter_redraw_init  (HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
+void          painter_redraw_region(HosPainter* painter,
+				    int x_lower,
+				    int y_lower,
+				    int x_upper,
+				    int y_upper);
+void          painter_redraw_region_ppm(HosPainter* painter,
+					gdouble x_lower,
+					gdouble y_lower,
+					gdouble x_upper,
+					gdouble y_upper);
+void          painter_redraw       (HosPainter* painter);
+void          painter_set_xform    (HosPainter* painter,
+				    gdouble x_offset,
+				    gdouble y_offset,
+				    gdouble x_slope,
+				    gdouble y_slope);
+
+void          painter_view_ppm     (HosPainter *painter);
+void          painter_view_world   (HosPainter *painter);
 
 GType hos_painter_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_PAINTER_H */

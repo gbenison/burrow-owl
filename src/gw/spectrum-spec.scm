@@ -17,10 +17,13 @@
   (list (next-method)
         "#include <burrow/spectrum.h>\n"
         "#include <hoscanvas.h>\n"
+        "#include <canvasitem.h>\n"
         "#include <marker.h>\n"
         "#include <marker_text.h>\n"
         "#include <cursor.h>\n"
+        "#include <contourplot.h>\n"
         "#include <box.h>\n"
+        "#include <version.h>\n"
         "#include <contour.h>\n"
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
