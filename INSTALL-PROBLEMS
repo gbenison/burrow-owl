@@ -1,0 +1,14 @@
+
+This is a list of known problems that can come up during installation of burrow-owl.
+
+
+========== 'connect' bug =============
+9jan07
+
+Symptom:       "ERROR: No variable named connect in #<module (guile) b7f06e40>"
+Workaround:    In your guile script, load the module 'burrow hacks' first, i.e.
+               (use-modules (burrow hacks)
+                            (guile gnome))
+Cause:         Some versions of guile-gnome (2.15.95 -- ?) expect the root guile
+               module to contain a binding for 'connect', but some guiles do not.
+
