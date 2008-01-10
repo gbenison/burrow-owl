@@ -1,5 +1,6 @@
 
-(use-modules (oop goops)
+(use-modules (burrow hacks)
+	     (oop goops)
 	     (gnome gtk))
 
 (run (make <gtk-message-dialog>

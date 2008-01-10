@@ -4,7 +4,8 @@ exec burrow $0 "$@"
 
 ; create a basic postscript plot of the argument spectrum.
 
-(use-modules (oop goops)
+(use-modules (burrow hacks)
+	     (oop goops)
              (gnome gtk)
 	     (spectrum)
 	     (spec-extra))
