@@ -10,8 +10,7 @@ exit 1
 ; Do we have a working guile-gnome?
 ;
 
-(use-modules (burrow hacks)
-             (oop goops)
+(use-modules (oop goops)
 	     (gnome gtk))
 
 (connect (make <gtk-window>)
