@@ -82,6 +82,7 @@
 	     (ice-9 getopt-long)
 	     (ice-9 and-let-star)
 	     (ice-9 rdelim)
+	     (burrow hacks)
 	     (oop goops)
 	     (gnome gtk)
 	     (spectrum)
