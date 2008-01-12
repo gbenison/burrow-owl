@@ -12,7 +12,7 @@ AM_INIT_AUTOMAKE
 
 AC_CONFIG_FILES([Makefile
 	         modules/Makefile
-                 pipe-reference/Makefile])
+                 src/Makefile])
 
 AC_OUTPUT
 
