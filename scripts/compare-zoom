@@ -139,7 +139,7 @@
 		    (marker-set-adjustments marker H N)
 		    (ornament-group-add! group marker)
 		    (if (null? movable?)
-			(marker-set-movable marker #f)
+			(set marker 'sensitive #f)
 			(begin
 			  (sync-colors!)
 			  (connect marker 'acquire (lambda args
