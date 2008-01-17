@@ -1,6 +1,7 @@
 ; -*-scheme-*-
 
-(use-modules (oop goops)
+(use-modules (burrow hacks)
+	     (oop goops)
              (gnome gtk)
 	     (spectrum)
 	     (spec-extra)

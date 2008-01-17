@@ -13,6 +13,8 @@ To install in your home directory (does not require root privileges):
 make
 make install
 
+For a list of known installation problems, see the file INSTALL-PROBLEMS
+
 
 Basic Installation
 ==================

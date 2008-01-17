@@ -495,7 +495,8 @@ ornament_canvas_motion_notify(GtkWidget *widget, GdkEventMotion *event, HosOrnam
   GdkModifierType state;
   gint x, y;
 
-  gdk_window_get_pointer(event->window, &x, &y, &state);
+  x=event->x;
+  y=event->y;
   ornament_set_mouse_over(self,
 			  gdk_region_point_in(self->region, x, y));
 
