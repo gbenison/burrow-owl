@@ -93,6 +93,8 @@ fsm_state_init(double* buffer,
 {
   fsm_state_t* result = g_new0(fsm_state_t, 1);
 
+  assert (buffer != NULL);
+
   /* bounds checking */
   x_first = CLAMP(x_first, 0, nx - 1);
   x_last  = CLAMP(x_last,  0, nx - 1);
@@ -166,6 +168,8 @@ contour_fsm(fsm_state_t* state)
 #define mark_stride   state->mark_stride  
 #define trace_method  state->trace_method 
 #define trace_data    state->trace_data   
+
+  assert(buffer != NULL);
 
   if (row > y_last)
     return TRUE;

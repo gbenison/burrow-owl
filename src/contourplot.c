@@ -203,6 +203,14 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   HosSpectrum* spectrum;
   g_object_get(G_OBJECT(self), "spectrum", &spectrum, NULL);
 
+  if (!HOS_IS_SPECTRUM(spectrum))
+    {
+      /* FIXME what to do? */
+      return;
+    }
+
+  spectrum_traverse(spectrum);
+
   gboolean ready;
   g_object_get(G_OBJECT(spectrum), "ready", &ready, NULL);
 
@@ -252,6 +260,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	      if (configure_id != contour_plot->configure_id)
 		{
 		  painter_redraw_cancel(state);
+		  state = NULL;
 		  break;
 		}
 	      if (painter_redraw_tick(state) == FALSE)
@@ -445,7 +454,8 @@ contour_plot_sync_xform(HosContourPlot *self)
       g_return_if_fail(HOS_IS_PAINTER_CAIRO(self->painter_cairo));
 
       HosSpectrum *spectrum = painter_get_spectrum(painter);
-      g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+      if (!HOS_IS_SPECTRUM(spectrum))
+	return;
 
       gdouble x_0 = spectrum_pt2ppm(spectrum, 0, 0);
       gdouble y_0 = spectrum_pt2ppm(spectrum, 1, 0);
@@ -576,6 +586,7 @@ contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
   g_return_if_fail(HOS_IS_PAINTER(self->painter));
 
   painter_set_spectrum(self->painter, spectrum);
+  contour_plot_sync_xform(self);
 }
 
 void

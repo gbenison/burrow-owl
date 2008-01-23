@@ -175,6 +175,8 @@ spectrum_traverse(HosSpectrum *spec)
 static gdouble*
 spectrum_traverse_how(HosSpectrum *spec, gboolean block)
 {
+  g_return_val_if_fail(HOS_IS_SPECTRUM(spec), NULL);
+
   HosSpectrum *spec_original = spec;
   guint spectrum_size = 1;    /* total size in number of points */
   GList* backing_list = NULL;
@@ -1339,8 +1341,8 @@ hos_spectrum_get_property (GObject         *object,
   switch (prop_id)
     {
     case PROP_READY:
-      /* FIXME not yet implemented.  For now, spectra are always 'ready'. */
-      g_value_set_boolean (value, TRUE);
+      /* FIXME */
+      g_value_set_boolean (value, (HOS_SPECTRUM(object))->buf != NULL);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
