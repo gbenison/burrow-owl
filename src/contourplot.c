@@ -218,6 +218,8 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	}
       else
 	{
+	  contour_plot_trace_cairo(self);
+
 	  /* fallback... draw with GDK */
 	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
       
@@ -373,7 +375,7 @@ contour_plot_redraw_cairo(HosContourPlot *self)
       cairo_restore(self->cr);
     }
 
-  contour_plot_trace_cairo(self);
+  /*  contour_plot_trace_cairo(self); */
 
 }
 
