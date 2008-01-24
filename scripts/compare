@@ -3,7 +3,8 @@
 ; side-by-side views of multiple spectra
 ; with synchronized cursors
 
-(use-modules (ice-9 format)
+(use-modules (burrow hacks)
+	     (ice-9 format)
              (oop goops)
 	     (gnome gtk)
 	     (spectrum)

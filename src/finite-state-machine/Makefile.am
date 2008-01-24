@@ -4,7 +4,7 @@ INCLUDES=@GLIB_CFLAGS@
 
 contour-fsm.c: contour-spec.fsm
 	@srcdir@/fsm-compiler $< >$@
-	indent $@
+	@INDENT@ $@
 
 BUILT_SOURCES=contour-fsm.c
 

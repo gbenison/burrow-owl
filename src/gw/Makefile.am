@@ -1,5 +1,5 @@
 
-EXTRA_DIST=
+EXTRA_DIST= hosspectrum.defs
 CLEANFILES=
 headers_dir=@top_srcdir@/src
 

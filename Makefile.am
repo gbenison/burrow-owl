@@ -17,7 +17,7 @@ uninstall-hook:
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=burrow.pc
 
-EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 ChangeLog
+EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 srfi-35.diff ChangeLog INSTALL-PROBLEMS
 DISTCLEANFILES=ChangeLog
 MAINTAINERCLEANFILES = ChangeLog
 .PHONY: ChangeLog

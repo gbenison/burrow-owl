@@ -8,7 +8,7 @@ lib_LTLIBRARIES=libburrow.la
 
 CLEANFILES += $(bin_SCRIPTS)
 
-nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm
+nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm guile/burrow/hacks.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
