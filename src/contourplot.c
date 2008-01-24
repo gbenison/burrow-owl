@@ -32,11 +32,22 @@ enum {
 };
 
 #define HOS_CONTOUR_PLOT_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CONTOUR_PLOT, HosContourPlotPrivate))
+#define CONTOUR_PLOT_PRIVATE(o, field) ((HOS_CONTOUR_PLOT_GET_PRIVATE(o))->field)
 typedef struct _HosContourPlotPrivate HosContourPlotPrivate;
 
 struct _HosContourPlotPrivate
 {
   gboolean xform_is_in_sync;
+  gboolean cairo_ready;
+  gboolean cairo_tracing;
+
+  gpointer cairo_trace_state;
+
+  cairo_surface_t *backing;
+  cairo_t         *cr;
+
+  gulong configure_id;
+
 };
 
 enum {
@@ -184,7 +195,7 @@ contour_plot_get_property (GObject         *object,
 static void
 hos_contour_plot_init(HosContourPlot *self)
 {
-  self->configure_id = 1;
+  CONTOUR_PLOT_PRIVATE(self, configure_id) = 1;
   self->smoothed = TRUE;
   self->painter_cairo = g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
@@ -195,7 +206,7 @@ static gboolean
 contour_plot_painter_configure(HosPainter *painter,
 			       HosContourPlot *contour_plot)
 {
-  ++contour_plot->configure_id;
+  ++CONTOUR_PLOT_PRIVATE(contour_plot, configure_id);
   contour_plot_sync_painters(contour_plot);
   contour_plot_invalidate_cairo(contour_plot, FALSE);
   canvas_item_configure(HOS_CANVAS_ITEM(contour_plot));
@@ -235,7 +246,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
       if (contour_plot_smooth_ready(contour_plot))
 	{
 	  cairo_t* cr = canvas_get_cairo_context(canvas);
-	  cairo_set_source_surface(cr, contour_plot->backing, 0, 0);
+	  cairo_set_source_surface(cr, priv->backing, 0, 0);
 	  cairo_rectangle(cr, event->area.x, event->area.y, event->area.width, event->area.height);
 	  cairo_fill(cr);
 	  cairo_destroy(cr);
@@ -265,7 +276,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	  if (state == NULL)
 	    return;
 
-	  gulong configure_id = contour_plot->configure_id;
+	  gulong configure_id = priv->configure_id;
 
 	  if (contour_plot_timer == NULL)
 	    {
@@ -277,7 +288,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 
 	  while (1)
 	    {
-	      if (configure_id != contour_plot->configure_id)
+	      if (configure_id != priv->configure_id)
 		{
 		  painter_redraw_cancel(state);
 		  state = NULL;
@@ -315,7 +326,7 @@ static gboolean
 contour_plot_smooth_ready(HosContourPlot *self)
 {
   g_return_val_if_fail(HOS_IS_CONTOUR_PLOT(self), FALSE);
-  return (self->cairo_ready && self->smoothed);
+  return (CONTOUR_PLOT_PRIVATE(self, cairo_ready) && self->smoothed);
 }
 
 static void
@@ -324,10 +335,10 @@ contour_plot_trace_cairo(HosContourPlot *self)
   if (self->smoothed == FALSE)
     return;
 
-  if (self->cairo_tracing)
+  if (CONTOUR_PLOT_PRIVATE(self, cairo_tracing))
     return;
 
-  self->cairo_tracing = TRUE;
+  CONTOUR_PLOT_PRIVATE(self, cairo_tracing) = TRUE;
   g_idle_add_full(G_PRIORITY_LOW, (GSourceFunc)contour_plot_idle_draw, self, NULL);
 }
 
@@ -336,41 +347,43 @@ contour_plot_idle_draw(HosContourPlot *self)
 {
   g_return_val_if_fail(HOS_IS_CONTOUR_PLOT(self), FALSE);
 
+  HosContourPlotPrivate *priv = HOS_CONTOUR_PLOT_GET_PRIVATE(self);
+
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   if (!GTK_WIDGET_DRAWABLE(canvas))
     {
-      self->cairo_tracing = FALSE;
+      priv->cairo_tracing = FALSE;
       return FALSE;
     }
 
   /* create backing if needed */
-  if (self->backing == NULL)
+  if (priv->backing == NULL)
     {
 	gint width, height;
 	gdk_window_get_size(GTK_WIDGET(canvas)->window,
 			    &width, &height);
 	
-	self->backing = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-	self->cr = cairo_create(self->backing);
+	priv->backing = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+	priv->cr      = cairo_create(priv->backing);
 	g_assert(HOS_IS_PAINTER_CAIRO(self->painter_cairo));
-	painter_cairo_set_context(self->painter_cairo, self->cr);
+	painter_cairo_set_context(self->painter_cairo, priv->cr);
     }
 
-  if (self->cairo_trace_state == NULL)
-    self->cairo_trace_state = painter_redraw_init_ppm(HOS_PAINTER(self->painter_cairo),
+  if (priv->cairo_trace_state == NULL)
+    priv->cairo_trace_state = painter_redraw_init_ppm(HOS_PAINTER(self->painter_cairo),
 						      canvas->x1,
 						      canvas->y1,
 						      canvas->xn,
 						      canvas->yn);
 
-  if (painter_redraw_tick(self->cairo_trace_state))
+  if (painter_redraw_tick(priv->cairo_trace_state))
     return TRUE;
 
   /* get here... must be done! */
-  self->cairo_trace_state = NULL;
-  self->cairo_ready = TRUE;
+  priv->cairo_trace_state = NULL;
+  priv->cairo_ready = TRUE;
   canvas_item_configure(HOS_CANVAS_ITEM(self));
-  self->cairo_tracing = FALSE;
+  priv->cairo_tracing = FALSE;
   return FALSE;
 }
 
@@ -379,11 +392,11 @@ contour_plot_cancel_cairo_draw(HosContourPlot *self)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
-  self->cairo_ready = FALSE;
+  CONTOUR_PLOT_PRIVATE(self, cairo_ready) = FALSE;
 
-  if(self->cairo_trace_state != NULL)
-    painter_redraw_cancel(self->cairo_trace_state);
-  self->cairo_trace_state = NULL;
+  if(CONTOUR_PLOT_PRIVATE(self, cairo_trace_state) != NULL)
+    painter_redraw_cancel(CONTOUR_PLOT_PRIVATE(self, cairo_trace_state));
+  CONTOUR_PLOT_PRIVATE(self, cairo_trace_state) = NULL;
 }
 
 /*
@@ -395,28 +408,29 @@ static void
 contour_plot_invalidate_cairo(HosContourPlot *self, gboolean resize)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+  HosContourPlotPrivate *priv = HOS_CONTOUR_PLOT_GET_PRIVATE(self);
 
   contour_plot_cancel_cairo_draw(self);
 
   if (resize)
     {
-      if (self->backing != NULL)
-	cairo_surface_destroy(self->backing);
-      self->backing = NULL;
+      if (priv->backing != NULL)
+	cairo_surface_destroy(priv->backing);
+      priv->backing = NULL;
       
-      if(self->cr != NULL)
-	cairo_destroy(self->cr);
-      self->cr = NULL;
+      if(priv->cr != NULL)
+	cairo_destroy(priv->cr);
+      priv->cr = NULL;
     }
   else
     {
-      if ((self->backing != NULL) && (self->cr != NULL))
+      if ((priv->backing != NULL) && (priv->cr != NULL))
 	{
-	  cairo_save(self->cr);
-	  cairo_set_operator(self->cr, CAIRO_OPERATOR_SOURCE);
-	  cairo_set_source_rgba(self->cr, 0, 0, 0, 0);
-	  cairo_paint(self->cr);
-	  cairo_restore(self->cr);
+	  cairo_save(priv->cr);
+	  cairo_set_operator(priv->cr, CAIRO_OPERATOR_SOURCE);
+	  cairo_set_source_rgba(priv->cr, 0, 0, 0, 0);
+	  cairo_paint(priv->cr);
+	  cairo_restore(priv->cr);
 	}
     }
 
@@ -466,7 +480,7 @@ contour_plot_item_configure(HosCanvasItem *self)
 static void
 contour_plot_invalidate_xform(HosContourPlot *self)
 {
-  (HOS_CONTOUR_PLOT_GET_PRIVATE(self))->xform_is_in_sync = FALSE;
+  CONTOUR_PLOT_PRIVATE(self, xform_is_in_sync) = FALSE;
 }
 
 static void
@@ -504,7 +518,7 @@ contour_plot_sync_xform(HosContourPlot *self)
       painter_set_xform(painter, x_0, y_0, x_slope, y_slope);
       painter_set_xform(HOS_PAINTER(self->painter_cairo), x_0, y_0, x_slope, y_slope);
 
-      (HOS_CONTOUR_PLOT_GET_PRIVATE(self))->xform_is_in_sync = TRUE;
+      CONTOUR_PLOT_PRIVATE(self, xform_is_in_sync) = TRUE;
 
     }
   
@@ -586,7 +600,7 @@ contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosCo
   g_return_val_if_fail(HOS_IS_CANVAS(widget), TRUE);
   g_return_val_if_fail(HOS_IS_CONTOUR_PLOT(self), TRUE);
 
-  ++self->configure_id;
+  ++CONTOUR_PLOT_PRIVATE(self, configure_id);
 
   contour_plot_invalidate_cairo(self, TRUE);
   contour_plot_invalidate_xform(self);
@@ -600,7 +614,7 @@ contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
   g_return_if_fail(HOS_IS_CANVAS(canvas));
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
-  ++self->configure_id;
+  ++CONTOUR_PLOT_PRIVATE(self, configure_id);
   contour_plot_invalidate_xform(self);
 }
 
