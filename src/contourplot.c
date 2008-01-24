@@ -31,6 +31,14 @@ enum {
   PROP_SMOOTHED
 };
 
+#define HOS_CONTOUR_PLOT_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CONTOUR_PLOT, HosContourPlotPrivate))
+typedef struct _HosContourPlotPrivate HosContourPlotPrivate;
+
+struct _HosContourPlotPrivate
+{
+  gboolean xform_is_in_sync;
+};
+
 enum {
   LAST_SIGNAL
 };
@@ -56,6 +64,7 @@ static gboolean contour_plot_painter_configure (HosPainter *painter,
 static void     contour_plot_item_configure    (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 static void     contour_plot_sync_xform        (HosContourPlot *self);
+static void     contour_plot_invalidate_xform  (HosContourPlot *self);
 static void     contour_plot_set_canvas        (HosCanvasItem *self,
 						HosCanvas *old_canvas,
 						HosCanvas *canvas);
@@ -112,7 +121,7 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
 							 TRUE,
 							 G_PARAM_READABLE | G_PARAM_WRITABLE));
 
-
+  g_type_class_add_private(gobject_class, sizeof (HosContourPlotPrivate));
 }
 
 static void
@@ -197,6 +206,8 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
   HosContourPlot *contour_plot = HOS_CONTOUR_PLOT(self);
 
+  HosContourPlotPrivate *priv = HOS_CONTOUR_PLOT_GET_PRIVATE(contour_plot);
+
   HosCanvas *canvas = self->canvas;
   g_return_if_fail(HOS_IS_CANVAS(canvas));
 
@@ -206,8 +217,12 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   if (!HOS_IS_SPECTRUM(spectrum))
     {
       /* FIXME what to do? */
+      /* maybe draw a 'no spectrum' message */
       return;
     }
+
+  if (priv->xform_is_in_sync == FALSE)
+    contour_plot_sync_xform(contour_plot);
 
   spectrum_traverse(spectrum);
 
@@ -437,6 +452,18 @@ contour_plot_item_configure(HosCanvasItem *self)
     }
 }
 
+/*
+ * Call this whenever the scaling of 'self' changes, e.g.:
+ * - 'self' widget is resized
+ * - 'self' receives a new spectrum
+ * - the canvas of 'self' changes world size
+ */
+static void
+contour_plot_invalidate_xform(HosContourPlot *self)
+{
+  (HOS_CONTOUR_PLOT_GET_PRIVATE(self))->xform_is_in_sync = FALSE;
+}
+
 static void
 contour_plot_sync_xform(HosContourPlot *self)
 {
@@ -470,6 +497,8 @@ contour_plot_sync_xform(HosContourPlot *self)
 
       painter_set_xform(painter, x_0, y_0, x_slope, y_slope);
       painter_set_xform(HOS_PAINTER(self->painter_cairo), x_0, y_0, x_slope, y_slope);
+
+      (HOS_CONTOUR_PLOT_GET_PRIVATE(self))->xform_is_in_sync = TRUE;
 
     }
   
@@ -553,7 +582,7 @@ contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosCo
 
   ++self->configure_id;
   contour_plot_invalidate_cairo(self, TRUE);
-  contour_plot_sync_xform(self);
+  contour_plot_invalidate_xform(self);
   return FALSE;
 }
 
@@ -564,7 +593,7 @@ contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
   ++self->configure_id;
-  contour_plot_sync_xform(self);
+  contour_plot_invalidate_xform(self);
 }
 
 static void
@@ -586,7 +615,7 @@ contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
   g_return_if_fail(HOS_IS_PAINTER(self->painter));
 
   painter_set_spectrum(self->painter, spectrum);
-  contour_plot_sync_xform(self);
+  contour_plot_invalidate_xform(self);
 }
 
 void
