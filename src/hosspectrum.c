@@ -1452,10 +1452,6 @@ queue_ready_push(HosSpectrum* spectrum)
   g_mutex_lock(spectrum_queue_lock);
 
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
-  gboolean ready;
-  g_object_get(G_OBJECT(spectrum), "ready", &ready, NULL);
-  g_return_if_fail(ready);
-
   g_object_ref(G_OBJECT(spectrum));
 
   spectra_ready = g_list_prepend(spectra_ready, spectrum);
