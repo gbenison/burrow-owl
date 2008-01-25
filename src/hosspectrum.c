@@ -188,7 +188,8 @@ static void
 spectrum_traverse_async(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
-  g_assert(self->buf == NULL);
+  if (self->buf != NULL)
+    return;
 
   guint spectrum_size = 1;    /* total size in number of points */
   GList* backing_list = NULL;
@@ -1434,6 +1435,10 @@ queue_pending_push(HosSpectrum* spectrum)
   ensure_traversal_setup();
   g_mutex_lock(spectrum_queue_lock);
 
+  /* push the argument to the head of the list. */
+  GList* prev = g_list_find(spectra_pending, (gpointer)spectrum);
+  if (prev)
+    spectra_pending = g_list_delete_link(spectra_pending, prev);
   spectra_pending = g_list_prepend(spectra_pending, spectrum);
   g_cond_signal(spectrum_pending_cond);
 
