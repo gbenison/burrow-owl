@@ -105,6 +105,7 @@ static void          dimension_extract_cb       (HosDimension* dimen, struct _fo
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static gdouble*      spectrum_traverse_internal (HosSpectrum* spec, GList* backing_list);
 static gdouble*      spectrum_traverse_how      (HosSpectrum *spec, gboolean block);
+static void          spectrum_traverse_async    (HosSpectrum* self);
 static gpointer      traverse_async_internal    (struct _traverse_data* data);
 static void          backing_unlock_cb          (HosBacking* self, gpointer data);
 static void          backing_lock_set           (HosBacking* self, gulong *id);
@@ -114,6 +115,15 @@ static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
 static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
 static gpointer      g_list_nth_first           (GList* list, guint n);
+
+static void          ensure_traversal_setup     (void);
+static void          queue_pending_push         (HosSpectrum* spectrum);
+static void          queue_ready_push           (HosSpectrum* spectrum);
+static HosSpectrum*  queue_pending_fetch        (void);
+static HosSpectrum*  queue_ready_fetch          (void);
+static void          signal_spectra_ready       (void);
+static gboolean      idle_spectra_ready         (gpointer not_used);
+static gpointer      traversal_thread_func      (gpointer not_used);
 
 G_DEFINE_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
@@ -169,7 +179,50 @@ notify_spectrum_finalize(gpointer data, HosSpectrum *spec)
 gdouble*
 spectrum_traverse(HosSpectrum *spec)
 {
-    return spectrum_traverse_how(spec, FALSE);
+  if (spec->buf == NULL)
+    queue_pending_push(spec);
+  return (spec->buf);
+}
+
+static void
+spectrum_traverse_async(HosSpectrum* self)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+  g_assert(self->buf == NULL);
+
+  guint spectrum_size = 1;    /* total size in number of points */
+  GList* backing_list = NULL;
+  gdouble *buffer = NULL;
+  HosSpectrum* spec = spectrum_copy(self);
+
+  spec->alive = self->alive;
+  g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
+
+  /* quit if spectrum is empty. */
+  if (spectrum_size == 0)
+    {
+      g_object_unref(spec);
+      return;
+    }
+
+  buffer = g_renew(gdouble, buffer, spectrum_size);
+  assert(buffer);
+  spec->buf = buffer;
+  memset(buffer, 0, spectrum_size * sizeof(gdouble));
+
+  g_list_foreach_recursive(spec->projections, 2, (GFunc)append_backing, &backing_list);
+  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
+  g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
+
+  spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
+
+  spectrum_traverse_internal(spec, backing_list);
+
+  self->buf = spec->buf;
+  spec->buf = 0;
+
+  g_object_unref(spec);
+
 }
 
 static gdouble*
@@ -703,14 +756,10 @@ spectrum_copy(HosSpectrum *src)
 static void
 spectrum_invalidate_cache(HosSpectrum *self)
 {
-  if (self->status_lock) g_mutex_lock(self->status_lock);
-  if (self->traverse_lock) g_mutex_lock(self->traverse_lock);
   if (self->buf != NULL)
     g_free(self->buf);
   self->buf = NULL;
   self->status = LATENT;
-  if (self->traverse_lock) g_mutex_unlock(self->traverse_lock);
-  if (self->status_lock) g_mutex_unlock(self->status_lock);
 }
 
 static GList*
@@ -1350,4 +1399,144 @@ hos_spectrum_get_property (GObject         *object,
     }
 }
 
+/******* the spectrum queue   *****/
 
+static GList*   spectra_pending        = NULL;
+static GList*   spectra_ready          = NULL;
+static GMutex*  spectrum_queue_lock    = NULL;
+static GThread* traversal_thread       = NULL;
+static gpointer traversal_thread_error = NULL;
+static GCond*   spectrum_pending_cond  = NULL;
+
+static void
+ensure_traversal_setup()
+{
+  if (!g_thread_supported ()) g_thread_init (NULL);
+  if (spectrum_queue_lock == NULL)
+    spectrum_queue_lock = g_mutex_new();
+  if (traversal_thread == NULL)
+    {
+      traversal_thread =
+	g_thread_create((GThreadFunc)traversal_thread_func,
+			NULL,
+			FALSE,
+			&traversal_thread_error);
+      g_assert(traversal_thread != NULL);
+    }
+  if (spectrum_pending_cond == NULL)
+    spectrum_pending_cond = g_cond_new();
+  g_assert(traversal_thread_error == NULL);
+}
+
+static void
+queue_pending_push(HosSpectrum* spectrum)
+{
+  ensure_traversal_setup();
+  g_mutex_lock(spectrum_queue_lock);
+
+  spectra_pending = g_list_prepend(spectra_pending, spectrum);
+  g_cond_signal(spectrum_pending_cond);
+
+  g_mutex_unlock(spectrum_queue_lock);
+}
+
+static void
+queue_ready_push(HosSpectrum* spectrum)
+{
+  ensure_traversal_setup();
+  g_mutex_lock(spectrum_queue_lock);
+
+  g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+  gboolean ready;
+  g_object_get(G_OBJECT(spectrum), "ready", &ready, NULL);
+  g_return_if_fail(ready);
+
+  g_object_ref(G_OBJECT(spectrum));
+
+  spectra_ready = g_list_prepend(spectra_ready, spectrum);
+
+  signal_spectra_ready();
+
+  g_mutex_unlock(spectrum_queue_lock);
+}
+
+/*
+ * returns: next 'pending' spectrum--
+ * will block until one is available
+ */
+static HosSpectrum*
+queue_pending_fetch(void)
+{
+  ensure_traversal_setup();
+  g_mutex_lock(spectrum_queue_lock);
+  while (g_list_length(spectra_pending) == 0)
+    g_cond_wait(spectrum_pending_cond, spectrum_queue_lock);
+
+  g_assert(g_list_length(spectra_pending) != 0);
+  HosSpectrum* result = (HosSpectrum*)g_list_nth_data(spectra_pending, 0);
+  spectra_pending = g_list_delete_link(spectra_pending, g_list_first(spectra_pending));
+
+  g_mutex_unlock(spectrum_queue_lock);
+
+  g_assert(result != NULL);
+  return result;
+}
+
+/*
+ * returns: next 'ready' spectrum, or NULL if none is ready.
+ */
+static HosSpectrum*
+queue_ready_fetch(void)
+{
+  ensure_traversal_setup();
+  g_mutex_lock(spectrum_queue_lock);
+
+  HosSpectrum *result = NULL;
+
+  if (g_list_length(spectra_ready) > 0)
+    {
+      result = g_list_nth_data(spectra_ready, 0);
+      spectra_ready = g_list_delete_link(spectra_ready, g_list_first(spectra_ready));
+    }
+
+  g_mutex_unlock(spectrum_queue_lock);
+
+  return result;
+}
+
+static gboolean
+idle_spectra_ready(gpointer not_used)
+{
+  HosSpectrum *next = queue_ready_fetch();
+  if (next == NULL)
+    return FALSE;
+
+  /* FIXME signal 'readiness'? */
+  g_object_unref(G_OBJECT(next));
+
+  return TRUE;
+}
+
+
+/******* the traversal thread *****/
+
+/*
+ * signal the main thread that spectra have been traversed and are ready
+ * for use.
+ */
+static void
+signal_spectra_ready(void)
+{
+  g_idle_add((GSourceFunc)idle_spectra_ready, NULL);
+}
+
+static gpointer
+traversal_thread_func(gpointer not_used)
+{
+  while (1)
+    {
+      HosSpectrum* next = queue_pending_fetch();
+      spectrum_traverse_async(next);
+      queue_ready_push(next);
+    }
+}
