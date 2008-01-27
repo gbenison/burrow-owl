@@ -23,11 +23,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
+G_BEGIN_DECLS
 
 #define HOS_TYPE_BACKING              (hos_backing_get_type())
 #define HOS_BACKING(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_BACKING, HosBacking))
@@ -58,30 +54,23 @@ struct _HosBackingClass
 
   GObjectClass parent_class;
 
-  gdouble (*peek)(HosBacking*);
-  void (*copy)(HosBacking*, HosBacking*);
-  void (*reset)(HosBacking*);
+  gdouble (*peek)          (HosBacking*);
+  void    (*copy)          (HosBacking*, HosBacking*);
+  void    (*reset)         (HosBacking*);
 
-  void (*lock_method)(HosBacking*, gulong);
-  void (*unlock_method)(HosBacking*);
+  void    (*lock_method)   (HosBacking*, gulong);
+  void    (*unlock_method) (HosBacking*);
 
 };
 
-extern HosBacking* backing_copy(HosBacking*);
-extern void backing_negate(HosBacking*);
-extern void backing_reset(HosBacking*, gpointer);
-extern void backing_accumulate(HosBacking*, gdouble*);
-
-extern void backing_lock(HosBacking*, gulong);
-extern void backing_unlock(HosBacking*);
+extern HosBacking* backing_copy       (HosBacking*);
+extern void        backing_negate     (HosBacking*);
+extern void        backing_reset      (HosBacking*, gpointer);
+extern void        backing_accumulate (HosBacking*, gdouble*);
 
 GType hos_backing_get_type (void);
 
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
+G_END_DECLS
 
 #endif /* not  _HOS_HAVE_BACKING_H  */
 
