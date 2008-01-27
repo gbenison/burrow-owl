@@ -250,12 +250,6 @@ spectrum_traverse_how(HosSpectrum *spec, gboolean block)
     {
       if (block == FALSE)
 	return NULL;
-      else
-	{
-	  /* Grabbing this lock lets any pending traversal finish. */
-	  g_mutex_lock(spec->traverse_lock);
-	  g_mutex_unlock(spec->traverse_lock);
-	}
     }
 
   /* caching-- if the buffer is already full, just return it */
@@ -264,7 +258,6 @@ spectrum_traverse_how(HosSpectrum *spec, gboolean block)
 
   spec = spectrum_copy(spec_original);
   spec->alive = spec_original->alive;
-  /*  spec->traverse_lock = spec_original->traverse_lock; */
 
   g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
 
@@ -281,12 +274,6 @@ spectrum_traverse_how(HosSpectrum *spec, gboolean block)
   memset(buffer, 0, spectrum_size * sizeof(gdouble));
 
   g_mutex_lock(spec_original->status_lock);
-
-  /*
-  g_object_weak_ref (G_OBJECT(spec_original),
-		     (GWeakNotify)notify_spectrum_finalize,
-		     NULL);
-  */
 
   /*
    * Set up backing object list,
@@ -333,12 +320,6 @@ spectrum_traverse_how(HosSpectrum *spec, gboolean block)
 
   spec = spec_original;
 
-  /*
-  g_object_weak_unref (G_OBJECT(spec_original),
-		       (GWeakNotify)notify_spectrum_finalize,
-		       NULL);
-  */
-
   /* unlock the backing objects */
   g_list_foreach(backing_list, (GFunc)backing_unlock_cb, NULL);
 
@@ -363,8 +344,6 @@ spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list)
 {
   gdouble *buffer = spec->buf;
   gboolean *alive = spec->alive;
-
-  g_mutex_lock(spec->traverse_lock);
 
   /*
    * Perform the actual traversal--
@@ -400,13 +379,11 @@ spectrum_ready(struct _traverse_data* data)
     data->spec_original->status = COMPLETE;
 
   /* don't mess with the original spec's lock objects. */
-  data->spec_active->traverse_lock = NULL;
   data->spec_active->status_lock = NULL;
   data->spec_active->buf = NULL;
   g_object_unref(data->spec_active);
 
   g_signal_emit(data->spec_original, spectrum_signals[READY], 0);
-  g_mutex_unlock(data->spec_original->traverse_lock);
 
   /* don't call this idle function multiple times */
   return FALSE;
@@ -1299,17 +1276,6 @@ hos_spectrum_finalize(GObject *object)
 
   spectrum_invalidate_cache(spectrum);
 
-/*
-
-  FIXME threads stuff is all broken; don't try freeing them.
-
-  if (spectrum->traverse_lock)
-    g_mutex_free(spectrum->traverse_lock);
-
-  if (spectrum->status_lock)
-    g_mutex_free(spectrum->status_lock);
-*/
-
   G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
 }
@@ -1353,7 +1319,6 @@ hos_spectrum_init(HosSpectrum  *spectrum)
 {
   spectrum->alive = g_new(gboolean, 1);
   *(spectrum->alive) = TRUE;
-  spectrum->traverse_lock = g_mutex_new();
   spectrum->status_lock = g_mutex_new();
   spectrum->status = LATENT;
 }
