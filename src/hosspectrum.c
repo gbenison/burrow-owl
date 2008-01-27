@@ -99,12 +99,11 @@ static void          check_replace_backing      (HosDimension *dimen, struct _fo
 static void          replace_backing            (HosDimension *dimen, struct _foreach_data* data);
 static void          g_object_ref_data          (GObject *obj, gpointer data);
 static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
-static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*, gboolean*);
+static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static gdouble*      spectrum_traverse_internal (HosSpectrum* spec, GList* backing_list);
-static gdouble*      spectrum_traverse_how      (HosSpectrum *spec, gboolean block);
 static void          spectrum_traverse_async    (HosSpectrum* self);
 static gpointer      traverse_async_internal    (struct _traverse_data* data);
 static void          backing_unlock_cb          (HosBacking* self, gpointer data);
@@ -156,7 +155,10 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  return spectrum_traverse_how(spec, TRUE);
+  /* FIXME this needs to wait for the 'ready' signal. */
+  spectrum_traverse(spec);
+  /* for now, silly busy waiting! */
+  while (spec->buf == NULL) {};
 }
 
 /*
@@ -166,8 +168,6 @@ static void
 notify_spectrum_finalize(gpointer data, HosSpectrum *spec)
 {
   assert(spec);
-  assert(spec->alive);
-  *(spec->alive) = FALSE;
 }
 
 /*
@@ -196,7 +196,6 @@ spectrum_traverse_async(HosSpectrum* self)
   gdouble *buffer = NULL;
   HosSpectrum* spec = spectrum_copy(self);
 
-  spec->alive = self->alive;
   g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
 
   /* quit if spectrum is empty. */
@@ -226,114 +225,6 @@ spectrum_traverse_async(HosSpectrum* self)
 
 }
 
-static gdouble*
-spectrum_traverse_how(HosSpectrum *spec, gboolean block)
-{
-  g_return_val_if_fail(HOS_IS_SPECTRUM(spec), NULL);
-
-  HosSpectrum *spec_original = spec;
-  guint spectrum_size = 1;    /* total size in number of points */
-  GList* backing_list = NULL;
-  gdouble *buffer = NULL;
-
-  /* environment option to turn off asynchronous spectrum loading */
-  if (getenv("NO_THREADS"))
-     block = TRUE;
-
-  /* FIXME
-   * until further notice, threading will be turned off because it is
-   * completely broken due to sharing of dimension objects.
-   */
-  block = TRUE;
-
-  if (spec->status == TRAVERSING)
-    {
-      if (block == FALSE)
-	return NULL;
-    }
-
-  /* caching-- if the buffer is already full, just return it */
-  if (spec->status == COMPLETE)
-    return spec->buf;
-
-  spec = spectrum_copy(spec_original);
-  spec->alive = spec_original->alive;
-
-  g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
-
-  /* quit if spectrum is empty. */
-  if (spectrum_size == 0)
-    {
-      g_object_unref(spec);
-      return NULL;
-    }
-
-  buffer = g_renew(gdouble, buffer, spectrum_size);
-  assert(buffer);
-  spec->buf = buffer;
-  memset(buffer, 0, spectrum_size * sizeof(gdouble));
-
-  g_mutex_lock(spec_original->status_lock);
-
-  /*
-   * Set up backing object list,
-   * lock all of them
-   * and reset all of them
-   */
-  {
-    gulong lock_id = ticket_grab();
-
-    backing_global_lock();
-    g_list_foreach_recursive(spec->projections, 2, (GFunc)append_backing, &backing_list);
-    g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
-    g_list_foreach(backing_list, (GFunc)backing_lock_set, &lock_id);
-    g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
-    backing_global_unlock();
-  }
-
-  /* sort dimension lists by cost */
-  spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
-
-  /*
-   * if blocking: traverse the spectrum. otherwise,
-   * schedule a thread to traverse the spectrum,
-   * and emit a signal when done
-   */
-  if (spec->status == LATENT)
-    {
-      struct _traverse_data data = {spec, spec_original, backing_list};
-
-      if (block)
-	{
-	  spectrum_traverse_internal(spec, backing_list);
-	  spectrum_ready(&data);
-	}
-      else
-	{
-	  spec->status = TRAVERSING;
-	  g_thread_create((GThreadFunc)traverse_async_internal,
-			  (gpointer)(&data),
-			  FALSE,  /* joinable */
-			  NULL);  /* error */
-	}
-    }
-
-  spec = spec_original;
-
-  /* unlock the backing objects */
-  g_list_foreach(backing_list, (GFunc)backing_unlock_cb, NULL);
-
-  if (*(spec->alive) != TRUE)
-    {
-      g_free(buffer);
-      buffer = NULL;
-    }
-
-  g_mutex_unlock(spec_original->status_lock);
-  return spec->buf;
-
-}
-
 /*
  * Copies the contents of a spectrum to a random access
  * buffer by traversing the spectrum.  The buffer is
@@ -343,7 +234,6 @@ static gdouble*
 spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list)
 {
   gdouble *buffer = spec->buf;
-  gboolean *alive = spec->alive;
 
   /*
    * Perform the actual traversal--
@@ -352,7 +242,7 @@ spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list)
    */
   g_list_foreach_recursive(spec->projections, 2, (GFunc)dimension_prime, NULL);
   g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
-  dimension_traverse_internal(spec->dimensions, buffer, backing_list, alive);
+  dimension_traverse_internal(spec->dimensions, buffer, backing_list);
 
   return buffer;
 }
@@ -375,8 +265,7 @@ spectrum_ready(struct _traverse_data* data)
 {
   /* FIXME copy active buf to original and discard active */
   data->spec_original->buf = data->spec_active->buf;
-  if (*(data->spec_original->alive) == TRUE)
-    data->spec_original->status = COMPLETE;
+  data->spec_original->status = COMPLETE;
 
   /* don't mess with the original spec's lock objects. */
   data->spec_active->status_lock = NULL;
@@ -1214,13 +1103,11 @@ spectrum_cache(HosSpectrum* self)
  * list is a 'list of lists of dimensions'
  * backing_list is a list of backing objects
  *
- * if *watch becomes FALSE, cease traversal
- *
  * FIXME: handle integrated dimensions!
  *
  */
 static gdouble*
-dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list, gboolean *watch)
+dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list)
 {
   GList *dimen_list;
   HosDimension *dimen;
@@ -1241,9 +1128,6 @@ dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list, gboo
       
       while (1)
 	{
-	  if (watch && (*watch == FALSE))
-	    return NULL;
-	  
 	  if (list->next == NULL)
 	    {
 	      gdouble sum = 1.0;
@@ -1251,7 +1135,7 @@ dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list, gboo
 	      *buf += sum;
 	    }
 	  else
-	    dimension_traverse_internal(list->next, buf, backing_list, watch);
+	    dimension_traverse_internal(list->next, buf, backing_list);
 	  
 	  g_list_foreach(dimen_list, (GFunc)dimension_increment, &done);
 	  
@@ -1317,8 +1201,6 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 static void
 hos_spectrum_init(HosSpectrum  *spectrum)
 {
-  spectrum->alive = g_new(gboolean, 1);
-  *(spectrum->alive) = TRUE;
   spectrum->status_lock = g_mutex_new();
   spectrum->status = LATENT;
 }

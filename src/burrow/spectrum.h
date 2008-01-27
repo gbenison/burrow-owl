@@ -53,12 +53,10 @@ struct _HosSpectrum
 
   gboolean negated;
   guint status;
-  gboolean *alive;
 
   GList *projections;
   GList *dimensions;
 
-  GMutex *traverse_lock;
   GMutex *status_lock;
 
 };
