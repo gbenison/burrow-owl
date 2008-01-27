@@ -57,8 +57,6 @@ struct _HosSpectrum
   GList *projections;
   GList *dimensions;
 
-  GMutex *status_lock;
-
 };
 
 struct _HosSpectrumClass

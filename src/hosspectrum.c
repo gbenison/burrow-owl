@@ -242,7 +242,6 @@ spectrum_ready(struct _traverse_data* data)
   data->spec_original->status = COMPLETE;
 
   /* don't mess with the original spec's lock objects. */
-  data->spec_active->status_lock = NULL;
   data->spec_active->buf = NULL;
   g_object_unref(data->spec_active);
 
@@ -1165,7 +1164,6 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 static void
 hos_spectrum_init(HosSpectrum  *spectrum)
 {
-  spectrum->status_lock = g_mutex_new();
   spectrum->status = LATENT;
 }
 
