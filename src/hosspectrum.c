@@ -1215,7 +1215,7 @@ static GList*   spectra_pending        = NULL;
 static GList*   spectra_ready          = NULL;
 static GMutex*  spectrum_queue_lock    = NULL;
 static GThread* traversal_thread       = NULL;
-static gpointer traversal_thread_error = NULL;
+static GError*  traversal_thread_error = NULL;
 static GCond*   spectrum_pending_cond  = NULL;
 
 static void
