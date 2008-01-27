@@ -64,12 +64,6 @@ struct _foreach_data
 
 };
 
-struct _traverse_data {
-  HosSpectrum *spec_active;
-  HosSpectrum *spec_original;
-  GList *backing_list;
-};
-
 enum {
   READY,
   LAST_SIGNAL
@@ -106,11 +100,13 @@ static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* spec);
 static void          backing_unlock_cb          (HosBacking* self, gpointer data);
 static void          backing_lock_set           (HosBacking* self, gulong *id);
-static gboolean      spectrum_ready             (struct _traverse_data* data);
+static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
 static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
 static gpointer      g_list_nth_first           (GList* list, guint n);
+static gboolean      spectrum_is_ready          (HosSpectrum *self);
+
 
 static void          ensure_traversal_setup     (void);
 static void          queue_pending_push         (HosSpectrum* spectrum);
@@ -234,21 +230,18 @@ backing_unlock_cb(HosBacking* self, gpointer data)
   backing_unlock(self);
 }
 
+/*
+ * Emit the 'ready' signal from spectrum 'self',
+ * indicating that traversal is complete,
+ * but only if 'self' really is ready
+ */
 static gboolean
-spectrum_ready(struct _traverse_data* data)
+spectrum_signal_ready(HosSpectrum* self)
 {
-  /* FIXME copy active buf to original and discard active */
-  data->spec_original->buf = data->spec_active->buf;
-  data->spec_original->status = COMPLETE;
 
-  /* don't mess with the original spec's lock objects. */
-  data->spec_active->buf = NULL;
-  g_object_unref(data->spec_active);
+  if (spectrum_is_ready(self))
+    g_signal_emit(self, spectrum_signals[READY], 0);
 
-  g_signal_emit(data->spec_original, spectrum_signals[READY], 0);
-
-  /* don't call this idle function multiple times */
-  return FALSE;
 }
 
 static int
@@ -1190,6 +1183,12 @@ hos_spectrum_set_property (GObject         *object,
     }
 }
 
+static gboolean
+spectrum_is_ready(HosSpectrum *self)
+{
+  return (self->buf == NULL) ? FALSE : TRUE;
+}
+
 static void
 hos_spectrum_get_property (GObject         *object,
 			   guint            prop_id,
@@ -1200,8 +1199,7 @@ hos_spectrum_get_property (GObject         *object,
   switch (prop_id)
     {
     case PROP_READY:
-      /* FIXME */
-      g_value_set_boolean (value, (HOS_SPECTRUM(object))->buf != NULL);
+      g_value_set_boolean (value, spectrum_is_ready(HOS_SPECTRUM(object)));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1321,7 +1319,7 @@ idle_spectra_ready(gpointer not_used)
   if (next == NULL)
     return FALSE;
 
-  /* FIXME signal 'readiness'? */
+  spectrum_signal_ready(next);
   g_object_unref(G_OBJECT(next));
 
   return TRUE;

@@ -72,6 +72,8 @@ static void contour_plot_get_property (GObject         *object,
 static void     contour_plot_expose            (HosCanvasItem *self, GdkEventExpose *event);
 static gboolean contour_plot_painter_configure (HosPainter *painter,
 						HosContourPlot *contour_plot);
+static gboolean contour_plot_painter_ready     (HosPainter *painter,
+						HosContourPlot *contour_plot);
 static void     contour_plot_item_configure    (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 static void     contour_plot_sync_xform        (HosContourPlot *self);
@@ -205,6 +207,16 @@ hos_contour_plot_init(HosContourPlot *self)
 static gboolean
 contour_plot_painter_configure(HosPainter *painter,
 			       HosContourPlot *contour_plot)
+{
+  ++CONTOUR_PLOT_PRIVATE(contour_plot, configure_id);
+  contour_plot_sync_painters(contour_plot);
+  contour_plot_invalidate_cairo(contour_plot, FALSE);
+  canvas_item_configure(HOS_CANVAS_ITEM(contour_plot));
+}
+
+static gboolean
+contour_plot_painter_ready(HosPainter *painter,
+			   HosContourPlot *contour_plot)
 {
   ++CONTOUR_PLOT_PRIVATE(contour_plot, configure_id);
   contour_plot_sync_painters(contour_plot);
@@ -546,6 +558,8 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
       g_object_ref(painter);
       g_signal_connect(painter, "configuration-changed",
 		       G_CALLBACK(contour_plot_painter_configure), self);
+      g_signal_connect(painter, "ready",
+		       G_CALLBACK(contour_plot_painter_ready), self);
     }
   contour_plot_sync_painters(self);
 }
