@@ -75,9 +75,6 @@ extern void backing_accumulate(HosBacking*, gdouble*);
 extern void backing_lock(HosBacking*, gulong);
 extern void backing_unlock(HosBacking*);
 
-extern void backing_global_lock();
-extern void backing_global_unlock();
-
 GType hos_backing_get_type (void);
 
 

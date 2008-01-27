@@ -168,22 +168,6 @@ backing_unlock(HosBacking* self)
 
 }
 
-static GMutex* global_lock = NULL;
 
-void
-backing_global_lock()
-{
-  if (!global_lock)
-    global_lock = g_mutex_new();
-
-  g_mutex_lock(global_lock);
-}
-
-void
-backing_global_unlock()
-{
-  if (global_lock)
-    g_mutex_unlock(global_lock);
-}
 
 

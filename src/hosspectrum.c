@@ -98,8 +98,6 @@ static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _fo
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* spec);
-static void          backing_unlock_cb          (HosBacking* self, gpointer data);
-static void          backing_lock_set           (HosBacking* self, gulong *id);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
@@ -215,19 +213,6 @@ spectrum_traverse_internal(HosSpectrum* self)
 
   g_object_unref(spec);
 
-}
-
-static void
-backing_lock_set(HosBacking* self, gulong *id)
-{
-  assert(id);
-  backing_lock(self, *id);
-}
-
-static void
-backing_unlock_cb(HosBacking* self, gpointer data)
-{
-  backing_unlock(self);
 }
 
 /*
