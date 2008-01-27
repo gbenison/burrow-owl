@@ -103,12 +103,9 @@ static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
-static gdouble*      spectrum_traverse_internal (HosSpectrum* spec, GList* backing_list);
-static void          spectrum_traverse_async    (HosSpectrum* self);
-static gpointer      traverse_async_internal    (struct _traverse_data* data);
+static void          spectrum_traverse_internal (HosSpectrum* spec);
 static void          backing_unlock_cb          (HosBacking* self, gpointer data);
 static void          backing_lock_set           (HosBacking* self, gulong *id);
-static void          notify_spectrum_finalize   (gpointer data, HosSpectrum *spec);
 static gboolean      spectrum_ready             (struct _traverse_data* data);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
@@ -158,16 +155,8 @@ spectrum_traverse_blocking(HosSpectrum *spec)
   /* FIXME this needs to wait for the 'ready' signal. */
   spectrum_traverse(spec);
   /* for now, silly busy waiting! */
+  /* FIXME maybe even better, do the traversal in this thread... */
   while (spec->buf == NULL) {};
-}
-
-/*
- * Callback for when a spectrum is finalized (through a weak reference...)
- */
-static void
-notify_spectrum_finalize(gpointer data, HosSpectrum *spec)
-{
-  assert(spec);
 }
 
 /*
@@ -185,7 +174,7 @@ spectrum_traverse(HosSpectrum *spec)
 }
 
 static void
-spectrum_traverse_async(HosSpectrum* self)
+spectrum_traverse_internal(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
   if (self->buf != NULL)
@@ -216,25 +205,6 @@ spectrum_traverse_async(HosSpectrum* self)
 
   spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
 
-  spectrum_traverse_internal(spec, backing_list);
-
-  self->buf = spec->buf;
-  spec->buf = 0;
-
-  g_object_unref(spec);
-
-}
-
-/*
- * Copies the contents of a spectrum to a random access
- * buffer by traversing the spectrum.  The buffer is
- * reallocated to match the size of the spectrum.
- */
-static gdouble*
-spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list)
-{
-  gdouble *buffer = spec->buf;
-
   /*
    * Perform the actual traversal--
    * reset all dimensions,
@@ -242,9 +212,13 @@ spectrum_traverse_internal(HosSpectrum* spec, GList* backing_list)
    */
   g_list_foreach_recursive(spec->projections, 2, (GFunc)dimension_prime, NULL);
   g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
-  dimension_traverse_internal(spec->dimensions, buffer, backing_list);
+  dimension_traverse_internal(spec->dimensions, spec->buf, backing_list);
 
-  return buffer;
+  self->buf = spec->buf;
+  spec->buf = 0;
+
+  g_object_unref(spec);
+
 }
 
 static void
@@ -276,16 +250,6 @@ spectrum_ready(struct _traverse_data* data)
 
   /* don't call this idle function multiple times */
   return FALSE;
-}
-
-
-static gpointer
-traverse_async_internal(struct _traverse_data* data)
-{
-  spectrum_traverse_internal(data->spec_active, data->backing_list);
-  g_idle_add((GSourceFunc)(spectrum_ready), data);
-		
-  return NULL;
 }
 
 static int
@@ -1384,7 +1348,7 @@ traversal_thread_func(gpointer not_used)
   while (1)
     {
       HosSpectrum* next = queue_pending_fetch();
-      spectrum_traverse_async(next);
+      spectrum_traverse_internal(next);
       queue_ready_push(next);
     }
 }
