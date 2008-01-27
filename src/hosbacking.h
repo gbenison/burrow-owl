@@ -42,9 +42,6 @@ struct _HosBacking
   GObject parent_instance;
   gboolean negated;
 
-  GMutex *lock;
-  gulong lock_id;
-
 };
 
 typedef gdouble (*PeekFunc)(HosBacking*);
@@ -57,9 +54,6 @@ struct _HosBackingClass
   gdouble (*peek)          (HosBacking*);
   void    (*copy)          (HosBacking*, HosBacking*);
   void    (*reset)         (HosBacking*);
-
-  void    (*lock_method)   (HosBacking*, gulong);
-  void    (*unlock_method) (HosBacking*);
 
 };
 
