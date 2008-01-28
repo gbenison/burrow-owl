@@ -240,13 +240,13 @@
 
 (define (canvas-add-assignment-labels canv)
   (define (add-label-from-strip strip)
-    (let* ((H (get ((strip 'get-adj) 'H) 'value))
-	   (N (get ((strip 'get-adj) 'N) 'value))
+    (let* ((H ((strip 'get-adj) 'H))
+	   (N ((strip 'get-adj) 'N))
 	   (serial (strip 'serial)))
       (if (serial-verified? serial)
 	  (let* ((label (serial-name serial))
 		 (marker (canvas-add-marker-text canv label)))
-	    (marker-set-pos marker H N)
+	    (marker-set-adjustments marker H N)
 	    (set marker 'sensitive #f)))))
   (for-each add-label-from-strip strips))
 
