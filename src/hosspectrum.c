@@ -180,47 +180,46 @@ spectrum_traverse_internal(HosSpectrum* self)
 
   g_mutex_lock(SPECTRUM_PRIVATE(self, traversal_lock));
 
-  if (self->buf != NULL)
-    return;
-
-  guint spectrum_size = 1;    /* total size in number of points */
-  GList* backing_list = NULL;
-  gdouble *buffer = NULL;
-  HosSpectrum* spec = spectrum_copy(self);
-
-  g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
-
-  /* quit if spectrum is empty. */
-  if (spectrum_size == 0)
+  if (self->buf == NULL)
     {
+
+      guint spectrum_size = 1;    /* total size in number of points */
+      GList* backing_list = NULL;
+      gdouble *buffer = NULL;
+      HosSpectrum* spec = spectrum_copy(self);
+      
+      g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
+      
+      /* quit if spectrum is empty. */
+      if (spectrum_size > 0)
+	{
+      
+	  buffer = g_renew(gdouble, buffer, spectrum_size);
+	  assert(buffer);
+	  spec->buf = buffer;
+	  memset(buffer, 0, spectrum_size * sizeof(gdouble));
+	  
+	  g_list_foreach_recursive(spec->projections, 2, (GFunc)append_backing, &backing_list);
+	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
+	  g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
+	  
+	  spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
+	  
+	  /*
+	   * Perform the actual traversal--
+	   * reset all dimensions,
+	   * then call recursive traverser function.
+	   */
+	  g_list_foreach_recursive(spec->projections, 2, (GFunc)dimension_prime, NULL);
+	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
+	  dimension_traverse_internal(spec->dimensions, spec->buf, backing_list);
+	  
+	  self->buf = spec->buf;
+	  spec->buf = 0;
+	}
+      
       g_object_unref(spec);
-      return;
     }
-
-  buffer = g_renew(gdouble, buffer, spectrum_size);
-  assert(buffer);
-  spec->buf = buffer;
-  memset(buffer, 0, spectrum_size * sizeof(gdouble));
-
-  g_list_foreach_recursive(spec->projections, 2, (GFunc)append_backing, &backing_list);
-  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
-  g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
-
-  spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
-
-  /*
-   * Perform the actual traversal--
-   * reset all dimensions,
-   * then call recursive traverser function.
-   */
-  g_list_foreach_recursive(spec->projections, 2, (GFunc)dimension_prime, NULL);
-  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
-  dimension_traverse_internal(spec->dimensions, spec->buf, backing_list);
-
-  self->buf = spec->buf;
-  spec->buf = 0;
-
-  g_object_unref(spec);
 
   g_mutex_unlock(SPECTRUM_PRIVATE(self, traversal_lock));
 
