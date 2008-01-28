@@ -74,6 +74,15 @@ enum {
   PROP_READY
 };
 
+#define HOS_SPECTRUM_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
+#define SPECTRUM_PRIVATE(o, field) ((HOS_SPECTRUM_GET_PRIVATE(o))->field)
+typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
+
+struct _HosSpectrumPrivate
+{
+  GMutex *traversal_lock;
+};
+
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
 
 static void hos_spectrum_set_property (GObject         *object,
@@ -146,11 +155,8 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  /* FIXME this needs to wait for the 'ready' signal. */
-  spectrum_traverse(spec);
-  /* for now, silly busy waiting! */
-  /* FIXME maybe even better, do the traversal in this thread... */
-  while (spec->buf == NULL) {};
+  spectrum_traverse_internal(spec);
+  return spec->buf;
 }
 
 /*
@@ -171,6 +177,9 @@ static void
 spectrum_traverse_internal(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
+
+  g_mutex_lock(SPECTRUM_PRIVATE(self, traversal_lock));
+
   if (self->buf != NULL)
     return;
 
@@ -212,6 +221,8 @@ spectrum_traverse_internal(HosSpectrum* self)
   spec->buf = 0;
 
   g_object_unref(spec);
+
+  g_mutex_unlock(SPECTRUM_PRIVATE(self, traversal_lock));
 
 }
 
@@ -1136,13 +1147,15 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 							 FALSE,
 							 G_PARAM_READABLE));
 
-  
+  g_type_class_add_private(gobject_class, sizeof(HosSpectrumPrivate));
+
 }
 
 static void
 hos_spectrum_init(HosSpectrum  *spectrum)
 {
   spectrum->status = LATENT;
+  SPECTRUM_PRIVATE(spectrum, traversal_lock) = g_mutex_new();
 }
 
 static void
