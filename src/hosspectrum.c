@@ -81,6 +81,7 @@ typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 struct _HosSpectrumPrivate
 {
   GMutex *traversal_lock;
+  GList  *projections;
 };
 
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
@@ -199,7 +200,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 	  spec->buf = buffer;
 	  memset(buffer, 0, spectrum_size * sizeof(gdouble));
 	  
-	  g_list_foreach_recursive(spec->projections, 2, (GFunc)append_backing, &backing_list);
+	  g_list_foreach_recursive(SPECTRUM_PRIVATE(spec, projections), 2, (GFunc)append_backing, &backing_list);
 	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
 	  g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
 	  
@@ -210,7 +211,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 	   * reset all dimensions,
 	   * then call recursive traverser function.
 	   */
-	  g_list_foreach_recursive(spec->projections, 2, (GFunc)dimension_prime, NULL);
+	  g_list_foreach_recursive(SPECTRUM_PRIVATE(spec, projections), 2, (GFunc)dimension_prime, NULL);
 	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
 	  dimension_traverse_internal(spec->dimensions, spec->buf, backing_list);
 	  
@@ -486,7 +487,7 @@ HosSpectrum*
 spectrum_convolute(HosSpectrum *spec_A, HosSpectrum *spec_B)
 {
   HosSpectrum *result = spectrum_copy(spec_A);
-  GList *B_projections = g_list_copy(spec_B->projections);
+  GList *B_projections = g_list_copy(SPECTRUM_PRIVATE(spec_B, projections));
   GList *B_dimensions = g_list_copy(spec_B->dimensions);
   GList *list_iter;
   guint dims_a = spectrum_ndim(spec_A);
@@ -507,7 +508,7 @@ spectrum_convolute(HosSpectrum *spec_A, HosSpectrum *spec_B)
     data.target_1 = B_projections;
     data.target_2 = B_dimensions;
 
-    g_list_foreach_recursive(spec_A->projections, 2,
+    g_list_foreach_recursive(SPECTRUM_PRIVATE(spec_A, projections), 2,
 			     (GFunc)check_replace_backing,
 			     &data);
 
@@ -518,7 +519,7 @@ spectrum_convolute(HosSpectrum *spec_A, HosSpectrum *spec_B)
   }
 
   /* tack B dimensions onto the end of A dimensions */
-  result->projections = g_list_concat(result->projections, B_projections);
+  SPECTRUM_PRIVATE(result, projections) = g_list_concat(SPECTRUM_PRIVATE(result, projections), B_projections);
   result->dimensions = g_list_concat(result->dimensions, B_dimensions);
 
   result->negated = spec_A->negated && spec_B->negated;
@@ -552,7 +553,7 @@ spectrum_copy(HosSpectrum *src)
 
   result->negated = src->negated;
   result->buf = NULL;
-  result->projections = g_list_copy(src->projections);
+  SPECTRUM_PRIVATE(result, projections) = g_list_copy(SPECTRUM_PRIVATE(src, projections));
   result->dimensions = g_list_copy(src->dimensions);
 
   /*
@@ -560,7 +561,7 @@ spectrum_copy(HosSpectrum *src)
    * I think so...
    */
 
-  g_list_foreach_recursive(result->projections, 2, (GFunc)g_object_ref_data, NULL);
+  g_list_foreach_recursive(SPECTRUM_PRIVATE(result, projections), 2, (GFunc)g_object_ref_data, NULL);
   g_list_foreach_recursive(result->dimensions, 2, (GFunc)g_object_ref_data, NULL);
 
   return result;
@@ -657,7 +658,7 @@ spectrum_project(HosSpectrum *self)
   {
     guint idx = dimen_list_lookup_nth(result->dimensions, 0);
   
-    result->projections = g_list_append(result->projections,
+    SPECTRUM_PRIVATE(result, projections) = g_list_append(SPECTRUM_PRIVATE(result, projections),
 					g_list_nth_data(result->dimensions, idx));
 
     result->dimensions = g_list_delete_link(result->dimensions,

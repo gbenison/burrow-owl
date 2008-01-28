@@ -54,7 +54,6 @@ struct _HosSpectrum
   gboolean negated;
   guint status;
 
-  GList *projections;
   GList *dimensions;
 
 };
