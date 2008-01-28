@@ -10,6 +10,7 @@
 (use-modules (burrow hacks)
 	     (oop goops)
              (gnome gtk)
+	     (gnome gobject)
 	     (spectrum)
 	     (spec-extra)
 	     (srfi srfi-1)
