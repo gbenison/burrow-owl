@@ -69,7 +69,15 @@ HosContour*   painter_get_contour  (HosPainter* painter);
 void          painter_set_spectrum (HosPainter* painter, HosSpectrum *spectrum);
 HosSpectrum*  painter_get_spectrum (HosPainter* painter);
 
-fsm_state_t*  painter_redraw_init  (HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
+gpointer      painter_redraw_init     (HosPainter* painter, gint x1, gint xn, gint y1, gint yn);
+gpointer      painter_redraw_init_ppm (HosPainter* painter,
+				       gdouble x_lower,
+				       gdouble y_lower,
+				       gdouble x_upper,
+				       gdouble y_upper);
+gboolean      painter_redraw_tick     (gpointer state);
+void          painter_redraw_cancel   (gpointer state);
+
 void          painter_redraw_region(HosPainter* painter,
 				    int x_lower,
 				    int y_lower,

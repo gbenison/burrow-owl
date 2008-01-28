@@ -314,7 +314,7 @@ painter_trace_line(HosPainter* painter, struct hos_point* points, const gint n_p
   (HOS_PAINTER_GET_CLASS(painter))->trace_line(painter, points, n_point, (lvl), (closed));
 }
 
-fsm_state_t*
+gpointer
 painter_redraw_init(HosPainter* painter,
 		    gint x1, gint xn, gint y1, gint yn)
 {
@@ -326,17 +326,46 @@ painter_redraw_init(HosPainter* painter,
   HosContour *contour = HOS_CONTOUR(painter->contour);
   g_return_val_if_fail(HOS_IS_CONTOUR(contour), NULL);
 
-  fsm_state_t* result =
-    fsm_state_init (spectrum_traverse(spectrum),
-		    spectrum_np(spectrum, 0),
-		    spectrum_np(spectrum, 1),
-		    x1, xn, y1, yn,
-		    contour_get_levels(contour),
-		    contour_get_n_contours(contour),
-		    (trace_func_t)painter_trace_line,
-		    painter);
+  gdouble* buf = spectrum_traverse(spectrum);
+
+  fsm_state_t* result;
+
+  if (buf != NULL)
+    result = fsm_state_init (spectrum_traverse(spectrum),
+			     spectrum_np(spectrum, 0),
+			     spectrum_np(spectrum, 1),
+			     x1, xn, y1, yn,
+			     contour_get_levels(contour),
+			     contour_get_n_contours(contour),
+			     (trace_func_t)painter_trace_line,
+			     painter);
+  else
+    result = NULL;
 
   return result;
+}
+
+/*
+ * Returns:  true: more drawing remains.
+ *           false: drawing is done; 'state' is no longer valid.
+ */
+gboolean
+painter_redraw_tick(gpointer state)
+{
+  g_return_val_if_fail(state != NULL, FALSE);
+  gboolean result = contour_fsm((fsm_state_t*)state) ? FALSE : TRUE;
+
+  if (!result)
+    fsm_state_free(state);
+
+  return result;
+}
+
+void
+painter_redraw_cancel(gpointer state)
+{
+  g_assert(state != NULL);
+  fsm_state_free(state);
 }
 
 /*
@@ -364,6 +393,32 @@ painter_redraw_region(HosPainter* painter,
 
   fsm_state_free(state);
   
+}
+
+gpointer
+painter_redraw_init_ppm (HosPainter* painter,
+			 gdouble x_lower,
+			 gdouble y_lower,
+			 gdouble x_upper,
+			 gdouble y_upper)
+{
+  g_return_if_fail(HOS_IS_PAINTER(painter));
+
+  HosSpectrum *spectrum = painter->spectrum;
+  g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+  
+  gint x1 = spectrum_ppm2pt(spectrum, 0, x_lower);
+  gint y1 = spectrum_ppm2pt(spectrum, 1, y_lower);
+  gint xn = spectrum_ppm2pt(spectrum, 0, x_upper);
+  gint yn = spectrum_ppm2pt(spectrum, 1, y_upper);
+
+  /* padding ensures that the whole ppm region will be redrawn */
+  return painter_redraw_init(painter,
+			     MIN(x1, xn) - 2,
+			     MAX(x1, xn) + 2,
+			     MIN(y1, yn) - 2,
+			     MAX(y1, yn) + 2);
+
 }
 
 void

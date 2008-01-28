@@ -25,6 +25,7 @@
         "#include <box.h>\n"
         "#include <version.h>\n"
         "#include <contour.h>\n"
+	"#include <grid.h>\n"
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
         "#include <painter_gdk.h>\n"

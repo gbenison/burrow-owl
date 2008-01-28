@@ -63,12 +63,15 @@
 
 (define-public (canvas-set-spectrum canv spec)
   (let ((contour-plot (canvas-ensure-contour-plot canv)))
-    (canvas-set-world canv
-		      (spectrum-orig-ppm spec 0)
-		      (spectrum-giro-ppm spec 1)
-		      (spectrum-giro-ppm spec 0)
-		      (spectrum-orig-ppm spec 1))
+    (canvas-sync-world canv spec)
     (set contour-plot 'spectrum spec)))
+
+(define-public (canvas-sync-world canv spec)
+  (canvas-set-world canv
+		    (spectrum-orig-ppm spec 0)
+		    (spectrum-giro-ppm spec 1)
+		    (spectrum-giro-ppm spec 0)
+		    (spectrum-orig-ppm spec 1)))
 
 (define-public (canvas-set-thres canv thres)
   (warn "use of deprecated function canvas-set-thres")
@@ -82,6 +85,8 @@
 	 (contour (get contour-plot 'contour)))
     (contour-set-draw-negative contour neg?)))
 
+(define-public (contour-plot-set-draw-negative contour-plot neg?)
+  (contour-set-draw-negative (get contour-plot 'contour) neg?))
 
 (define-public (painter-set-thres painter thres)
   (let ((adj (contour-get-thres-adjustment (painter-get-contour painter))))
