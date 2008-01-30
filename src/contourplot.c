@@ -388,7 +388,7 @@ contour_plot_idle_draw(HosContourPlot *self)
 						      canvas->xn,
 						      canvas->yn);
 
-  if (painter_redraw_tick(priv->cairo_trace_state))
+  if ((priv->cairo_trace_state != NULL) && (painter_redraw_tick(priv->cairo_trace_state)))
     return TRUE;
 
   /* get here... must be done! */
