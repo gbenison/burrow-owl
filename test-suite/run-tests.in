@@ -10,13 +10,13 @@
 # ./check-guile -i /usr/local/bin/guile numbers.test
 
 export TEST_SUITE_DIR=@top_srcdir@/test-suite;
-export EXAMPLE_DIR=@top_srcdir@/doc/demonstration/data;
+export EXAMPLE_DIR=@top_srcdir@/test-suite/data;
 
 ## search from top source directory
 GUILE_LOAD_PATH=@top_srcdir@:$GUILE_LOAD_PATH;
 
 ## search for uninstalled spectrum modules
-GUILE_LOAD_PATH=@top_srcdir@/src/guile:$GUILE_LOAD_PATH;
+GUILE_LOAD_PATH=@top_srcdir@/src/guile:../src/gw:$GUILE_LOAD_PATH;
 
 ## search for installed guile-gnome modules
 GUILE_LOAD_PATH=@guile_gnome_prefix@/share:@guile_gnome_prefix@/share/guile-gnome-0:$GUILE_LOAD_PATH;
@@ -33,6 +33,9 @@ GUILE_LOAD_PATH=${ggbdir}/g-wrap/guile:$GUILE_LOAD_PATH;
 
 ## shlibs for installed guile-gnome
 LTDL_LIBRARY_PATH=@guile_gnome_prefix@/lib/guile-gnome-0:@G_WRAP_LIB_DIR@:$LTDL_LIBRARY_PATH;
+
+## shlibs for uninstalled spectrum libs
+LTDL_LIBRARY_PATH=../src/gw:$LTDL_LIBRARY_PATH;
 
 ## shlibs for uninstalled guile-gnome
 LTDL_LIBRARY_PATH=${ggbdir}/glib/gnome/gw:$LTDL_LIBRARY_PATH;

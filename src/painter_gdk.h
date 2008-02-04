@@ -17,12 +17,6 @@
  *
  */
 
-/*
- * the "black and white postscript" painter type.
- * it ignores the 'level' argument of init_line and paints
- * everything in one shade.
- */
-
 #ifndef _HAVE_PAINTER_GDK_H
 #define _HAVE_PAINTER_GDK_H
 
@@ -30,10 +24,7 @@
 #include <gdk/gdk.h>
 #include "painter.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_PAINTER_GDK              (hos_painter_gdk_get_type())
 #define HOS_PAINTER_GDK(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_PAINTER_GDK, HosPainterGdk))
@@ -59,13 +50,10 @@ struct _HosPainterGdkClass
   HosPainterClass parent_class;
 };
 
-HosPainterGdk* painter_gdk_new(void);
-void painter_gdk_set_drawable_gc(HosPainterGdk *self, GdkDrawable *drawable, GdkGC *gc);
+void           painter_gdk_set_drawable_gc (HosPainterGdk *self, GdkDrawable *drawable, GdkGC *gc);
 
 GType hos_painter_gdk_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_PAINTER_GDK_H */

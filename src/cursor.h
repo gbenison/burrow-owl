@@ -25,10 +25,7 @@
 #include "hoscanvas.h"
 #include "ornament.h"
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
 #define HOS_TYPE_CURSOR              (hos_cursor_get_type())
 #define HOS_CURSOR(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_CURSOR, HosCursor))
@@ -53,36 +50,27 @@ struct _HosCursor
 
   guint orientation;  /* HORIZONTAL or VERTICAL */
 
-  gboolean movable;
-  gboolean enabled;
-  gboolean active;
-
 };
 
 struct _HosCursorClass
 {
   HosOrnamentClass parent_class;
 
-  void (*grabbed)(HosCursor *Cursor);
   void (*moved)(HosCursor *Cursor, gdouble position);
   void (*dropped)(HosCursor *Cursor, gdouble position);
 
 };
 
-void cursor_set_orientation(HosCursor *cursor, guint orientation);
-GtkAdjustment* cursor_get_adjustment(HosCursor *cursor);
-void cursor_set_movable(HosCursor *cursor, gboolean movable);
-void cursor_set_enabled(HosCursor *cursor, gboolean enabled);
-void cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment);
-void cursor_set_pos(HosCursor *cursor, gdouble position);
-HosCursor* canvas_add_cursor_horizontal(HosCanvas *canvas);
-HosCursor* canvas_add_cursor_vertical(HosCanvas *canvas);
-gdouble cursor_get_position(HosCursor *cursor);
+void           cursor_set_orientation        (HosCursor *cursor, guint orientation);
+GtkAdjustment* cursor_get_adjustment         (HosCursor *cursor);
+void           cursor_set_adjustment         (HosCursor *cursor, GtkAdjustment *adjustment);
+void           cursor_set_pos                (HosCursor *cursor, gdouble position);
+HosCursor*     canvas_add_cursor_horizontal  (HosCanvas *canvas);
+HosCursor*     canvas_add_cursor_vertical    (HosCanvas *canvas);
+gdouble        cursor_get_position           (HosCursor *cursor);
 
 GType hos_cursor_get_type(void);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+G_END_DECLS
 
 #endif /* not _HAVE_CURSOR_H */

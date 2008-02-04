@@ -3,7 +3,10 @@
 ; side-by-side views of multiple spectra
 ; with synchronized cursors
 
-(use-modules (ice-9 format)
+(use-modules (burrow hacks)
+	     (ice-9 format)
+             (oop goops)
+	     (gnome gobject)
 	     (gnome gtk)
              (spectrum)
 	     (spec-extra)
@@ -136,7 +139,7 @@
 		    (marker-set-adjustments marker H N)
 		    (ornament-group-add! group marker)
 		    (if (null? movable?)
-			(marker-set-movable marker #f)
+			(set marker 'sensitive #f)
 			(begin
 			  (sync-colors!)
 			  (connect marker 'acquire (lambda args

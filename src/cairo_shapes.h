@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,16 +17,10 @@
  *
  */
 
+#ifndef HAVE_CAIRO_SHAPES_H
+#define HAVE_CAIRO_SHAPES_H
 
-#ifndef HAVE_COMMON_H
-#define HAVE_COMMON_H
+void cairo_shape_x         (cairo_t* cr, int cross_size);
+void cairo_shape_hourglass (cairo_t* cr, int width, int height);
 
-/* 
- * The 'CONSTRUCTOR' tag is inserted into function prototypes
- * so that h2def.py will mark them as constructors and allow
- * the caller to own the reference to the return value.
- * The CONSTRUCTOR tag has no influence on C compilation.
- */
-#define CONSTRUCTOR
-
-#endif /* not HAVE_COMMON_H */
+#endif /* not HAVE_CAIRO_SHAPES_H */

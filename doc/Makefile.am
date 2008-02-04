@@ -1,2 +1,2 @@
 
-EXTRA_DIST=demonstration
+## EXTRA_DIST=demonstration

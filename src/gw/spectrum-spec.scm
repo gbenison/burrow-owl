@@ -15,17 +15,21 @@
 
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)
-        "#include <hosspectrum.h>\n"
+        "#include <burrow/spectrum.h>\n"
         "#include <hoscanvas.h>\n"
+        "#include <canvasitem.h>\n"
         "#include <marker.h>\n"
         "#include <marker_text.h>\n"
         "#include <cursor.h>\n"
+        "#include <contourplot.h>\n"
         "#include <box.h>\n"
+        "#include <version.h>\n"
         "#include <contour.h>\n"
+	"#include <grid.h>\n"
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
         "#include <painter_gdk.h>\n"
-        "#include <nih.h>\n"
+        "#include <burrow/nih.h>\n"
         "#include <hosbackingsim.h>\n"
         "\n"))
 

@@ -1,30 +1,35 @@
 
 EXTRA_DIST=
 INCLUDES=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=gw finite-state-machine
+SUBDIRS=finite-state-machine . gw 
 CLEANFILES=
 
-lib_LTLIBRARIES=libgw-guile-spectrum.la
-bin_SCRIPTS=burrow
+lib_LTLIBRARIES=libburrow.la
 
 CLEANFILES += $(bin_SCRIPTS)
 
-nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm
+nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm guile/burrow/hacks.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
-libgw_guile_spectrum_la_SOURCES=\
+burrowincludedir=$(includedir)/burrow
+burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
+include_HEADERS=burrow.h
+
+# disabled sources -- awaiting updating
+# box.c 
+# box.h 
+
+libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
 boomerang.c  \
 boomerang.h  \
-box.c  \
-box.h  \
-common.h  \
+burrow.h  \
 contour.c  \
 contour.h  \
-cursor.c  \
-cursor.h  \
+contourplot.c \
+contourplot.h \
 filebuf.c  \
 filebuf.h  \
 hosbackingblock.c  \
@@ -39,6 +44,8 @@ hosbackingsim.c  \
 hosbackingsim.h  \
 hoscanvas.c  \
 hoscanvas.h  \
+canvasitem.c \
+canvasitem.h \
 hosdimensionblock.c  \
 hosdimensionblock.h  \
 hosdimension.c  \
@@ -46,29 +53,38 @@ hosdimension.h  \
 hosdimensionsim.c  \
 hosdimensionsim.h  \
 hosspectrum.c  \
-hosspectrum.h  \
+burrow/spectrum.h  \
 marker.c  \
 marker.h  \
-marker_text.c  \
-marker_text.h  \
+grid.c \
+grid.h \
+cursor.c \
+cursor.h \
+marker_text.c \
+marker_text.h \
 nih.c  \
-nih.h  \
+burrow/nih.h  \
+cairo_shapes.c \
+cairo_shapes.h \
 ornament.c  \
 ornament.h  \
 painter_bwps.c  \
 painter_bwps.h  \
-painter.c  \
 painter_gdk.c  \
 painter_gdk.h  \
+painter_cairo.c \
+painter_cairo.h \
+painter.c  \
 painter.h  \
 ticket.c  \
 ticket.h \
 endian.c \
-endian.h
+endian.h \
+version.c \
+version.h
 
-libgw_guile_spectrum_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ @GUILE_LDFLAGS@ -module
-libgw_guile_spectrum_la_DEPENDENCIES=gw/spectrum-gw.lo
-libgw_guile_spectrum_la_LIBADD=gw/spectrum-gw.lo finite-state-machine/contour-fsm.lo
+libburrow_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -module
+libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd
 	glib-genmarshal --header @srcdir@/marshal.cmd > $@
@@ -77,7 +93,7 @@ marshal.c: marshal.cmd
 	glib-genmarshal --body @srcdir@/marshal.cmd > $@
 
 CLEANFILES += marshal.c marshal.h
-EXTRA_DIST += marshal.cmd guile burrow.in
+EXTRA_DIST += marshal.cmd guile
 
 
 

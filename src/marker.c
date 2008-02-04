@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2007 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include <assert.h>
 #include "marshal.h"
 #include "marker.h"
-#include "hosspectrum.h"
+#include <burrow/spectrum.h>
 
 /* #define _VERBOSE 1 */
 
@@ -39,70 +39,33 @@ enum {
 };
 
 enum {
-  GRABBED,
   MOVED,
   DROPPED,
   LAST_SIGNAL
 };
 
-static GObjectClass *parent_class = NULL;
 static guint marker_signals[LAST_SIGNAL] = { 0 };
 
-
-static void hos_marker_init(HosMarker  *marker);
-static void hos_marker_class_init (HosMarkerClass *klass);
 static void hos_marker_set_property (GObject         *object,
-				      guint            prop_id,
-				      const GValue    *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     const GValue    *value,
+				     GParamSpec      *pspec);
 static void hos_marker_get_property (GObject         *object,
-				      guint            prop_id,
-				      GValue          *value,
-				      GParamSpec      *pspec);
+				     guint            prop_id,
+				     GValue          *value,
+				     GParamSpec      *pspec);
 
+static void marker_paint          (HosOrnament *self, HosCanvas *canvas);
+static void marker_move_relative  (HosOrnament *self, gdouble dx, gdouble dy);
+static void marker_release_method (HosOrnament *self);
+static GdkRegion* marker_calculate_region   (HosOrnament *self);
+static void marker_adjustment_value_changed (GtkAdjustment *adjustment,
+					     HosMarker *marker);
 
-static void marker_paint_method(HosOrnament *self);
-static void marker_set_pos_method(HosOrnament *self, gdouble x, gdouble y);
-static gboolean marker_overlap_region_method(HosOrnament *self,
-					     gdouble x1, gdouble y1,
-					     gdouble xn, gdouble yn);
-static gboolean marker_point_overlap_method(HosOrnament *self,
-					    gdouble x_ppm, gdouble y_ppm);
-static void marker_acquire_method(HosOrnament *self);
-static void marker_motion_event_method(HosOrnament *self, gdouble x, gdouble y);
-static void marker_release_method(HosOrnament *self);
+static void     gtk_adjustment_increment_value (GtkAdjustment* adjustment, gdouble delta);
+static gboolean marker_get_pos                 (HosMarker *self, gdouble *x, gdouble *y);
 
-static void marker_sync_region(HosOrnament *self);
-static void marker_value_changed(GtkAdjustment *adjustment, HosMarker *marker);
-
-GType
-hos_marker_get_type (void)
-{
-  static GType type = 0;
-
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosMarkerClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_marker_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosMarker),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_marker_init,
-      };
-
-      type = g_type_register_static (HOS_TYPE_ORNAMENT,
-				     "HosMarker",
-				     &_info,
-				     0);
-    }
-
-  return type;
-}
+G_DEFINE_TYPE (HosMarker, hos_marker, HOS_TYPE_ORNAMENT)
 
 static void
 hos_marker_class_init (HosMarkerClass *klass)
@@ -113,45 +76,41 @@ hos_marker_class_init (HosMarkerClass *klass)
   gobject_class = G_OBJECT_CLASS (klass);
   ornament_class = HOS_ORNAMENT_CLASS (klass);
   
-  parent_class = g_type_class_peek_parent (klass);
+  hos_marker_parent_class = g_type_class_peek_parent (klass);
 
   gobject_class->set_property = hos_marker_set_property;
   gobject_class->get_property = hos_marker_get_property;
 
-  ornament_class->paint = marker_paint_method;
-  ornament_class->set_pos = marker_set_pos_method;
-  ornament_class->overlap_region = marker_overlap_region_method;
-  ornament_class->point_overlap = marker_point_overlap_method;
-  ornament_class->acquire = marker_acquire_method;
-  ornament_class->motion_event = marker_motion_event_method;
+  ornament_class->paint = marker_paint;
+  ornament_class->calculate_region = marker_calculate_region;
   ornament_class->release = marker_release_method;
-  ornament_class->sync_region = marker_sync_region;
-
+  ornament_class->move_relative = marker_move_relative;
+  
   g_object_class_install_property (gobject_class,
                                    PROP_X,
-                                   g_param_spec_double ("X",
+                                   g_param_spec_double ("x",
 							"X",
-							"X coordinate (ppm)",
+							"X coordinate (world)",
 							-G_MAXDOUBLE,
 							G_MAXDOUBLE,
 							0.0,
 							G_PARAM_READWRITE));
 
-  marker_signals[GRABBED] =
-    g_signal_new("grabbed",
-		 G_OBJECT_CLASS_TYPE(gobject_class),
-		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
-		 NULL, NULL,
-		 g_cclosure_marshal_VOID__UINT,
-		 G_TYPE_NONE, 1,
-		 G_TYPE_UINT);
-  
+  g_object_class_install_property (gobject_class,
+                                   PROP_Y,
+                                   g_param_spec_double ("y",
+							"Y",
+							"Y coordinate (world)",
+							-G_MAXDOUBLE,
+							G_MAXDOUBLE,
+							0.0,
+							G_PARAM_READWRITE));
+
   marker_signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
+		 G_STRUCT_OFFSET(HosMarkerClass, dropped),
 		 NULL, NULL,
 		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
 		 G_TYPE_NONE, 2,
@@ -162,7 +121,7 @@ hos_marker_class_init (HosMarkerClass *klass)
     g_signal_new("moved",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		 G_STRUCT_OFFSET(HosMarkerClass, grabbed),
+		 G_STRUCT_OFFSET(HosMarkerClass, moved),
 		 NULL, NULL,
 		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
 		 G_TYPE_NONE, 2,
@@ -172,7 +131,7 @@ hos_marker_class_init (HosMarkerClass *klass)
 
 }
 
-gboolean
+static gboolean
 marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
 {
   g_return_if_fail(HOS_IS_MARKER(self));
@@ -193,27 +152,40 @@ marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
   return TRUE;
 }
 
+gdouble
+marker_get_x(HosMarker *self)
+{
+  g_return_val_if_fail(HOS_IS_MARKER(self), 0);
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(self->adjustment_x), 0);
+
+  return gtk_adjustment_get_value(self->adjustment_x);
+}
+
+gdouble
+marker_get_y(HosMarker *self)
+{
+  g_return_val_if_fail(HOS_IS_MARKER(self), 0);
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(self->adjustment_y), 0);
+
+  return gtk_adjustment_get_value(self->adjustment_y);
+}
+
 static void
-marker_paint_method(HosOrnament *self)
+marker_paint(HosOrnament *self, HosCanvas *canvas)
 {
 
+  g_return_if_fail(HOS_IS_MARKER(self));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
+
   HosMarker *marker = HOS_MARKER(self);
-  HosCanvas *canvas;
-  GtkWidget *widget;
+  GtkWidget *widget = GTK_WIDGET(canvas);
   gdouble x;
   gdouble y;
   GdkGC *gc;
 
-  canvas = HOS_CANVAS(self->canvas);
-  
-  if (canvas == NULL)
-    return;
-
   marker_get_pos(marker, &x, &y);
 
-  widget = GTK_WIDGET(canvas);
-
-  if (!(GTK_WIDGET_MAPPED(widget)))
+  if (!(GTK_WIDGET_DRAWABLE(widget)))
     return;
 
   gc = canvas->gc;
@@ -227,7 +199,7 @@ marker_paint_method(HosOrnament *self)
 			     GDK_CAP_BUTT,
 			     GDK_JOIN_MITER);
 
-  canvas_ppm2view(canvas, &x, &y);
+  canvas_world2view(canvas, &x, &y);
 
   gdk_draw_line(widget->window,
 		gc,
@@ -245,67 +217,16 @@ marker_paint_method(HosOrnament *self)
 
 }
 
-void
-marker_set_pos(HosMarker *self, gdouble x, gdouble y)
+static GdkRegion*
+marker_calculate_region(HosOrnament *self)
 {
-  marker_set_pos_method(HOS_ORNAMENT(self), x, y);
-}
-
-static void
-marker_set_pos_method(HosOrnament *self, gdouble x, gdouble y)
-{
-  HosMarker *marker = HOS_MARKER(self);
-  gtk_adjustment_set_value(marker->adjustment_x, x);
-  gtk_adjustment_set_value(marker->adjustment_y, y);
-}
-
-static gboolean
-marker_overlap_region_method(HosOrnament *self,
-			     gdouble x1,
-			     gdouble y1,
-			     gdouble xn,
-			     gdouble yn)
-{
-  /* FIXME */
-  return TRUE;
-}
-
-static gboolean
-marker_point_overlap_method(HosOrnament *self,
-			    gdouble x_ppm, gdouble y_ppm)
-{
-  gdouble x_self, y_self;
-  HosMarker *marker = HOS_MARKER(self);
-  HosCanvas *canvas = HOS_CANVAS(self->canvas);
-
-  if (marker->movable == FALSE)
-    return FALSE;
-
-  marker_get_pos(marker, &x_self, &y_self);
-
-  canvas_ppm2view(canvas, &x_ppm, &y_ppm);
-  canvas_ppm2view(canvas, &x_self, &y_self);
-
-  if (((fabs (x_self - x_ppm)) > marker->size)
-      || ((fabs (y_self - y_ppm)) > marker->size))
-    return FALSE;
-
-  return TRUE;
-
-}
-
-static void
-marker_sync_region(HosOrnament *self)
-{
-  HosCanvas *canvas = self->canvas;
+  HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   HosMarker *marker = HOS_MARKER(self);
   gdouble x, y;
 
   if (marker_get_pos(HOS_MARKER(self), &x, &y))
     {
-      ornament_invalidate_region(self);
-
-      canvas_ppm2view(canvas, &x, &y);
+      canvas_world2view(canvas, &x, &y);
 
       GdkRectangle rect;
       rect.x = x - marker->size;
@@ -313,32 +234,10 @@ marker_sync_region(HosOrnament *self)
       rect.width = marker->size * 2;
       rect.height = marker->size * 2;
       
-      ornament_set_region(self, gdk_region_rectangle(&rect));
-      ornament_invalidate_region(self);
+      return (gdk_region_rectangle(&rect));
     }
-}
-
-static void
-marker_acquire_method(HosOrnament *self)
-{
-  HosMarker *marker = HOS_MARKER(self);
-  marker->active = TRUE;
-
-  if (HOS_ORNAMENT_CLASS(parent_class)->acquire)
-    (HOS_ORNAMENT_CLASS(parent_class)->acquire)(self);
-
-}
-
-static void
-marker_motion_event_method(HosOrnament *self, gdouble x, gdouble y)
-{
-  /* HosMarker *marker = HOS_MARKER(self); */
-  /* FIXME */
-  /* Maybe emit a 'moved' signal?? */
-  if (HOS_ORNAMENT_CLASS(parent_class)->motion_event)
-    (HOS_ORNAMENT_CLASS(parent_class)->motion_event)(self, x, y);
-  g_signal_emit_by_name(self, "moved", x, y);
-
+  else
+    return gdk_region_new();
 }
 
 static void
@@ -347,41 +246,36 @@ marker_release_method(HosOrnament *self)
   gdouble x, y;
   HosMarker *marker = HOS_MARKER(self);
 
-  marker->active = FALSE;
   marker_get_pos(marker, &x, &y);
   g_signal_emit_by_name(marker, "dropped", x, y);
 
-  if (HOS_ORNAMENT_CLASS(parent_class)->release)
-    (HOS_ORNAMENT_CLASS(parent_class)->release)(self);
+  if (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->release)
+    (HOS_ORNAMENT_CLASS(hos_marker_parent_class)->release)(self);
 
 }
-
 
 static void
 hos_marker_init(HosMarker *marker)
 {
-  /* Set a reasonable default size */
   marker->size = 10;
-  /* Set a reasonable default style */
   marker->style = MARKER_CROSS;
-
-  marker->movable = TRUE;
 }
 
 static void
 hos_marker_set_property (GObject         *object,
-			  guint            prop_id,
-			  const GValue    *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 const GValue    *value,
+			 GParamSpec      *pspec)
 {
-  HosMarker *marker = HOS_MARKER(object);
-
-  marker=marker; /* to eliminate warning */
-
   switch (prop_id)
     {
     case PROP_X:
-      /* FIXME */
+      gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_x,
+			       g_value_get_double(value));
+      break;
+    case PROP_Y:
+      gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_y,
+			       g_value_get_double(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -391,16 +285,18 @@ hos_marker_set_property (GObject         *object,
 
 static void
 hos_marker_get_property (GObject         *object,
-			  guint            prop_id,
-			  GValue          *value,
-			  GParamSpec      *pspec)
+			 guint            prop_id,
+			 GValue          *value,
+			 GParamSpec      *pspec)
 {
-  HosMarker *marker = HOS_MARKER(object);
-
-  marker=marker; /* to eliminate warning */
-
   switch (prop_id)
     {
+    case PROP_X:
+      g_value_set_double(value, marker_get_x(HOS_MARKER(object)));
+      break;
+    case PROP_Y:
+      g_value_set_double(value, marker_get_y(HOS_MARKER(object)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -411,14 +307,11 @@ void
 marker_set_size(HosMarker *marker, guint size)
 {
   g_return_if_fail(HOS_IS_MARKER(marker));
-  marker->size = size;
-}
-
-void
-marker_set_movable(HosMarker *marker, gboolean movable)
-{
-  g_return_if_fail(HOS_IS_MARKER(marker));
-  marker->movable = movable;
+  if (size != marker->size)
+    {
+      marker->size = size;
+      ornament_configure(HOS_ORNAMENT(marker));
+    }
 }
 
 void
@@ -427,17 +320,19 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
   gdouble new_x;
   gdouble new_y;
 
+  gboolean need_configure = FALSE;
+
   new_x = GTK_IS_ADJUSTMENT(adjustment_x) ? gtk_adjustment_get_value(adjustment_x) : 0;
   new_y = GTK_IS_ADJUSTMENT(adjustment_y) ? gtk_adjustment_get_value(adjustment_y) : 0;
 
   g_return_if_fail(HOS_IS_MARKER(marker));
   if (marker->adjustment_x != adjustment_x)
     {
-
+      need_configure = TRUE;
       if (marker->adjustment_x)
         {
 	  g_signal_handlers_disconnect_by_func (marker->adjustment_x,
-						marker_value_changed,
+						marker_adjustment_value_changed,
 						marker);
 	  g_object_unref (marker->adjustment_x);
         }
@@ -447,18 +342,18 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
 	  g_object_ref (adjustment_x);
 	  gtk_object_sink (GTK_OBJECT (adjustment_x));
 	  g_signal_connect (adjustment_x, "value_changed",
-			    G_CALLBACK (marker_value_changed),
+			    G_CALLBACK (marker_adjustment_value_changed),
 			    marker);
         }
 
     }
   if (marker->adjustment_y != adjustment_y)
     {
-
+      need_configure = TRUE;
       if (marker->adjustment_y)
         {
 	  g_signal_handlers_disconnect_by_func (marker->adjustment_y,
-						marker_value_changed,
+						marker_adjustment_value_changed,
 						marker);
 	  g_object_unref (marker->adjustment_y);
         }
@@ -468,11 +363,11 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
 	  g_object_ref (adjustment_y);
 	  gtk_object_sink (GTK_OBJECT (adjustment_y));
 	  g_signal_connect (adjustment_y, "value_changed",
-			    G_CALLBACK (marker_value_changed),
+			    G_CALLBACK (marker_adjustment_value_changed),
 			    marker);
         }
     }
-  ornament_sync_region(HOS_ORNAMENT(marker));
+  if (need_configure) ornament_configure(HOS_ORNAMENT(marker));
 }
 
 /*
@@ -482,14 +377,12 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
 HosMarker*
 canvas_add_marker(HosCanvas *canvas)
 {
-  HosSpectrum *spectrum = canvas_get_spectrum(canvas);
 
   HosMarker* result = g_object_new(HOS_TYPE_MARKER, NULL);
-  if (spectrum != NULL)
-    marker_set_adjustments(result,
-			   adjustment_for_spectrum(spectrum, 0),
-			   adjustment_for_spectrum(spectrum, 1));
-  canvas_add_ornament(canvas, HOS_ORNAMENT(result));
+  marker_set_adjustments(result,
+			 adjustment_for_canvas_x(canvas),
+			 adjustment_for_canvas_y(canvas));
+  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
 
   return result;
 }
@@ -507,17 +400,31 @@ marker_get_y_adjustment(HosMarker *marker)
 }
 
 static void
-marker_value_changed(GtkAdjustment *adjustment, HosMarker *marker)
+marker_adjustment_value_changed(GtkAdjustment *adjustment, HosMarker *marker)
 {
   gdouble x, y;
 
   if (!marker_get_pos(marker, &x, &y))
     return;
 
-  ornament_sync_region(HOS_ORNAMENT(marker));
-  g_signal_emit_by_name(marker, "moved", x, y);
+  ornament_configure(HOS_ORNAMENT(marker));
+  g_signal_emit(marker, marker_signals[MOVED], 0, x, y);
 
 }
 
+static void
+gtk_adjustment_increment_value(GtkAdjustment* adjustment, gdouble delta)
+{
+  gtk_adjustment_set_value(adjustment,
+			   gtk_adjustment_get_value(adjustment) + delta);
+}
+
+static void
+marker_move_relative(HosOrnament *self, gdouble x, gdouble y)
+{
+  HosMarker *marker = HOS_MARKER(self);
+  gtk_adjustment_increment_value(marker->adjustment_x, x);
+  gtk_adjustment_increment_value(marker->adjustment_y, y);
+}
 
 

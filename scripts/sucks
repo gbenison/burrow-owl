@@ -1,0 +1,11 @@
+
+(use-modules (burrow hacks)
+	     (oop goops)
+	     (gnome gtk))
+
+(run (make <gtk-message-dialog>
+       #:flags '(modal)
+       #:message-type 'info
+       #:buttons 'ok
+       #:text "You know, you are not perfect, either."))
+

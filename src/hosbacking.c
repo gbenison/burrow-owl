@@ -132,58 +132,8 @@ backing_negate(HosBacking* self)
   self->negated = self->negated ? FALSE : TRUE;
 }
 
-void
-backing_lock(HosBacking* self, gulong lock_id)
-{
-  if (self->lock_id == lock_id)
-    return;
 
-  if (!self->lock)
-    self->lock = g_mutex_new();
 
-  g_mutex_lock(self->lock);
-  {
-     HosBackingClass *class = HOS_BACKING_GET_CLASS(self);
 
-     if (class->lock_method)
-       class->lock_method(self, lock_id);
-  }
-
-}
-
-void
-backing_unlock(HosBacking* self)
-{
-  self->lock_id = 0;
-
-  if (self->lock)
-    {
-      HosBackingClass *class = HOS_BACKING_GET_CLASS(self);
-
-      g_mutex_unlock(self->lock);
-
-      if (class->unlock_method)
-	class->unlock_method(self);
-    }
-
-}
-
-static GMutex* global_lock = NULL;
-
-void
-backing_global_lock()
-{
-  if (!global_lock)
-    global_lock = g_mutex_new();
-
-  g_mutex_lock(global_lock);
-}
-
-void
-backing_global_unlock()
-{
-  if (global_lock)
-    g_mutex_unlock(global_lock);
-}
 
 

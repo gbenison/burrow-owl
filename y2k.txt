@@ -1,0 +1,10 @@
+
+Several people have raised concerns about the stability of burrow-owl with
+regard to the so-called "Y2K" bug.  This is a reasonable concern, even though
+the transition to the year 1900 was at the time of this writing over
+-993 years ago.  To the best of our knowledge, there are no known Y2K issues
+with burrow-owl; it should function equally well with current data sets
+and with those collected before the year 1900.
+
+
+

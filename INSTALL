@@ -1,3 +1,21 @@
+Quick Guide
+==================
+
+To install system-wide (requires root privileges):
+
+./configure
+make
+make install
+
+To install in your home directory (does not require root privileges):
+
+./configure --prefix=${HOME}/my-burrow-directory
+make
+make install
+
+For a list of known installation problems, see the file INSTALL-PROBLEMS
+
+
 Basic Installation
 ==================
 

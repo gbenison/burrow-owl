@@ -1,6 +1,8 @@
 ; -*-scheme-*-
 
-(use-modules (gnome gtk)
+(use-modules (burrow hacks)
+	     (oop goops)
+             (gnome gtk)
 	     (spectrum)
 	     (spec-extra)
 	     (ice-9 format))
@@ -9,6 +11,26 @@
   "hsqc display with scrollable strip of 3D spectrum"
   '(<hsqc-spec>)
   '(<3d-spec>))
+
+; ---------------
+; Spectra
+; ---------------
+
+;; note: for bruker, dimension order is HNC
+;; transform: HNC->CHN->HCN
+(define (bruker-transpose spec)  ;; HNC
+  (set! spec (spectrum-transpose spec 2))  ;; CHN
+  (set! spec (spectrum-transpose spec 1))  ;; HCN
+  spec)
+
+;; Assume input spectrum is a triple-resonance in either
+;; Bruker (HNC) or Varian (HCN) order; output in
+;; Varian order (HCN)
+(define (normalize-hcn spec)
+  (let ((ratio (/ (spectrum-sf spec 0)(spectrum-sf spec 1))))
+    (if (> ratio 8)
+	(bruker-transpose spec)
+	spec)))
 
 (define fname-3d (caddr (command-line)))
 (define (get-assign-with-default asg name default)
@@ -75,7 +97,7 @@
 
 
 
-(define spec-3d (spectrum-nih-from-file fname-3d))
+(define spec-3d (normalize-hcn (spectrum-nih-from-file fname-3d)))
 
 (define assignments (false-if-exception (file->list "assignments.scm")))
 (sleep-if-requested)
@@ -86,7 +108,7 @@
 (define (make-strip H N)
   (spectrum-extract-ppm
    (spectrum-project-ppm
-    (spectrum-transpose spec-3d 1)
+    (spectrum-transpose spec-3d 2)
     N)
    (- H H-width)
    (+ H H-width)))
@@ -109,7 +131,8 @@
 			 (N (get-assign-with-default asg 'N 130.0))
 			 (label (format #f "~a" (car asg)))
 			 (marker (canvas-add-marker-text canv label)))
-		    (marker-set-pos marker H N)
+		    (set marker 'x H)
+		    (set marker 'y N)
 		    (marker-set-movable marker #f)
 		    'ok))
 		(filter assignment-verified? assignments)))
@@ -148,7 +171,8 @@
 			     (N (get-assign-with-default asg 'N 130.0))
 			     (label (format #f "~a" (car asg)))
 			     (marker (canvas-add-marker-text canv label)))
-			(marker-set-pos marker H N)
+			(set marker 'x H)
+			(set marker 'y N)
 			(marker-set-movable marker #f)
 			'ok))
 		    (filter assignment-verified? assignments)))
