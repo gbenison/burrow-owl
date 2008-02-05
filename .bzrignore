@@ -20,3 +20,4 @@ log
 build-test
 src/marshal.h
 src/marshal.c
+starparse

@@ -20,6 +20,9 @@ PKG_CHECK_MODULES(GTK, gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
 
 AC_CONFIG_SUBDIRS(nmr-utils)
+if test -d $srcdir/starparse; then
+   AC_CONFIG_SUBDIRS(starparse)
+fi
 
 PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-0 >= 2.15,
 {
