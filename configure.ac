@@ -5,7 +5,6 @@ AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
-# AC_CONFIG_HEADER([config.h])
 
 GUILE_PROGS
 GUILE_FLAGS
@@ -20,7 +19,10 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 PKG_CHECK_MODULES(GTK, gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
 
-AC_CONFIG_SUBDIRS(nmr-utils)
+if test -d $srcdir/nmr-utils; then
+   AC_CONFIG_SUBDIRS(nmr-utils)
+fi
+
 if test -d $srcdir/starparse; then
    AC_CONFIG_SUBDIRS(starparse)
 fi
