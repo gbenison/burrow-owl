@@ -17,7 +17,7 @@
  *
  */
 
-#include <glib.h>
+#include "version.h"
 
 /*
  * returns:
