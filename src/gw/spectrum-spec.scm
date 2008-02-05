@@ -22,7 +22,6 @@
         "#include <marker_text.h>\n"
         "#include <cursor.h>\n"
         "#include <contourplot.h>\n"
-        "#include <box.h>\n"
         "#include <version.h>\n"
         "#include <contour.h>\n"
 	"#include <grid.h>\n"
@@ -33,6 +32,8 @@
         "#include <hosbackingsim.h>\n"
         "\n"))
 
+        ; couple of disabled sources
+        ; "#include <box.h>\n"
         ; "#include <speciter.h>\n"
 
 #!
