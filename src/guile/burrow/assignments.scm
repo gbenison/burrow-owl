@@ -17,6 +17,16 @@
 ; example assignment:
 ; (1 (assignments (H . 8.22739647389697) (N . 122.058562392438) (CA . 60.8575508211657) (CB . 32.86) (CG . 31.5)) (residue-type . MET) (verified . #f))
 
+;; FIXME here is how to load 'starparse' failing gracefully if
+;; it is not present
+(define (module-use%safe path)
+  (define module #f)
+  (false-if-exception
+   (set! module (resolve-interface path)))
+  (if module
+      (module-use! (current-module) module))
+  module)
+
 (define (file->list fname)
   (let ((file (open-input-file fname)))
     (define (read-item)
