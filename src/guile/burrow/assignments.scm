@@ -82,13 +82,32 @@
 
 ; ----- "old-style" .scm assignment format -------
 
+(define (old-style:read fname)
+  (define (entry->assignments entry)
+    (let* ((chemical-shifts:all (cdr entry))
+	   (residue-name        (car entry))
+	   (chemical-shifts (filter (lambda (x)(number? (cdr x))) chemical-shifts:all)))
+      (map (lambda (chemical-shift)
+	     (let ((assignment (make-assignment)))
+	       (type-check symbol? (car chemical-shift))
+	       (type-check number? (cdr chemical-shift))
+	       (assignment-set! assignment 'residue-name residue-name)
+	       (assignment-set! assignment 'atom-name    (car chemical-shift))
+	       (assignment-set! assignment 'shift        (cdr chemical-shift))
+	       assignment))
+	   chemical-shifts)))
+  (with-parse-trap
+   (lambda ()(flatten-list (map entry->assignments (file->list fname))))))
+
+(define (old-style:write assignments)
+  (throw 'not-implemented))
+
+(register-assignment-format! 'scm-style-1 old-style:read old-style:write)
+
 ; ----- "new-style" .scm assignment format -------
 
 ; the 'new style' .scm assignments file, example:
 ; (1 (assignments (H . 8.22) (N . 122.05) (CA . 60.85)) (residue-type . MET) (verified . #f))
-
-(define (flatten-list list)
-  (apply append list))
 
 (define (new-style:read fname)
   (define (entry->assignments entry)
@@ -185,6 +204,9 @@
   (false-if-exception
    (cdr (assoc key alist))))
 
-(define (key->getter key)
-  (lambda (asg)
-    (assoc-ref asg key)))
+(define (flatten-list list)
+  (apply append list))
+
+(define (type-check predicate obj)
+  (if (not (predicate obj))
+      (throw 'type-error)))
