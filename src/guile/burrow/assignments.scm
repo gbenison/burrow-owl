@@ -1,59 +1,114 @@
 
 (define-module (burrow assignments)
-  #:export (file->list
+  #:export (assignment?
+	    make-assignment
+	    assignment-set!
+	    assignment-get
+	    assignment-getter
+	    assignment:atom-name
+	    assignment:residue-name
+	    assignment:shift
+	    assignment:residue-type
+	    assignment:verified?
+
+	    register-assignment-format!
+	    assignments-from-file
+
+	    assignment-alist->hash
 	    residue:name
 	    residue:shift
 	    residue:set-shift!
 	    residue->alist
-	    residues->alist
-	    assignment-alist->hash
-	    assignment:name
-	    assignment:shift
-	    assignment:residue-type
-	    assignment:verified?))
+	    residues->alist))
 
+; ------ the 'assignment' abstract type ------
 
-; the 'new style' .scm assignments file, with 'verified' tag.
-; example assignment:
-; (1 (assignments (H . 8.22739647389697) (N . 122.058562392438) (CA . 60.8575508211657) (CB . 32.86) (CG . 31.5)) (residue-type . MET) (verified . #f))
+(define (assignment? obj)
+  (and (list? obj)
+       (equal? (car obj) 'assignment)))
 
-;; FIXME here is how to load 'starparse' failing gracefully if
-;; it is not present
-(define (module-use%safe path)
-  (define module #f)
-  (false-if-exception
-   (set! module (resolve-interface path)))
-  (if module
-      (module-use! (current-module) module))
-  module)
+(define (assert-assignment msg obj)
+  (if (not (assignment? obj))
+      (error (string-append msg ": wrong type argument"))))
 
-(define (file->list fname)
-  (let ((file (open-input-file fname)))
-    (define (read-item)
-      (let ((item (read file)))
-	(if (eof-object? item)
-	    '()
-	    (cons item (read-item)))))
-    (read-item)))
+(define (make-assignment)
+  (list 'assignment))
 
-(define (assoc-ref alist key)
-  (false-if-exception
-   (cdr (assoc key alist))))
+(define (assignment-set! assignment name value)
+  (assert-assignment "assignment-set" assignment)
+  (set-cdr! assignment (assoc-set! (cdr assignment) name value)))
 
-(define (key->getter key)
-  (lambda (asg)
-    (assoc-ref asg key)))
+(define (assignment-get assignment name)
+  (assert-assignment "assignment-get" assignment)
+  (assoc-ref (cdr assignment) name))
 
-(define assignment:name car)
-(define (assignment:shift asg atom)
-  (let ((assigns (assoc-ref (cdr asg) 'assignments)))
-    (if assigns
-	(assoc-ref assigns atom)
-	(assoc-ref (cdr asg) atom))))
-(define (assignment:residue-type asg)
-  (assoc-ref (cdr asg) 'residue-type))
-(define (assignment:verified? asg)
-  (assoc-ref (cdr asg) 'verified))
+(define (assignment-getter name)
+  (lambda (assignment)
+    (assignment-get assignment name)))
+
+(define assignment:atom-name    (assignment-getter 'atom-name))
+(define assignment:residue-name (assignment-getter 'residue-name))
+(define assignment:shift        (assignment-getter 'shift))
+(define assignment:residue-type (assignment-getter 'residue-type))
+(define assignment:verified?    (assignment-getter 'verified))
+
+; ------ Reading/writing assignments --------
+
+(define assignment-formats '())
+(define (make-assignment-format name writer reader)
+  (list name writer reader))
+(define assignment-format:name   car)
+(define assignment-format:reader cadr)
+(define assignment-format:writer caddr)
+(define (register-assignment-format! name reader writer)
+  (set! assignment-formats
+	(cons (make-assignment-format name reader writer)
+	      assignment-formats)))
+
+(define (assignments-from-file fname)
+  (define (try-formats formats)
+    (define (try-first-format)
+      (define reader (assignment-format:reader (car formats)))
+      (reader fname))
+    (define (try-remaining-formats . args)
+      (try-formats (cdr formats)))
+    (if (null? formats)
+	(throw 'invalid-file-format)
+	(catch 'parse-error try-first-format try-remaining-formats)))
+  (try-formats assignment-formats))
+
+; ----- "old-style" .scm assignment format -------
+
+; ----- "new-style" .scm assignment format -------
+
+; the 'new style' .scm assignments file, example:
+; (1 (assignments (H . 8.22) (N . 122.05) (CA . 60.85)) (residue-type . MET) (verified . #f))
+
+(define (new-style:read fname)
+  (define (entry->assignments entry)
+    (let ((chemical-shifts (assoc-ref (cdr entry) 'assignments))
+	  (residue-type    (assoc-ref (cdr entry) 'residue-type))
+	  (verified        (assoc-ref (cdr entry) 'verified))
+	  (residue-name    (car entry)))
+      (map (lambda (chemical-shift)
+	     (let ((assignment (make-assignment)))
+	       (assignment-set! assignment 'residue-name residue-name)
+	       (assignment-set! assignment 'residue-type residue-type)
+	       (assignment-set! assignment 'verified     verified)
+	       (assignment-set! assignment 'atom-name    (car chemical-shift))
+	       (assignment-set! assignment 'shift        (cdr chemical-shift))
+	       assignment))
+	   chemical-shifts)))
+  (apply append (map entry->assignments (file->list fname))))
+
+(define (new-style:write assignments)
+  (throw 'not-implemented))
+
+(register-assignment-format! 'scm-style-2 new-style:read new-style:write)
+
+; ----- BMRB assignment format -------
+
+; ------ 'residue' concepts ------
 	 
 ; convert my-alist into a doubly-dereferenced hash
 ; indexed on residue ID and then atom type
@@ -96,3 +151,33 @@
     (set-cdr! assignment value)))
 
 (define residue:name car)
+
+
+; ---- utilities ----
+
+;; FIXME here is how to load 'starparse' failing gracefully if
+;; it is not present
+(define (module-use%safe path)
+  (define module #f)
+  (false-if-exception
+   (set! module (resolve-interface path)))
+  (if module
+      (module-use! (current-module) module))
+  module)
+
+(define (file->list fname)
+  (let ((file (open-input-file fname)))
+    (define (read-item)
+      (let ((item (read file)))
+	(if (eof-object? item)
+	    '()
+	    (cons item (read-item)))))
+    (read-item)))
+
+(define (assoc-ref alist key)
+  (false-if-exception
+   (cdr (assoc key alist))))
+
+(define (key->getter key)
+  (lambda (asg)
+    (assoc-ref asg key)))
