@@ -77,12 +77,18 @@
 	(catch 'parse-error try-first-format try-remaining-formats)))
   (try-formats assignment-formats))
 
+(define (with-parse-trap proc)
+  (catch #t proc (lambda args (throw 'parse-error))))
+
 ; ----- "old-style" .scm assignment format -------
 
 ; ----- "new-style" .scm assignment format -------
 
 ; the 'new style' .scm assignments file, example:
 ; (1 (assignments (H . 8.22) (N . 122.05) (CA . 60.85)) (residue-type . MET) (verified . #f))
+
+(define (flatten-list list)
+  (apply append list))
 
 (define (new-style:read fname)
   (define (entry->assignments entry)
@@ -99,7 +105,8 @@
 	       (assignment-set! assignment 'shift        (cdr chemical-shift))
 	       assignment))
 	   chemical-shifts)))
-  (apply append (map entry->assignments (file->list fname))))
+  (with-parse-trap
+   (lambda ()(flatten-list (map entry->assignments (file->list fname))))))
 
 (define (new-style:write assignments)
   (throw 'not-implemented))
