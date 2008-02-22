@@ -14,7 +14,7 @@
 	    register-assignment-format!
 	    assignments-from-file
 
-	    assignment-alist->hash
+	    assignments->residue-table
 	    residue:name
 	    residue:shift
 	    residue:set-shift!
@@ -233,23 +233,16 @@
     (register-assignment-format! 'bmrb bmrb:read bmrb:write))
 
 ; ------ 'residue' concepts ------
-	 
-; convert my-alist into a doubly-dereferenced hash
-; indexed on residue ID and then atom type
-(define (assignment-alist->hash my-alist)
+(define (assignments->residue-table assignments)
   (let ((residues (make-hash-table 31)))
     (define (ensure-hash resid)
       (let ((result (hash-ref residues resid)))
-	(if result
-	    result
-	    (hash-set! residues resid (make-hash-table 5)))))
+	(if result result (hash-set! residues resid (list)))))
     (for-each
      (lambda (asg)
-       (let ((this-residue (ensure-hash (assoc-ref asg 'Atom_chem_shift.Seq_ID))))
-	 (hash-set! this-residue
-		    (assoc-ref asg 'Atom_chem_shift.Atom_ID)
-		    asg)))
-     my-alist)
+       (let ((entry (or (hash-ref residues (assignment:residue-name asg)) '())))
+	 (hash-set! residues (assignment:residue-name asg) (cons asg entry))))
+     assignments)
     residues))
 
 ;
