@@ -21,6 +21,38 @@
 	    residue->alist
 	    residues->alist))
 
+; ---- utilities ----
+
+; similar to (use-modules), but if fails to find module,
+; returns false rather than throw an error
+(define (use-module%safe path)
+  (define module #f)
+  (false-if-exception
+   (set! module (resolve-interface path)))
+  (if module
+      (module-use! (current-module) module))
+  module)
+
+(define (file->list fname)
+  (let ((file (open-input-file fname)))
+    (define (read-item)
+      (let ((item (read file)))
+	(if (eof-object? item)
+	    '()
+	    (cons item (read-item)))))
+    (read-item)))
+
+(define (assoc-ref alist key)
+  (false-if-exception
+   (cdr (assoc key alist))))
+
+(define (flatten-list list)
+  (apply append list))
+
+(define (type-check predicate obj)
+  (if (not (predicate obj))
+      (throw 'type-error)))
+
 ; ------ the 'assignment' abstract type ------
 
 (define (assignment? obj)
@@ -134,6 +166,72 @@
 
 ; ----- BMRB assignment format -------
 
+(define (value-tidy value)
+  (if (number? value)
+      (if (integer? value)
+	  (inexact->exact value)
+	  value)
+      (string->symbol value)))
+
+;; map NMR-Star v.2 names to standard NMR-Star v.3 names
+(define (ensure-star-v3 name)
+  (case name
+    ((Residue_seq_code Atom_chem_shift.Auth_seq_ID)
+     'Atom_chem_shift.Seq_ID)
+    ((Atom_name Atom_chem_shift.Atom_ID Atom_chem_shift.Auth_atom_ID)
+     'Atom_chem_shift.Atom_ID)
+    ((Chem_shift_value Atom_chem_shift.Val)
+     'Atom_chem_shift.Val)
+    (else name)))
+
+;; map various NMR-Star names to standard NMR-Star v.2.1 names
+(define (ensure-star-v2.1 name)
+  (case name
+    ((Residue_seq_code Atom_chem_shift.Auth_seq_ID Atom_chem_shift.Seq_ID)
+     'Residue_seq_code)
+    ((Atom_name Atom_chem_shift.Atom_ID Atom_chem_shift.Auth_atom_ID)
+     'Atom_name)
+    ((Chem_shift_value Atom_chem_shift.Val)
+     'Chem_shift_value)
+    ((Residue_label)
+     'Residue_label)
+    (else name)))
+
+(define (bmrb:read fname)
+  (let ((result '())
+	(group  '()))
+    (define (in-group? name)
+      (assoc name group))
+    (define (group->assignment group)
+      (define (get-component name)
+	(cdr (assoc name group)))
+      (false-if-exception
+       (let ((assignment (make-assignment)))
+	 (assignment-set! assignment 'residue-name  (get-component 'Residue_seq_code))
+	 (assignment-set! assignment 'atom-name     (get-component 'Atom_name))
+	 (assignment-set! assignment 'shift         (get-component 'Chem_shift_value))
+	 (assignment-set! assignment 'residue-type  (get-component 'Residue_label))
+	 assignment)))
+    (define (append-assignment!)
+      (let ((assignment (group->assignment group)))
+	(if assignment
+	    (set! result (cons assignment result))))
+      (set! group '()))
+    (define (process-entry name value)
+      (let ((name  (ensure-star-v2.1 name))
+	    (value (value-tidy value)))
+	(if (in-group? name)
+	    (append-assignment!)
+	    (set! group (cons (cons name value) group)))))
+    (star-parse fname #f process-entry)
+    result))
+
+(define (bmrb:write assignments)
+  (throw 'not-implemented))
+
+(if (use-module%safe '(starparse))
+    (register-assignment-format! 'bmrb bmrb:read bmrb:write))
+
 ; ------ 'residue' concepts ------
 	 
 ; convert my-alist into a doubly-dereferenced hash
@@ -179,34 +277,3 @@
 (define residue:name car)
 
 
-; ---- utilities ----
-
-;; FIXME here is how to load 'starparse' failing gracefully if
-;; it is not present
-(define (module-use%safe path)
-  (define module #f)
-  (false-if-exception
-   (set! module (resolve-interface path)))
-  (if module
-      (module-use! (current-module) module))
-  module)
-
-(define (file->list fname)
-  (let ((file (open-input-file fname)))
-    (define (read-item)
-      (let ((item (read file)))
-	(if (eof-object? item)
-	    '()
-	    (cons item (read-item)))))
-    (read-item)))
-
-(define (assoc-ref alist key)
-  (false-if-exception
-   (cdr (assoc key alist))))
-
-(define (flatten-list list)
-  (apply append list))
-
-(define (type-check predicate obj)
-  (if (not (predicate obj))
-      (throw 'type-error)))
