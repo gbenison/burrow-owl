@@ -4,7 +4,9 @@
 ; with synchronized cursors
 
 (use-modules (burrow hacks)
+	     (srfi srfi-1)
 	     (ice-9 format)
+	     (ice-9 getopt-long)
              (oop goops)
 	     (gnome gobject)
 	     (gnome gtk)
@@ -19,6 +21,12 @@
   '(<spec-1>)
   '(<spec-2>)
   '(...))
+
+(define option-spec
+  '((assignment-file (single-char #\a) (value #t))))
+(define options (getopt-long (command-line) option-spec))
+(define assignment-file-name (option-ref options 'assignment-file "assignments.scm"))
+(define spectrum-file-names (option-ref options '() #f))
 
 (define (spec->zoom-canvas spec)
   (let* ((sw (make <gtk-scrolled-window> #:height-request 300))
@@ -105,17 +113,25 @@
 (define (amide:toggle-verified asg)
   (amide:set-verified asg (not (amide:verified? asg))))
 
-(define assignment-file-name "assignments.scm")
+(define (assignments:find-atom assignments name)
+  (find (lambda (asg)
+	  (equal? (assignment:atom-name asg) name)) assignments))
 
 (define assignments
   (false-if-exception
-   (map (lambda (asg)
-	  (amide (assignment:residue-name asg)
-		 (assignment-get-ppm asg 'H)
-		 (assignment-get-ppm asg 'N)
-		 (assignment-verified? asg)))
-	(assignments-from-file assignment-file-name)))
-
+   (hash-fold
+    (lambda (key value seed)
+      (define (find-shift/safe name)
+	(false-if-exception (assignment:shift (assignments:find-atom value name))))
+      (let ((H (find-shift/safe 'H))
+	    (N (find-shift/safe 'N)))
+	(if (and H N)
+	    (cons (amide key H N #t) seed)
+	    seed)))
+    '()
+    (assignments->residue-table
+     (assignments-from-file assignment-file-name)))))
+  
 (define (write-assignments!)
   (for-each (lambda (asg)
 	      (display (list (amide:name asg)
@@ -221,13 +237,11 @@
 (connect write-button 'clicked (lambda args 
 				 (with-output-to-file "assignments.scm" write-assignments!)))
 
-(define spectrum-file-names (cdr (command-line)))
 (define x-adj #f)
 (define y-adj #f)
 (let ((spec-1 (spectrum-nih-2d-from-file (car spectrum-file-names))))
   (set! x-adj (adjustment-for-spectrum spec-1 0))
   (set! y-adj (adjustment-for-spectrum spec-1 1)))
-
 
 (define adjustments (make <ornament-group>))
 
