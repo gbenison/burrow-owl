@@ -11,11 +11,11 @@
 	    assignment:residue-type
 	    assignment:verified?
 
-	    new-style:read
-	    new-style:write
-
 	    register-assignment-format!
 	    assignments-from-file
+	    assignments-write
+	    assignments-write-with-style
+	    assignments-to-file
 
 	    assignments->residue-table
 	    residue:name
@@ -23,6 +23,9 @@
 	    residue:set-shift!
 	    residue->alist
 	    residues->alist))
+
+(use-modules (srfi srfi-1)
+	     (ice-9 regex))
 
 ; ---- utilities ----
 
@@ -94,14 +97,15 @@
 ; ------ Reading/writing assignments --------
 
 (define assignment-formats '())
-(define (make-assignment-format name writer reader)
-  (list name writer reader))
-(define assignment-format:name   car)
-(define assignment-format:reader cadr)
-(define assignment-format:writer caddr)
-(define (register-assignment-format! name reader writer)
+(define (make-assignment-format name writer reader extension)
+  (list name writer reader extension))
+(define assignment-format:name      car)
+(define assignment-format:reader    cadr)
+(define assignment-format:writer    caddr)
+(define assignment-format:extension cadddr)
+(define (register-assignment-format! name reader writer extension)
   (set! assignment-formats
-	(cons (make-assignment-format name reader writer)
+	(cons (make-assignment-format name reader writer extension)
 	      assignment-formats)))
 
 (define (assignments-from-file fname)
@@ -115,6 +119,35 @@
 	(throw 'invalid-file-format)
 	(catch 'parse-error try-first-format try-remaining-formats)))
   (try-formats assignment-formats))
+
+(define default-assignment-style 'none)
+(define (lookup-format name)
+  (define (name-predicate fmt)
+    (equal? (assignment-format:name fmt) name))
+  (let ((result (find name-predicate assignment-formats)))
+    (if (not result)
+	(throw 'invalid-format))
+    result))
+
+(define (assignments-write-with-style assignments style)
+  ((assignment-format:writer (lookup-format style)) assignments))
+
+(define (assignments-write assignments)
+  (assignments-write-with-style assignments default-assignment-style))
+
+(define (matches-extension? fname extension)
+  (string-match (string-append "[.]" extension) fname))
+
+(define (fname->format fname)
+  (define (extension-predicate format)
+    (matches-extension? fname (assignment-format:extension format)))
+  (let ((format (find extension-predicate assignment-formats)))
+    (if format (assignment-format:name format) default-assignment-style)))
+
+(define (assignments-to-file assignments fname)
+  (with-output-to-file fname
+    (lambda ()
+      (assignments-write-with-style assignments (fname->format fname)))))
 
 (define (with-parse-trap proc)
   (catch #t proc (lambda args (throw 'parse-error))))
@@ -141,7 +174,7 @@
 (define (old-style:write assignments)
   (throw 'not-implemented))
 
-(register-assignment-format! 'scm-style-1 old-style:read old-style:write)
+(register-assignment-format! 'scm-style-1 old-style:read old-style:write "old")
 
 ; ----- "new-style" .scm assignment format -------
 
@@ -189,7 +222,8 @@
 	 (result (hash-fold append-residue (list) table)))
     (for-each write-line (sort result car:<))))
 
-(register-assignment-format! 'scm-style-2 new-style:read new-style:write)
+(register-assignment-format! 'scm-style-2 new-style:read new-style:write "scm")
+(set! default-assignment-style 'scm-style-2)
 
 ; ----- BMRB assignment format -------
 
@@ -262,7 +296,8 @@
   (throw 'not-implemented))
 
 (if (use-module%safe '(starparse))
-    (register-assignment-format! 'bmrb bmrb:read bmrb:write))
+    (begin (register-assignment-format! 'bmrb bmrb:read bmrb:write "str")
+	   (set! default-assignment-style 'bmrb)))
 
 ; ------ 'residue' concepts ------
 (define (assignments->residue-table assignments)
