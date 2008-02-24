@@ -11,6 +11,9 @@
 	    assignment:residue-type
 	    assignment:verified?
 
+	    new-style:read
+	    new-style:write
+
 	    register-assignment-format!
 	    assignments-from-file
 
@@ -41,6 +44,10 @@
 	    '()
 	    (cons item (read-item)))))
     (read-item)))
+
+(define (write-line x)
+  (display x)
+  (newline))
 
 (define (assoc-ref alist key)
   (false-if-exception
@@ -160,7 +167,27 @@
    (lambda ()(flatten-list (map entry->assignments (file->list fname))))))
 
 (define (new-style:write assignments)
-  (throw 'not-implemented))
+  (define (car:< a b)
+    (let ((car-a (car a))
+	  (car-b (car b)))
+      (if (and (number? car-a)(number? car-b))
+	  (< car-a car-b)
+	  #f)))
+  (define (append-residue residue-name assignment-list output)
+    (cons
+     (cons
+      residue-name
+      (list
+       (cons 'assignments
+	     (map cons
+		  (map assignment:atom-name assignment-list)
+		  (map assignment:shift assignment-list)))
+       (cons 'residue-type (assignment:residue-type (car assignment-list)))
+       (cons 'verified #t)))
+     output))
+  (let* ((table (assignments->residue-table assignments))
+	 (result (hash-fold append-residue (list) table)))
+    (for-each write-line (sort result car:<))))
 
 (register-assignment-format! 'scm-style-2 new-style:read new-style:write)
 
@@ -226,7 +253,9 @@
 	(if (in-group? name)
 	    (append-assignment!))
 	(set! group (cons (cons name value) group))))
-    (star-parse fname #f process-entry)
+    (with-parse-trap
+     (lambda ()
+       (star-parse fname #f process-entry)))
     result))
 
 (define (bmrb:write assignments)
