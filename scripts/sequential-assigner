@@ -879,15 +879,6 @@
 
 (define (revert-current-assignment . args)(revert-assignment strip-selection))
 
-;
-; There was a bug in g-wrap, fixed now, that didn't allow negative values of
-; ssize_t, which would cause calls to gtk-ui-manager-add-ui-from-string to fail
-; if -1 was used as the string length argument.  So this wrapper is provided
-; that calculates the length explicitly.
-;
-(define (add-ui-from-string ui str)
-  (gtk-ui-manager-add-ui-from-string ui str))
-
 ;; Set up a UI manager that contains a menu which can select which strip plots
 ;; are displayed.
 (define ui-manager
@@ -946,8 +937,7 @@
     (add-actions actions action-entries)
     (insert-action-group ui actions 0)
     (gtk-ui-manager-set-add-tearoffs ui #t)
-    (add-ui-from-string ui ui-info)
-;    (add-ui-from-string ui "<menubar name='MenuBar'><menu action='Show'><menuitem action='HNCA'/></menu></menubar>")
+    (gtk-ui-manager-add-ui-from-string ui ui-info)
     (let ((add-spec-toggler
 	   (lambda (name)
 	     (gtk-ui-manager-add-ui ui (gtk-ui-manager-new-merge-id ui) "ui/MenuBar/ShowMenu"

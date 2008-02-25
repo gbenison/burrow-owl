@@ -290,10 +290,17 @@
     (with-parse-trap
      (lambda ()
        (star-parse fname #f process-entry)))
-    result))
+    (reverse result)))
 
 (define (bmrb:write assignments)
-  (throw 'not-implemented))
+  (display "data_assignments\n\n")
+  (format #t "_creation_date  ~a~%"   (strftime "%F" (localtime (current-time))))
+  (format #t "_creation_time  ~a~%~%" (strftime "%T" (localtime (current-time))))
+  (write-bmrb-loop
+   (cons 'Residue_seq_code (map assignment:residue-name assignments))
+   (cons 'Residue_label    (map assignment:residue-type assignments))
+   (cons 'Atom_name        (map assignment:atom-name    assignments))
+   (cons 'Chem_shift_value (map assignment:shift        assignments))))
 
 (if (use-module%safe '(starparse))
     (begin (register-assignment-format! 'bmrb bmrb:read bmrb:write "str")
