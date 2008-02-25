@@ -13,6 +13,8 @@
 	     (gnome gobject)
 	     (spectrum)
 	     (spec-extra)
+	     (burrow assignments)
+	     (ice-9 getopt-long)
 	     (srfi srfi-1)
 	     (srfi srfi-19)
 	     (nmr average-shift))
@@ -27,12 +29,42 @@
 
 (burrow-assert-version 1 4)
 
-(display ";; pid --> ")
-(display (getpid))
-(newline)
+(sleep-if-requested)
+(define-usage
+  "Sequential assignment based on 3D spectra")
 
-(if (> (length (command-line)) 1)
-    (sleep 10))
+(define option-spec
+  '((assignment-file (single-char #\a) (value #t))))
+(define options (getopt-long (command-line) option-spec))
+(define assignment-file-name #f)
+(define assignments #f)
+
+(let ((names '("assignments.str" "assignments.scm"))
+      (requested-assignment-file (option-ref options 'assignment-file #f)))
+  (if requested-assignment-file
+      (set! names (cons requested-assignment-file names)))
+  (let loop ((fnames names))
+    (if (null? fnames)
+	(error "Could not read any of these assignment files: " names))
+    (if (false-if-exception
+	 (set! assignments (assignments-from-file (car fnames))))
+	(set! assignment-file-name (car fnames))
+	(loop (cdr fnames)))))
+
+;; determine the protein sequence, from the assignments
+;; FIXME could also do this from a PDB file, a one-code sequence, etc.
+(define sequence
+  (let ((result (list)))
+    (for-each
+     (lambda (asg)
+       (if (number? (assignment:residue-name asg))
+	   (set! result
+		 (assoc-set!
+		  result
+		  (assignment:residue-name asg)
+		  (assignment:residue-type asg)))))
+     assignments)
+    (sort result (lambda (a b)(< (car a)(car b))))))
 
 ; ---------------
 ; Spectrum utilities
@@ -239,17 +271,16 @@
       (inexact->exact (round x)))
     (gtk-widget-set-size-request canv (->int (* width factor))(->int (* height factor)))))
 
+;; FIXME need a new 'verified' mechanism??
 (define (canvas-add-assignment-labels canv)
   (define (add-label-from-strip strip)
     (let* ((H ((strip 'get-adj) 'H))
-	   (N ((strip 'get-adj) 'N))
-	   (serial (strip 'serial)))
-      (if (serial-verified? serial)
-	  (let* ((label (serial-name serial))
-		 (marker (canvas-add-marker-text canv label)))
-	    (marker-set-adjustments marker H N)
-	    (set marker 'sensitive #f)))))
-  (for-each add-label-from-strip strips))
+	   (N ((strip 'get-adj) 'N)))
+      (let* ((label  (strip-name strip))
+	     (marker (canvas-add-marker-text canv label)))
+	(marker-set-adjustments marker H N)
+	(set marker 'sensitive #f))))
+  (for-each add-label-from-strip residues))
 
 (define (run-hsqc-pick action)
   (make-amide-window "hsqc picker" (assoc-ref spectra 'hsqc)(get-thres-adjustment 'hsqc)))
@@ -414,7 +445,7 @@
 (define (strip-jump-to-nth nth)
   (let* ((allocation (gtk-widget-get-allocation strip-hbox))
 	 (width (vector-ref allocation 2))
-	 (frac (/ (* 1.0 nth)(length strips)))
+	 (frac (/ (* 1.0 nth)(length residues)))
 	 (pos (* frac width))
 	 (adj (gtk-scrolled-window-get-hadjustment strip-sw)))
     (set adj 'value pos)))
@@ -428,15 +459,12 @@
     (cond ((null? remaining) #f)
 	  ((equal-stringwise? (strip-name (car remaining)) name) n)
 	  (else (iter (+ n 1)(cdr remaining)))))
-  (iter 0 strips))
+  (iter 0 residues))
 
 (define (strip-jump-to-name name)
   (let ((idx (strip:name->index name)))
     (and idx (strip-jump-to-nth idx))))
     
-;; A table of strip information.
-(define strips '())
-
 (define (make-strip spec H N)
   (let* ((s1 (spectrum-project-ppm
 	      (spectrum-transpose spec 2) N))
@@ -547,41 +575,25 @@
 ;; for convoluted searches, etc.
 (define strip-selection #f)
 
-(define (serial-get-assignments serial)
-  (assoc-ref (cdr serial) 'assignments))
-
-(define (serial-name serial)
-  (format #f "~a" (car serial)))
-
 (define (strip-name strip)
-  (serial-name (strip 'serial)))
+  (format #f "~a"(strip 'residue-id)))
 
-(define (serial-verified? serial)
-  (assoc-ref (cdr serial) 'verified))
+(define (residue-set-assignment residue atom assignment)
+  (let ((adj ((residue 'get-adj) atom)))
+    (set-value adj assignment)))
 
-(define (serial-set-verified serial v?)
-  (if (not (assoc 'verified (cdr serial)))
-      (set-cdr! serial (cons (cons 'verified #f)(cdr serial))))
-  (set-cdr! (assoc 'verified (cdr serial)) v?))
-
-;; A 'residue' abstraction--it has a set of resonance adjustments and a window with spectra.
-(define (make-residue-named name)
+; 'residue' abstraction--
+; includes a set of resonance adjustments and a window with strip plots.
+(define (make-residue residue-id residue-type)
   (let ((adjustments (list))
-	(name name)
-	(preceding #f))
+	(name (format #f "~a (~a)" residue-id residue-type))
+	(preceding #f)
+	(verified  #f))
     (define (get-adj atom)
       (cond ((assoc atom adjustments) => cdr)
 	    (else (let ((new-adjustment (default-adjustment atom)))
 		    (set! adjustments (cons (cons atom new-adjustment) adjustments))
 		    new-adjustment))))
-    (define (serialize)
-      (let ((assignments
-	     (map (lambda (entry)
-		    (let ((name (car entry))
-			  (value (get-value (cdr entry))))
-		      (cons name value)))
-		  adjustments)))
-	(cons name (list (cons 'assignments assignments)))))
     (define (make-strip-entry-for name)
       (cons name (make-strip-frame name (get-adj 'H)(get-adj 'N))))
     (let ((frames (map make-strip-entry-for strippers))
@@ -595,10 +607,6 @@
 	  (N-spin (make <gtk-spin-button> #:digits 2)))
       (define (get-frame name)
 	(assoc-ref frames name))
-      (define (set-name! new-name)
-	(let ((safe-name (format #f "~a" new-name)))
-	  (set name-label 'label safe-name)
-	  (set! name safe-name)))
       (define (add-cursor residue spec-name atom)
 	(let ((frame (get-frame spec-name))
 	      (adj ((if residue
@@ -613,9 +621,9 @@
       (define (link-preceding-residue preceding-residue)
 	(set! preceding preceding-residue)
 	(let ((c (add-cursor preceding-residue 'cbcaconh 'CA)))
-	  (connect c 'dropped ((preceding-residue 'aa-predictor) 'update)))
+	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
 	(let ((c (add-cursor preceding-residue 'cbcaconh 'CB)))
-	  (connect c 'dropped ((preceding-residue 'aa-predictor) 'update)))
+	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
 	(add-cursor preceding-residue 'hnca 'CA))
       (and (get-frame 'hncacb)
 	   (contour-plot-set-draw-negative ((get-frame 'hncacb) 'contour-plot) #t))
@@ -637,6 +645,11 @@
 	(pack-start spin-hbox N-spin #f #f 5)
 	(pack-start vbox spin-hbox #f #f 0))
       (pack-start vbox verify-button #f #f 5)
+      (set verify-button 'active verified)
+      (connect verify-button 'toggled
+	       (lambda args
+		 (set! verified (get verify-button 'active))
+		 #f))
       (pack-start vbox (aa-predictor 'widget) #t #t 5)
       ;; add some decorations to the noesy spec
       (and (get-frame 'noesy)
@@ -650,14 +663,13 @@
 	     (set diagonal-cursor 'sensitive #f)))
       (show-all vbox)
       (lambda(req)
-	(cond ((eq? req 'widget) vbox)
-	      ((eq? req 'name) name)
-	      ((eq? req 'serial) #f)
-	      ((eq? req 'set-name!) set-name!)
-	      ((eq? req 'get-adj) get-adj)
-	      ((eq? req 'frames) frames)
-	      ((eq? req 'prev) preceding)
-	      ((eq? req 'serialize) serialize)
+	(cond ((eq? req 'widget)       vbox)
+	      ((eq? req 'name)         name)
+	      ((eq? req 'residue-id)   residue-id)
+	      ((eq? req 'residue-type) residue-type)
+	      ((eq? req 'get-adj)      get-adj)
+	      ((eq? req 'frames)       frames)
+	      ((eq? req 'prev)         preceding)
 	      ((eq? req 'link-preceding-residue) link-preceding-residue)
 	      ((member req '(hide-cross show-cross))
 	       (for-each (lambda (entry)
@@ -667,171 +679,64 @@
 	      ((eq? req 'aa-predictor) aa-predictor)
 	      (else (error "residue: unknown request " req)))))))
 
-(define (residue-set-assignment residue atom assignment)
-  (let ((adj ((residue 'get-adj) atom)))
-    (set-value adj assignment)))
+;; create 'residues'
+(define residues
+  (map make-residue
+       (map car sequence)
+       (map cdr sequence)))
 
-;; make new residues with default sequential numbering as names
-(define make-residue
-  (let ((counter 1))
-    (lambda ()
-      (let ((result (make-residue-named (number->string counter))))
-	(set! counter (+ 1 counter))
-	result))))
+;; revert an assignment to what it was upon bootup
+(define revert-assignment
+  (let ((table (assignments->residue-table assignments)))
+    (lambda (strip)
+      (define (copy-assignment assignment)
+	(residue-set-assignment
+	 strip 
+	 (assignment:atom-name assignment)
+	 (assignment:shift     assignment)))
+      (for-each copy-assignment (hash-ref table (strip 'residue-id))))))
 
-(define (append-residue! new-residue)
-  (let ((widget (new-residue 'widget)))
-    (pack-start strip-hbox widget #f #f 10)
-    (if (null? strips)
-	'ok
-	((new-residue 'link-preceding-residue)(car (reverse strips))))
+(for-each revert-assignment residues)
+
+;; establish i --> i-1 links
+(let loop ((residues residues))
+  (if (>= (length residues) 2)
+      (begin
+	(((cadr residues) 'link-preceding-residue)
+	 (car residues))
+	(loop (cdr residues)))))
+
+;; pack in the widgets
+(for-each
+ (lambda (residue)
+   (let ((widget  (residue 'widget)))
+     (pack-start strip-hbox widget #f #f 10)
     (connect widget 'button-press-event
 	     (lambda args
 	       ;; de-highlight currently selected strip
 	       (if strip-selection
 		   (gtk-widget-set-state (strip-selection 'widget) 'normal))
 	       (gtk-widget-set-state widget 'selected)
-	       (set! strip-selection new-residue)
-	       #f))
-    (set! strips (append! strips (list new-residue)))))
-
-; example serial residue:
-; (1 (verified . #t) (residue-type . MET) (assignments (CG . 31.5) (CB . 32.86) (CA . 55.3) (N . 115.37530421839) (H . 7.38512697401224)))
-
-;; A 'residue' abstraction--it has a set of resonance adjustments and a window with spectra.
-(define (serial->residue serial)
-  (let ((adjustments (list))
-	(name (format #f "~a (~a)" (car serial)(assoc-ref (cdr serial) 'residue-type)))
-	(preceding #f))
-    (define (get-adj atom)
-      (cond ((assoc atom adjustments) => cdr)
-	    (else (let ((new-adjustment (default-adjustment atom)))
-		    (set! adjustments (cons (cons atom new-adjustment) adjustments))
-		    new-adjustment))))
-    (define (serialize)
-      (let ((assignments
-	     (map (lambda (entry)
-		    (let ((name (car entry))
-			  (value (get-value (cdr entry))))
-		      (cons name value)))
-		  adjustments)))
-	(set-cdr! (assoc 'assignments (cdr serial)) assignments)
-	serial))
-    (define (make-strip-entry-for name)
-      (cons name (make-strip-frame name (get-adj 'H)(get-adj 'N))))
-    ;; set the assignments
-    (for-each (lambda (asg)
-		(set (get-adj (car asg)) 'value (cdr asg))) (serial-get-assignments serial))
-    (let ((frames (map make-strip-entry-for strippers))
-	  (hbox (make <gtk-hbox>))
-	  (vbox (make <gtk-vbox>))
-	  (name-label (make <gtk-label> #:label name))
-	  (verify-button (gtk-check-button-new-with-label "verified"))
-	  (aa-predictor (aa-predictor (get-adj 'CA)
-				      (get-adj 'CB)))
-	  (H-spin (make <gtk-spin-button> #:digits 2))
-	  (N-spin (make <gtk-spin-button> #:digits 2)))
-      (define (get-frame name)
-	(assoc-ref frames name))
-      (define (set-name! new-name)
-	(let ((safe-name (format #f "~a" new-name)))
-	  (set name-label 'label safe-name)
-	  (set! name safe-name)))
-      (define (add-cursor residue spec-name atom)
-	(let ((frame (get-frame spec-name))
-	      (adj ((if residue
-			(residue 'get-adj)
-			get-adj)
-		    atom)))
-	  (and frame adj
-	       (let* ((canvas (frame 'canvas))
-		      (cursor (canvas-add-cursor-horizontal canvas)))
-		 (cursor-set-adjustment cursor adj)
-		 cursor))))
-      (define (link-preceding-residue preceding-residue)
-	(set! preceding preceding-residue)
-	(let ((c (add-cursor preceding-residue 'cbcaconh 'CA)))
-	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
-	(let ((c (add-cursor preceding-residue 'cbcaconh 'CB)))
-	  (if c (connect c 'dropped ((preceding-residue 'aa-predictor) 'update))))
-	(add-cursor preceding-residue 'hnca 'CA))
-      (and (get-frame 'hncacb)
-	   (contour-plot-set-draw-negative ((get-frame 'hncacb) 'contour-plot) #t))
-      (let ((c (add-cursor #f 'hncacb 'CA)))
-	(if c (connect c 'dropped (aa-predictor 'update))))
-      (let ((c (add-cursor #f 'hncacb 'CB)))
-	(if c (connect c 'dropped (aa-predictor 'update))))
-      (add-cursor #f 'hnca 'CA)
-      (for-each (lambda (entry)
-		  (let ((strip-frame ((cdr entry) 'outer)))
-		    (pack-start hbox strip-frame #f #f 0)))
-		frames)
-      (set H-spin 'adjustment (get-adj 'H))
-      (set N-spin 'adjustment (get-adj 'N))
-      (pack-start vbox name-label #f #f 5)
-      (pack-start vbox hbox #t #t 0)
-      (let ((spin-hbox (make <gtk-hbox>)))
-	(pack-start spin-hbox H-spin #f #f 5)
-	(pack-start spin-hbox N-spin #f #f 5)
-	(pack-start vbox spin-hbox #f #f 0))
-      (pack-start vbox verify-button #f #f 5)
-      (set verify-button 'active (serial-verified? serial))
-      (connect verify-button 'toggled
-	       (lambda args (serial-set-verified serial (get verify-button 'active)) #f))
-      (pack-start vbox (aa-predictor 'widget) #t #t 5)
-      ;; add some decorations to the noesy spec
-      (and (get-frame 'noesy)
-	   (let* ((frame (get-frame 'noesy))
-		  (noesy-canv (frame 'canvas))
-		  (noesy-H-cursor (canvas-add-cursor-horizontal noesy-canv))
-		  (diagonal-cursor (canvas-add-cursor-horizontal noesy-canv)))
-	     ((frame 'cross-set-spectrum) (assoc-ref spectra 'noesy-diagonal))
-	     (cursor-set-adjustment noesy-H-cursor global-noesy-H-adjustment)
-	     (cursor-set-adjustment diagonal-cursor (get-adj 'H))
-	     (set diagonal-cursor 'sensitive #f)))
-      (show-all vbox)
-      (lambda(req)
-	(cond ((eq? req 'widget) vbox)
-	      ((eq? req 'name) name)
-	      ((eq? req 'serial) serial)
-	      ((eq? req 'set-name!) set-name!)
-	      ((eq? req 'get-adj) get-adj)
-	      ((eq? req 'frames) frames)
-	      ((eq? req 'prev) preceding)
-	      ((eq? req 'serialize) serialize)
-	      ((eq? req 'link-preceding-residue) link-preceding-residue)
-	      ((member req '(hide-cross show-cross))
-	       (for-each (lambda (entry)
-			   ((cdr entry) req)) frames))
-	      ((eq? req 'show-aa)(show (aa-predictor 'widget)))
-	      ((eq? req 'hide-aa)(hide (aa-predictor 'widget)))
-	      ((eq? req 'aa-predictor) aa-predictor)
-	      (else (error "residue: unknown request " req)))))))
-
-(define (add-residue-from-serial serial)
-  (append-residue! (serial->residue serial)))
-
-;; default: read initial assignments from a file called "assignments.scm"
-(for-each add-residue-from-serial (file->list "assignments.scm"))
+	       (set! strip-selection residue)
+	       #f))))
+ residues)
 
 ;; write assignments to stdout with a comment including a serial counter
 ;; that tells how many times this has been called.
-(define write-assignments
-  (let ((n 1))
-    (lambda args
-      (let ((all-assignments (map (lambda(strip)((strip 'serialize))) strips))
-	    (time-stamp (format #f "~a.~a.~a:~a.~a"
-				(date-year (current-date))
-				(date-month (current-date))
-				(date-day (current-date))
-				(date-hour (current-date))
-				(date-minute (current-date)))))
-	(with-output-to-file "assignments.scm"
-	  (lambda()
-	    (format #t ";; ---- start assignment dump ~a (~a) -----~%" n time-stamp)
-	    (for-each write-line all-assignments)
-	    (format #t ";; ---- end assignment dump ~a -----~%~%" n)))
-	(set! n (+ 1 n))))))
+(define (write-assignments . args)
+  (define (residue->assignments residue)
+    (define (get-atom name)
+      (let ((assignment (make-assignment))
+	    (value (get ((residue 'get-adj) name) 'value)))
+	(assignment-set! assignment 'residue-name (residue 'residue-id))
+	(assignment-set! assignment 'atom-name    name)
+	(assignment-set! assignment 'shift        value)
+	(assignment-set! assignment 'residue-type (residue 'residue-type))
+	assignment))
+    (map get-atom (list 'H 'N 'CA 'CB)))
+  (assignments-to-file
+   (apply append (map residue->assignments residues))
+   assignment-file-name))
 
 ;; How to make a widget look 'selected'
 ;; (gtk-widget-set-state hbox 'selected)
@@ -843,39 +748,20 @@
       (cond ((assoc type (strip 'frames)) => (lambda(s)(op ((cdr s) 'outer)))))))
   (lambda (action)
     (let ((op (if (get-active action) show hide)))
-      (for-each (toggle-strip op) strips))))
+      (for-each (toggle-strip op) residues))))
 
 (define (cross-section-toggle action)
   (for-each
    (lambda(strip)
      (strip (if (get-active action) 'show-cross 'hide-cross)))
-   strips))
+   residues))
 
 (define (aa-toggle action)
   (for-each
    (lambda (strip)
      (strip (if (get-active action) 'show-aa 'hide-aa)))
-   strips))
+   residues))
 
-;; get name of assignment file
-(define assign-file-name
-  (let ((cmd (command-line)))
-    (if (> (length cmd) 1)
-	(cadr cmd)
-	"assignments.scm")))
-
-;; revert an assignment to what it was upon bootup in the assignments.scm file.
-(define revert-assignment
-  (let ((original-assignments
-	 (map (lambda(x)
-		(cons (format #f "~a" (car x))(cdr x)))
-	      (file->list assign-file-name))))
-    (lambda (strip)
-      (let ((original (assoc (strip 'name) original-assignments)))
-	(and strip original
-	     (for-each (lambda (assignment)
-			 (residue-set-assignment strip (car assignment)(cdr assignment)))
-		       (cdr original)))))))
 
 (define (revert-current-assignment . args)(revert-assignment strip-selection))
 
@@ -945,7 +831,7 @@
 				    (symbol->string name)
 				    -1 -1))))
       (for-each add-spec-toggler strippers))
-    (let ((strip-names (map strip-name strips)))
+    (let ((strip-names (map strip-name residues)))
       (define (name->action name)
 	(list name #f name #f name (lambda args (strip-jump-to-name name))))
       (define (add-strip-selector name)

@@ -26,7 +26,7 @@
   '((assignment-file (single-char #\a) (value #t))))
 (define options (getopt-long (command-line) option-spec))
 (define assignment-file-name (option-ref options 'assignment-file "assignments.scm"))
-(define spectrum-file-names (option-ref options '() #f))
+(define spectrum-file-names  (option-ref options '() #f))
 
 (define (spec->zoom-canvas spec)
   (let* ((sw (make <gtk-scrolled-window> #:height-request 300))
