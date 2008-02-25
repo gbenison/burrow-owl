@@ -84,19 +84,6 @@
      (spectrum-sf spec dim)))
 
 ; ---------------
-; file utilities
-; ---------------
-
-(define (file->list fname)
-  (let ((file (open-input-file fname)))
-    (define (read-item)
-      (let ((item (read file)))
-	(if (eof-object? item)
-	    '()
-	    (cons item (read-item)))))
-    (read-item)))
-
-; ---------------
 ; Design notes
 ;
 ; there is a central list of residues; each one has a set of adjustments corresponding
@@ -721,8 +708,11 @@
 	       #f))))
  residues)
 
-;; write assignments to stdout with a comment including a serial counter
-;; that tells how many times this has been called.
+;
+; write assignments to the same file they were read in from.
+; note: only writes backbone assignments; clobbers existing assignment
+; file!
+;
 (define (write-assignments . args)
   (define (residue->assignments residue)
     (define (get-atom name)
