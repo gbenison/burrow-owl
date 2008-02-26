@@ -112,27 +112,6 @@
   (contour-set-color-positive (painter-get-contour painter)
 			      30000 60000 5000 40000 0 0))
 
-; ------ file handling -----
-(define-public (file->list fname)
-  (let ((f (open-input-file fname)))
-    (define (grok result)
-      (let ((next (read f)))
-	(if (eof-object? next)
-	    (reverse result)
-	    (grok (cons next result)))))
-    (and f
-	 (grok (list)))))
-
-; ------- assignments -------
-; accept two styles of assignment list
-(define-public (assignment-get assignments residue atom)
-  (let ((entry (assoc residue assignments)))
-    (and entry
-	 (let ((asgs (or (false-if-exception (cdr (assoc 'assignments (cdr entry))))
-			 (cdr entry))))
-	   (false-if-exception (cdr (assoc atom asgs)))))))
-
-
 ; ----------------------
 ; derived manipulations
 
@@ -189,47 +168,6 @@
 (define-public (cursor-set-movable cursor movable)
   (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")
   (set cursor 'sensitive movable))
-
-; ------- assignment lists ------
-
-; example assignment:
-; (1 (assignments (CG . 31.5) (CB . 32.86) (CA . 60.8575508211657) (N . 122.058562392438) (H . 8.22739647389697)) (residue-type . MET) (verified . #f))
-
-(define-public (assignment-get-ppm asg . atoms)
-  (if (null? atoms)
-      #f
-      (or (assoc-ref (assoc-ref asg 'assignments) (car atoms))
-	  (apply assignment-get-ppm asg (cdr atoms)))))
-(define-public (assignment-verified? asg)
-  (assoc-ref asg 'verified))
-
-;; usage: assign-dist asg-1 asg-2 atom-name-1 weight-1 atom-name-2 weight-2 ...
-(define-public (assignment-distance a1 a2 . atoms)
-  (define (square x)
-    (expt x 2.0))
-  (define (dist name weight)
-    (square (/ (- (assignment-get-ppm a1 name)
-		  (assignment-get-ppm a2 name)) weight)))
-  (define (dist-all remaining)
-    (if (null? remaining)
-	0
-	(+ (dist (car remaining)(cadr remaining))
-	   (dist-all (cddr remaining)))))
-  (sqrt (dist-all atoms)))
-
-; accept two styles of assignment list
-(define-public (assignment-get-from-list assignments residue atom)
-  (let ((entry (assoc residue assignments)))
-    (and entry
-	 (let ((asgs (or (false-if-exception (cdr (assoc 'assignments (cdr entry))))
-			 (cdr entry))))
-	   (false-if-exception (cdr (assoc atom asgs)))))))
-
-(define-public (assignment-get asg atom)
-  (let ((asgs (or (false-if-exception (cdr (assoc 'assignments (cdr asg))))
-		  (cdr asg))))
-    (false-if-exception (cdr (assoc atom asgs)))))
-
 
 ; ------------- deperecated & disabled commands -----------
 
