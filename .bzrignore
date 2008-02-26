@@ -21,3 +21,4 @@ build-test
 src/marshal.h
 src/marshal.c
 starparse
+nmr-utils
