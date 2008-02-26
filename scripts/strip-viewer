@@ -5,12 +5,52 @@
              (gnome gtk)
 	     (spectrum)
 	     (spec-extra)
-	     (ice-9 format))
+	     (burrow assignments)
+	     (srfi srfi-1)
+	     (ice-9 format)
+	     (ice-9 getopt-long))
 
 (define-usage
   "hsqc display with scrollable strip of 3D spectrum"
   '(<hsqc-spec>)
   '(<3d-spec>))
+
+(sleep-if-requested)
+
+(define option-spec
+  '((assignment-file (single-char #\a) (value #t))))
+(define options (getopt-long (command-line) option-spec))
+(define assignment-file-name #f)
+(define assignments #f)
+(define 3d-file-name   (cadr (option-ref options '() #f)))
+(define hsqc-file-name (car  (option-ref options '() #f)))
+
+(let ((names '("assignments.str" "assignments.scm"))
+      (requested-assignment-file (option-ref options 'assignment-file #f)))
+  (if requested-assignment-file
+      (set! names (cons requested-assignment-file names)))
+  (let loop ((fnames names))
+    (if (null? fnames)
+	(warn "Could not read any of these assignment files: " names))
+    (if (false-if-exception
+	 (set! assignments (assignments-from-file (car fnames))))
+	(set! assignment-file-name (car fnames))
+	(loop (cdr fnames)))))
+
+(define (canvas-add-assignments canv)
+  (if assignments
+      (let ((residues (assignments->residue-table assignments)))
+	(hash-fold
+	 (lambda (resid asg rest)
+	   (let* ((H (find (assignment-predicate 'atom-name 'H) asg))
+		  (N (find (assignment-predicate 'atom-name 'N) asg))
+		  (label (format #f "~a" resid))
+		  (marker (canvas-add-marker-text canv label)))
+	     (set marker 'sensitive #f)
+	     (set marker 'x (assignment:shift H))
+	     (set marker 'y (assignment:shift N))))
+	 #f
+	 residues))))
 
 ; ---------------
 ; Spectra
@@ -32,14 +72,12 @@
 	(bruker-transpose spec)
 	spec)))
 
-(define fname-3d (caddr (command-line)))
 (define (get-assign-with-default asg name default)
   (or (false-if-exception
        (cdr (assoc name (cdr (assoc 'assignments (cdr asg))))))
       default))
 
-(define spec-hsqc (spectrum-nih-2d-from-file (cadr (command-line))))
-
+(define spec-hsqc (spectrum-nih-2d-from-file hsqc-file-name))
 
 (define (spec->zoom-canvas spec)
   (let* ((sw (make <gtk-scrolled-window> #:height-request 300))
@@ -96,11 +134,8 @@
 	    (else (error "zoom canvas: unknown request " req))))))
 
 
+(define spec-3d (normalize-hcn (spectrum-nih-from-file 3d-file-name)))
 
-(define spec-3d (normalize-hcn (spectrum-nih-from-file fname-3d)))
-
-(define assignments (false-if-exception (file->list "assignments.scm")))
-(sleep-if-requested)
 
 ;; default width for strips with xdim = H
 (define H-width 0.15)
@@ -125,17 +160,7 @@
 			  (spectrum-transpose spec-3d 2) z)))
   (canvas-set-thres canv thres)
   (canvas-set-draw-negative canv #t)
-  (if assignments
-      (for-each (lambda (asg)
-		  (let* ((H (get-assign-with-default asg 'H 11.0))
-			 (N (get-assign-with-default asg 'N 130.0))
-			 (label (format #f "~a" (car asg)))
-			 (marker (canvas-add-marker-text canv label)))
-		    (set marker 'x H)
-		    (set marker 'y N)
-		    (marker-set-movable marker #f)
-		    'ok))
-		(filter assignment-verified? assignments)))
+  (canvas-add-assignments canv)
   (let ((marker (canvas-add-marker canv))
 	(frame (make <gtk-frame> #:label "hello, world!"))
 	(vbox (make <gtk-vbox>)))
@@ -165,17 +190,7 @@
 	   (canv (zoom-canv 'canv)))
       (canvas-set-thres canv thres)
       (canvas-set-draw-negative canv #t)
-      (if assignments
-	  (for-each (lambda (asg)
-		      (let* ((H (get-assign-with-default asg 'H 11.0))
-			     (N (get-assign-with-default asg 'N 130.0))
-			     (label (format #f "~a" (car asg)))
-			     (marker (canvas-add-marker-text canv label)))
-			(set marker 'x H)
-			(set marker 'y N)
-			(marker-set-movable marker #f)
-			'ok))
-		    (filter assignment-verified? assignments)))
+      (canvas-add-assignments canv)
       (let ((marker (canvas-add-marker canv))
 	    (frame (make <gtk-frame> #:label "hello, world!"))
 	    (vbox (make <gtk-vbox>)))
@@ -198,7 +213,7 @@
 	    (pack-start main-hbox frame #t #t 0)
 	    (let* ((thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
 		   (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
-		   (frame (make <gtk-frame> #:label fname-3d))
+		   (frame (make <gtk-frame> #:label 3d-file-name))
 		   (vbox (make <gtk-vbox>))
 		   (hbox (make <gtk-hbox>))
 		   (canv (make <hos-canvas>

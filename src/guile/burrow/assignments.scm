@@ -5,6 +5,7 @@
 	    assignment-set!
 	    assignment-get
 	    assignment-getter
+	    assignment-predicate
 	    assignment:atom-name
 	    assignment:residue-name
 	    assignment:shift
@@ -87,6 +88,10 @@
 (define (assignment-getter name)
   (lambda (assignment)
     (assignment-get assignment name)))
+
+(define (assignment-predicate name value)
+  (lambda (asg)
+    (equal? (assignment-get asg name) value)))
 
 (define assignment:atom-name    (assignment-getter 'atom-name))
 (define assignment:residue-name (assignment-getter 'residue-name))
