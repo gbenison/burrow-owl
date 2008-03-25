@@ -137,8 +137,9 @@
 
 (define (current-assignments)
   (define (get-res-type residue-id)
-    (let ((entry (assoc residue-id sequence)))
-      (if entry (cdr entry) 'X)))
+    (or (false-if-exception
+	 (cdr (assoc residue-id sequence)))
+	'X))
   (apply append
    (map (lambda (asg)
 	 (let ((name (amide:name asg))
