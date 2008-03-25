@@ -117,12 +117,15 @@
   (find (lambda (asg)
 	  (equal? (assignment:atom-name asg) name)) assignments))
 
+(define sequence '())
+
 (define assignments
   (false-if-exception
    (hash-fold
     (lambda (key value seed)
       (define (find-shift/safe name)
 	(false-if-exception (assignment:shift (assignments:find-atom value name))))
+      (set! sequence (assoc-set! sequence key (assignment:residue-type (car value))))
       (let ((H (find-shift/safe 'H))
 	    (N (find-shift/safe 'N)))
 	(if (and H N)
@@ -131,15 +134,26 @@
     '()
     (assignments->residue-table
      (assignments-from-file assignment-file-name)))))
-  
-(define (write-assignments!)
-  (for-each (lambda (asg)
-	      (display (list (amide:name asg)
-			     (list 'assignments
-				   (cons 'H (get (amide:H asg) 'value))
-				   (cons 'N (get (amide:N asg) 'value)))
-			     (cons 'verified (amide:verified? asg))))
-	      (newline)) assignments))
+
+(define (current-assignments)
+  (define (get-res-type residue-id)
+    (let ((entry (assoc residue-id sequence)))
+      (if entry (cdr entry) 'X)))
+  (apply append
+   (map (lambda (asg)
+	 (let ((name (amide:name asg))
+	       (H    (make-assignment))
+	       (N    (make-assignment)))
+	   (assignment-set! H 'shift (get (amide:H asg) 'value))
+	   (assignment-set! N 'shift (get (amide:N asg) 'value))
+	   (assignment-set! H 'atom-name 'H)
+	   (assignment-set! N 'atom-name 'N)
+	   (assignment-set! H 'residue-name name)
+	   (assignment-set! N 'residue-name name)
+	   (assignment-set! H 'residue-type (get-res-type name))
+	   (assignment-set! N 'residue-type (get-res-type name))
+	   (list H N)))
+	assignments)))
 
 (define (canvas-add-assignments canv . movable?)
   (if assignments
@@ -234,8 +248,11 @@
 (define zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
 (define zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
 (define write-button (make <gtk-button> #:label "WRITE ASSIGNMENTS"))
-(connect write-button 'clicked (lambda args 
-				 (with-output-to-file "assignments.scm" write-assignments!)))
+(connect write-button
+	 'clicked
+	 (lambda args 
+	   (let ((asg (current-assignments)))
+	     (assignments-to-file asg assignment-file-name)) #f))
 
 (define x-adj #f)
 (define y-adj #f)
