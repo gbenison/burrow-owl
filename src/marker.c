@@ -35,7 +35,8 @@
 enum {
   PROP_0,
   PROP_X,
-  PROP_Y
+  PROP_Y,
+  PROP_SIZE
 };
 
 enum {
@@ -105,6 +106,16 @@ hos_marker_class_init (HosMarkerClass *klass)
 							G_MAXDOUBLE,
 							0.0,
 							G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_SIZE,
+                                   g_param_spec_uint ("size",
+						      "Size",
+						      "Size (pixels)",
+						      0,
+						      200,
+						      8,
+						      G_PARAM_READWRITE));
 
   marker_signals[DROPPED] =
     g_signal_new("dropped",
@@ -257,7 +268,7 @@ marker_release_method(HosOrnament *self)
 static void
 hos_marker_init(HosMarker *marker)
 {
-  marker->size = 10;
+  marker->size = 8;
   marker->style = MARKER_CROSS;
 }
 
@@ -276,6 +287,10 @@ hos_marker_set_property (GObject         *object,
     case PROP_Y:
       gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_y,
 			       g_value_get_double(value));
+      break;
+    case PROP_SIZE:
+      marker_set_size(HOS_MARKER(object),
+		      g_value_get_uint(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -296,6 +311,9 @@ hos_marker_get_property (GObject         *object,
       break;
     case PROP_Y:
       g_value_set_double(value, marker_get_y(HOS_MARKER(object)));
+      break;
+    case PROP_SIZE:
+      g_value_set_uint(value, HOS_MARKER(object)->size);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
