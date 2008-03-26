@@ -214,16 +214,24 @@ grid_auto_configure(HosGrid* self)
 		      &window_width, &window_height);
 
   /* spacing = world / n_tics;  n_tics = view / auto_spacing */
-  self->spacing_vertical =
-    round_sig_figs(fabs(canvas->xn - canvas->x1) /
-		   (window_width / self->auto_spacing), 2);
+  gint n_vertical_tics = window_width / self->auto_spacing;
+  if (n_vertical_tics > 0)
+    self->spacing_vertical = round_sig_figs((fabs(canvas->xn - canvas->x1) / n_vertical_tics), 2);
+  else
+    self->spacing_vertical = 0;
 
-  self->spacing_horizontal =
-    round_sig_figs(fabs(canvas->yn - canvas->y1) /
-		   (window_height / self->auto_spacing), 2);
+  gint n_horizontal_tics = window_height / self->auto_spacing;
+  if (n_horizontal_tics > 0)
+    self->spacing_horizontal = round_sig_figs((fabs(canvas->yn - canvas->y1) / n_horizontal_tics), 2);
+  else
+    self->spacing_horizontal = 0;
 
 }
 
+/*
+ * return 'x' rounded to 'sig_figs' number of significant digits,
+ * with all less-significant digits set to 0.
+ */
 static gdouble
 round_sig_figs(gdouble x, gint sig_figs)
 {
