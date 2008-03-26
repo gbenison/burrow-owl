@@ -45,6 +45,7 @@ static void  grid_set_canvas      (HosCanvasItem *self,
 				   HosCanvas *canvas);
 static gboolean grid_canvas_configure       (GtkWidget *widget,
 					     GdkEventConfigure *event, HosGrid *self);
+static gboolean grid_canvas_realize         (GtkWidget *widget, HosGrid *self);
 static void     grid_canvas_world_configure (HosCanvas *canvas, HosGrid *self);
 
 static gdouble  round_sig_figs              (gdouble x, gint sig_figs);
@@ -205,6 +206,9 @@ grid_auto_configure(HosGrid* self)
   if (!HOS_IS_CANVAS(canvas))
     return;
 
+  if (!GTK_WIDGET_DRAWABLE(canvas))
+    return;
+
   gint window_width, window_height;
   gdk_window_get_size(GTK_WIDGET(canvas)->window,
 		      &window_width, &window_height);
@@ -276,37 +280,40 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
   gint window_width, window_height;
   gdk_window_get_size(GTK_WIDGET(canvas)->window,
 		      &window_width, &window_height);
-
-  g_return_if_fail(grid->spacing_vertical > 0);
-  g_return_if_fail(grid->spacing_horizontal > 0);
  
   gdouble x1 = MIN(canvas->x1, canvas->xn);
   gdouble xn = MAX(canvas->x1, canvas->xn);
   gdouble y1 = MIN(canvas->y1, canvas->yn);
   gdouble yn = MAX(canvas->y1, canvas->yn);
 
-  gdouble x = grid->anchor_vertical
-    + grid->spacing_vertical * (ceil ((x1 - grid->anchor_vertical) / grid->spacing_vertical));
-  while (x < xn)
+  if (grid->spacing_vertical > 0)
     {
-      gdouble x_view = x;
-      canvas_world2view(canvas, &x_view, NULL);
-      x_view = ceil(x_view) + 0.5;
-      cairo_move_to(cr, x_view, 0);
-      cairo_rel_line_to(cr, 0, window_height);
-      x += grid->spacing_vertical;
+      gdouble x = grid->anchor_vertical
+	+ grid->spacing_vertical * (ceil ((x1 - grid->anchor_vertical) / grid->spacing_vertical));
+      while (x < xn)
+	{
+	  gdouble x_view = x;
+	  canvas_world2view(canvas, &x_view, NULL);
+	  x_view = ceil(x_view) + 0.5;
+	  cairo_move_to(cr, x_view, 0);
+	  cairo_rel_line_to(cr, 0, window_height);
+	  x += grid->spacing_vertical;
+	}
     }
 
-  gdouble y = grid->anchor_horizontal
-    + grid->spacing_horizontal * (ceil ((y1 - grid->anchor_horizontal) / grid->spacing_horizontal));
-  while (y < yn)
+  if (grid->spacing_horizontal > 0)
     {
-      gdouble y_view = y;
-      canvas_world2view(canvas, NULL, &y_view);
-      y_view = ceil(y_view) + 0.5;
-      cairo_move_to(cr, 0, y_view);
-      cairo_rel_line_to(cr, window_width, 0);
-      y += grid->spacing_horizontal;
+      gdouble y = grid->anchor_horizontal
+	+ grid->spacing_horizontal * (ceil ((y1 - grid->anchor_horizontal) / grid->spacing_horizontal));
+      while (y < yn)
+	{
+	  gdouble y_view = y;
+	  canvas_world2view(canvas, NULL, &y_view);
+	  y_view = ceil(y_view) + 0.5;
+	  cairo_move_to(cr, 0, y_view);
+	  cairo_rel_line_to(cr, window_width, 0);
+	  y += grid->spacing_horizontal;
+	}
     }
 
   cairo_stroke(cr);
@@ -324,6 +331,16 @@ static gboolean
 grid_canvas_configure(GtkWidget *widget,
 		      GdkEventConfigure *event, HosGrid *self)
 {
+  grid_auto_configure(self);
+  return FALSE;
+}
+
+static gboolean
+grid_canvas_realize(GtkWidget *widget, HosGrid *self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_GRID(self));
+
   grid_auto_configure(self);
   return FALSE;
 }
@@ -354,6 +371,9 @@ grid_set_canvas(HosCanvasItem *self,
     {
       g_signal_connect (canvas, "configure-event",
 			G_CALLBACK (grid_canvas_configure),
+			self);
+      g_signal_connect (canvas, "realize",
+			G_CALLBACK (grid_canvas_realize),
 			self);
       g_signal_connect (canvas, "world-configure",
 			G_CALLBACK (grid_canvas_world_configure),
