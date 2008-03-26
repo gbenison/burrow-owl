@@ -31,7 +31,8 @@ $(headers_dir)/cursor.h \
 $(headers_dir)/grid.h \
 $(headers_dir)/marker_text.h \
 $(headers_dir)/contourplot.h \
-$(headers_dir)/line.h
+$(headers_dir)/line.h \
+$(headers_dir)/spectrum-profile.h
 # $(headers_dir)/box.h
 
 H2DEF=@srcdir@/h2def.py
