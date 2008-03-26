@@ -206,7 +206,7 @@ grid_auto_configure(HosGrid* self)
   if (!HOS_IS_CANVAS(canvas))
     return;
 
-  if (!GTK_WIDGET_DRAWABLE(canvas))
+  if (!GTK_WIDGET_REALIZED(canvas))
     return;
 
   gint window_width, window_height;
