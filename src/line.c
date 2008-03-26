@@ -49,6 +49,7 @@ static gboolean line_canvas_motion_notify   (GtkWidget *widget, GdkEventMotion *
 static gboolean line_canvas_configure       (GtkWidget *widget, GdkEventConfigure *event, HosLine *self);
 static void     line_canvas_realize         (GtkWidget *widget, HosLine* self);
 static void     line_canvas_world_configure (GtkWidget *widget, HosLine* self);
+static void     line_paint_default          (HosLine* line, HosCanvas *canvas);
 
 
 G_DEFINE_TYPE (HosLine, hos_line, HOS_TYPE_CANVAS_ITEM)
@@ -70,6 +71,8 @@ hos_line_class_init (HosLineClass *klass)
 
   canvas_item_class->expose     = line_expose;
   canvas_item_class->set_canvas = line_set_canvas;
+
+  klass->paint = line_paint_default;
 
   line_signals[ENTER] =
     g_signal_new ("enter",
@@ -133,7 +136,12 @@ hos_line_get_property   (GObject         *object,
 static void
 line_expose(HosCanvasItem *self, GdkEventExpose *event)
 {
-  /* FIXME */
+  g_return_if_fail(HOS_IS_LINE(self));
+  HosLine* line = HOS_LINE(self);
+  HosLineClass* class = HOS_LINE_GET_CLASS(self);
+
+  if (class->paint)
+    class->paint(line, self->canvas);
 }
 
 static void
@@ -232,6 +240,36 @@ line_canvas_world_configure(GtkWidget *widget, HosLine* self)
   /* FIXME */
 }
 
+static void
+line_paint_default(HosLine* line, HosCanvas *canvas)
+{
+  cairo_t* cr = canvas_get_cairo_context(canvas);
+
+  /* FIXME customize colors & line styles */
+  cairo_set_line_width(cr, 1.0);
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+
+  if (line->points->len > 0)
+    {
+      hos_line_point_t point = g_array_index(line->points, hos_line_point_t, 0);
+      double x = point.x;
+      double y = point.y;
+      canvas_world2view(canvas, &x, &y);
+      cairo_new_path(cr);
+      cairo_move_to(cr, x, y);
+      int i;
+      for (i = 1; i < line->points->len; ++i)
+	{
+	  hos_line_point_t point = g_array_index(line->points, hos_line_point_t, i);
+	  double x = point.x;
+	  double y = point.y;
+	  canvas_world2view(canvas, &x, &y);
+	  cairo_line_to(cr, x, y);
+	}
+      cairo_stroke(cr);
+    }
+}
+
 void
 line_configure(HosLine* self)
 {
@@ -251,7 +289,9 @@ line_set_points   (HosLine* line, double* x, double* y, guint np)
     {
       hos_line_point_t point = {x[i], y[i]};
       g_array_append_val(line->points, point);
+      /* FIXME calculate bounds here */
     }
+  line_configure(line);
 }
 
 guint
@@ -262,5 +302,9 @@ line_append_point (HosLine* line, double x, double y)
   hos_line_point_t point = {x, y};
   g_array_append_val(line->points, point);
 
+  /* FIXME calculate bounds here */
+  line_configure(line);
+
   return line->points->len;
 }
+
