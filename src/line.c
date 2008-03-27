@@ -72,7 +72,8 @@ hos_line_class_init (HosLineClass *klass)
   canvas_item_class->expose     = line_expose;
   canvas_item_class->set_canvas = line_set_canvas;
 
-  klass->paint = line_paint_default;
+  klass->paint      = line_paint_default;
+  klass->configure  = line_configure_handler;
 
   line_signals[ENTER] =
     g_signal_new ("enter",
@@ -174,6 +175,27 @@ line_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
 			self);
     }
 
+}
+
+/*
+ * What to do when the line's configuration (the data, the line style etc.)
+ * has changed.
+ */
+static void
+line_configure_handler(HosLine *self)
+{
+  g_return_if_fail(HOS_IS_LINE(self));
+  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
+  if (canvas_item->canvas)
+    {
+      /*
+       * FIXME
+       * As for ornaments, it may be slightly more efficient to calculate a union
+       * of old and new 'dirty areas' for this 'line' object, then queue a redraw
+       * only for that region.
+       */
+      gtk_widget_queue_draw(GTK_WIDGET(canvas));
+    }
 }
 
 /*

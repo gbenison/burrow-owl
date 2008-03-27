@@ -451,6 +451,7 @@ contour_plot_invalidate_cairo(HosContourPlot *self, gboolean resize)
 static void
 contour_plot_item_configure(HosCanvasItem *self)
 {
+  /* FIXME cache the old region, so that it's redrawn too! */
   /* invalidate the whole spectrum region */
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
