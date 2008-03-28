@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, 2007 Greg Benison
+ *  Copyright (C) 2006, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ static void       ornament_acquire_handler   (HosOrnament *self);
 static void       ornament_release_handler   (HosOrnament *self);
 static void       ornament_enter_method      (HosOrnament *self);
 static void       ornament_leave_method      (HosOrnament *self);
-static void       ornament_configure_handler (HosOrnament *self);
+static void       ornament_configure         (HosCanvasItem *self);
 static void       ornament_expose            (HosCanvasItem *self, GdkEventExpose *event);
 static void       ornament_set_canvas        (HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
 static gboolean   ornament_overlap_region    (HosOrnament *self, GdkRegion *region);
@@ -98,10 +98,10 @@ hos_ornament_class_init (HosOrnamentClass *klass)
   klass->release   = ornament_release_handler;
   klass->enter     = ornament_enter_method;
   klass->leave     = ornament_leave_method;
-  klass->configure = ornament_configure_handler;
 
   canvas_item_class->expose     = ornament_expose;
   canvas_item_class->set_canvas = ornament_set_canvas;
+  canvas_item_class->configure  = ornament_configure;
 
   g_object_class_install_property (gobject_class,
                                    PROP_MOUSE_OVER,
@@ -363,28 +363,21 @@ ornament_overlap_region(HosOrnament *self,
   return gdk_region_empty(tmp) ? FALSE : TRUE;
 }
 
-void
-ornament_configure(HosOrnament* ornament)
-{
-  g_return_if_fail(HOS_IS_ORNAMENT(ornament));
-  g_signal_emit(ornament, ornament_signals[CONFIGURE], 0);
-}
-
 static void
-ornament_configure_handler(HosOrnament *self)
+ornament_configure(HosCanvasItem *self)
 {
   g_return_if_fail(HOS_IS_ORNAMENT(self));
-  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
+  HosOrnament* ornament = HOS_ORNAMENT(self);
 
-  if(canvas_item->canvas)
+  if(self->canvas)
     {
-      g_return_if_fail(HOS_IS_CANVAS(canvas_item->canvas));
+      g_return_if_fail(HOS_IS_CANVAS(self->canvas));
 
-      GdkRegion *old_region = self->region;
-      self->region = ornament_calculate_region(self);
-      gdk_region_union(old_region, self->region);
+      GdkRegion *old_region = ornament->region;
+      ornament->region = ornament_calculate_region(ornament);
+      gdk_region_union(old_region, ornament->region);
       
-      canvas_invalidate_region(canvas_item->canvas, old_region);
+      canvas_invalidate_region(self->canvas, old_region);
 
       gdk_region_destroy(old_region);
     }
@@ -564,7 +557,7 @@ ornament_set_visible(HosOrnament *self, gboolean visible)
     {
       self->visible = visible;
       g_object_notify(G_OBJECT(self), "visible");
-      ornament_configure(self);
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
       /* FIXME emit a 'hide' or 'show' signal?? */
     }
 }

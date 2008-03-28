@@ -239,7 +239,7 @@ cursor_set_orientation(HosCursor *cursor, guint orientation)
   if (orientation != cursor->orientation)
     {
       cursor->orientation = orientation;
-      ornament_configure(HOS_ORNAMENT(cursor));
+      canvas_item_configure(HOS_CANVAS_ITEM(cursor));
     }
 }
 
@@ -277,7 +277,7 @@ cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment)
 			    cursor);
 	  /* cursor_adjustment_value_changed(adjustment, cursor); */
         }
-      ornament_configure(HOS_ORNAMENT(cursor));
+      canvas_item_configure(HOS_CANVAS_ITEM(cursor));
     }
 }
 
@@ -288,7 +288,7 @@ static void
 cursor_adjustment_value_changed(GtkAdjustment *adjustment, HosCursor *cursor)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
-  ornament_configure(HOS_ORNAMENT(cursor));
+  canvas_item_configure(HOS_CANVAS_ITEM(cursor));
   g_signal_emit_by_name(cursor, "moved", gtk_adjustment_get_value(adjustment));
 }
 

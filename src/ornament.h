@@ -77,7 +77,6 @@ struct _HosOrnament
 
 void ornament_acquire   (HosOrnament *self);
 void ornament_release   (HosOrnament *self);
-void ornament_configure (HosOrnament* ornament);
 
 GType hos_ornament_get_type (void);
 
