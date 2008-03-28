@@ -23,7 +23,6 @@
 enum {
   ENTER,
   LEAVE,
-  CONFIGURE,
   LAST_SIGNAL
 };
 
@@ -44,6 +43,7 @@ static void hos_line_get_property   (GObject         *object,
 
 static void     line_expose                 (HosCanvasItem *self, GdkEventExpose *event);
 static void     line_set_canvas             (HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas);
+static void     line_configure              (HosCanvasItem *canvas_item);
 static gboolean line_point_in               (HosLine* self, gint x, gint y);
 static gboolean line_canvas_motion_notify   (GtkWidget *widget, GdkEventMotion *event, HosLine* self);
 static gboolean line_canvas_configure       (GtkWidget *widget, GdkEventConfigure *event, HosLine *self);
@@ -71,9 +71,9 @@ hos_line_class_init (HosLineClass *klass)
 
   canvas_item_class->expose     = line_expose;
   canvas_item_class->set_canvas = line_set_canvas;
+  canvas_item_class->configure  = line_configure;
 
   klass->paint      = line_paint_default;
-  klass->configure  = line_configure_handler;
 
   line_signals[ENTER] =
     g_signal_new ("enter",
@@ -92,16 +92,6 @@ hos_line_class_init (HosLineClass *klass)
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
-
-  line_signals[CONFIGURE] =
-    g_signal_new ("configure",
-		  G_OBJECT_CLASS_TYPE(klass),
-		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		  G_STRUCT_OFFSET(HosLineClass, configure),
-		  NULL, NULL,
-		  g_cclosure_marshal_VOID__VOID,
-		  G_TYPE_NONE, 0);
-
 
 }
 
@@ -182,10 +172,11 @@ line_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
  * has changed.
  */
 static void
-line_configure_handler(HosLine *self)
+line_configure(HosCanvasItem *canvas_item)
 {
-  g_return_if_fail(HOS_IS_LINE(self));
-  HosCanvasItem *canvas_item = HOS_CANVAS_ITEM(self);
+  g_return_if_fail(HOS_IS_LINE(canvas_item));
+  HosLine *line = HOS_LINE(canvas_item);
+
   if (canvas_item->canvas)
     {
       /*
@@ -194,7 +185,7 @@ line_configure_handler(HosLine *self)
        * of old and new 'dirty areas' for this 'line' object, then queue a redraw
        * only for that region.
        */
-      gtk_widget_queue_draw(GTK_WIDGET(canvas));
+      gtk_widget_queue_draw(GTK_WIDGET(canvas_item->canvas));
     }
 }
 
@@ -293,13 +284,6 @@ line_paint_default(HosLine* line, HosCanvas *canvas)
 }
 
 void
-line_configure(HosLine* self)
-{
-  g_return_if_fail(HOS_IS_LINE(self));
-  g_signal_emit(self, line_signals[CONFIGURE], 0);
-}
-
-void
 line_set_points   (HosLine* line, double* x, double* y, guint np)
 {
   g_return_if_fail(HOS_IS_LINE(line));
@@ -313,7 +297,7 @@ line_set_points   (HosLine* line, double* x, double* y, guint np)
       g_array_append_val(line->points, point);
       /* FIXME calculate bounds here */
     }
-  line_configure(line);
+  canvas_item_configure(HOS_CANVAS_ITEM(line));
 }
 
 guint
@@ -325,7 +309,7 @@ line_append_point (HosLine* line, double x, double y)
   g_array_append_val(line->points, point);
 
   /* FIXME calculate bounds here */
-  line_configure(line);
+  canvas_item_configure(HOS_CANVAS_ITEM(line));
 
   return line->points->len;
 }

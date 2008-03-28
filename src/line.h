@@ -48,7 +48,6 @@ struct _HosLineClass
   void       (*release)           (HosLine *line);
   void       (*enter)             (HosLine *line);
   void       (*leave)             (HosLine *line);
-  void       (*configure)         (HosLine *line);
   void       (*move_relative)     (HosLine *line, gdouble dx, gdouble dy);
 
 };
@@ -65,7 +64,6 @@ struct _HosLine
 
 };
 
-void   line_configure    (HosLine* line);
 void   line_set_points   (HosLine* line, double* x, double* y, guint np);
 guint  line_append_point (HosLine* line, double x, double y);
 

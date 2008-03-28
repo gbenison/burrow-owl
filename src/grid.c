@@ -39,7 +39,7 @@ static void grid_get_property (GObject         *object,
 			       GParamSpec      *pspec);
 
 static void  grid_expose          (HosCanvasItem *self, GdkEventExpose *event);
-static void  grid_item_configure  (HosCanvasItem *self);
+static void  grid_configure       (HosCanvasItem *self);
 static void  grid_set_canvas      (HosCanvasItem *self,
 				   HosCanvas *old_canvas,
 				   HosCanvas *canvas);
@@ -68,7 +68,7 @@ hos_grid_class_init(HosGridClass *klass)
   gobject_class->get_property   = grid_get_property;
 
   canvas_item_class->expose         = grid_expose;
-  canvas_item_class->item_configure = grid_item_configure;
+  canvas_item_class->configure      = grid_configure;
   canvas_item_class->set_canvas     = grid_set_canvas;
 
   g_object_class_install_property (gobject_class,
@@ -331,8 +331,9 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
 }
 
 static void
-grid_item_configure(HosCanvasItem *self)
+grid_configure(HosCanvasItem *self)
 {
+  /* FIXME trigger redraw?? */
 }
 
 static gboolean

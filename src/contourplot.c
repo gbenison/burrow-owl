@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ static gboolean contour_plot_painter_configure (HosPainter *painter,
 						HosContourPlot *contour_plot);
 static gboolean contour_plot_painter_ready     (HosPainter *painter,
 						HosContourPlot *contour_plot);
-static void     contour_plot_item_configure    (HosCanvasItem *self);
+static void     contour_plot_configure         (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 static void     contour_plot_sync_xform        (HosContourPlot *self);
 static void     contour_plot_invalidate_xform  (HosContourPlot *self);
@@ -107,7 +107,7 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
   gobject_class->get_property = contour_plot_get_property;
 
   canvas_item_class->expose         = contour_plot_expose;
-  canvas_item_class->item_configure = contour_plot_item_configure;
+  canvas_item_class->configure      = contour_plot_configure;
   canvas_item_class->set_canvas     = contour_plot_set_canvas;
 
   g_object_class_install_property (gobject_class,
@@ -449,7 +449,7 @@ contour_plot_invalidate_cairo(HosContourPlot *self, gboolean resize)
 }
 
 static void
-contour_plot_item_configure(HosCanvasItem *self)
+contour_plot_configure(HosCanvasItem *self)
 {
   /* FIXME cache the old region, so that it's redrawn too! */
   /* invalidate the whole spectrum region */
