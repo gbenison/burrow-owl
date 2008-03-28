@@ -153,6 +153,7 @@ grid_set_property (GObject         *object,
       grid_set_spacing_vertical(HOS_GRID(object), g_value_get_double(value));
       break;
     case PROP_AUTO_SPACING:
+      grid_set_auto_spacing(HOS_GRID(object), g_value_get_int(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -333,7 +334,12 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
 static void
 grid_configure(HosCanvasItem *self)
 {
-  /* FIXME trigger redraw?? */
+  g_return_if_fail(HOS_IS_GRID(self));
+  grid_auto_configure(HOS_GRID(self));
+
+  /* FIXME it may be possible to do partial redraws */
+  if ((self->canvas) && (GTK_WIDGET_DRAWABLE(self->canvas)))
+    gtk_widget_queue_draw(GTK_WIDGET(self->canvas));
 }
 
 static gboolean
@@ -388,7 +394,7 @@ grid_set_canvas(HosCanvasItem *self,
 			G_CALLBACK (grid_canvas_world_configure),
 			self);
     }
-  grid_auto_configure(HOS_GRID(self));
+  canvas_item_configure(self);
 }
 
 
