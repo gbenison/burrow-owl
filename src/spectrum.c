@@ -125,7 +125,7 @@ static void          signal_spectra_ready       (void);
 static gboolean      idle_spectra_ready         (gpointer not_used);
 static gpointer      traversal_thread_func      (gpointer not_used);
 
-G_DEFINE_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
+G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
 /*
  * Add this dimension's backing to this list,
@@ -876,10 +876,12 @@ spectrum_project_pt(HosSpectrum* self, const guint pt)
 }
 
 /*
+ * FIXME obsolete -- remove
+ *
  * Set the integration flag on the first dimension.
  */
 HosSpectrum*
-spectrum_integrate(HosSpectrum* self)
+spectrum_integrate_depr(HosSpectrum* self)
 {
   HosSpectrum *result = spectrum_cache(spectrum_copy(self));
   guint idx = dimen_list_lookup_nth(result->dimensions, 0);
