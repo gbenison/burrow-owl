@@ -4,7 +4,7 @@
 AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_SRCDIR([src/hosspectrum.c])
+AC_CONFIG_SRCDIR([src/spectrum.c])
 
 GUILE_PROGS
 GUILE_FLAGS

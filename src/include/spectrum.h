@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006 Greg Benison
+ *  Copyright (C) 2005, 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,7 +61,13 @@ struct _HosSpectrum
 struct _HosSpectrumClass
 {
   GObjectClass parent_class;
-  void(*ready)(HosSpectrum *spec);
+
+  void       (*ready)      (HosSpectrum *spec);
+
+  gboolean   (*tickle)     (HosSpectrum* self, guint* idx, gdouble* dest);
+  gboolean   (*accumulate) (HosSpectrum* self, guint* idx, gdouble* dest);
+
+
 };
 
 /* 

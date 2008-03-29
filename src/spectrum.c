@@ -31,7 +31,7 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-#include <burrow/spectrum.h>
+#include <include/spectrum.h>
 #include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "ticket.h"
@@ -1346,3 +1346,48 @@ traversal_thread_func(gpointer not_used)
       queue_ready_push(next);
     }
 }
+
+/*
+ */
+gboolean
+spectrum_tickle(HosSpectrum* self, guint* idx, gdouble* dest)
+{
+  /* FIXME */
+  /* 'idx' already instantiated? just return. */
+  /* 'idx' cached? return the cache value. */
+
+  /* Dispatch to class-specific method. */
+
+  /* 
+   * FIXME if it's too expensive looking up the method every time,
+   * consider storing it in some transient 'traversal' object?
+   */
+  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+  g_return_if_fail(class->tickle != NULL);
+  return class->tickle(self, idx, dest);
+
+}
+
+/*
+ * Caches an intermediate result, so that multiple calls are guaranteed
+ * to converge eventually to an answer.
+ */
+gboolean
+spectrum_accumulate(HosSpectrum* self, guint* idx, gdouble* dest)
+{
+  /* FIXME */
+  /* 'idx' already instantiated? just return. */
+  /* 'idx' cached? return the cache value. */
+
+  /* Dispatch to class-specific method. */
+
+  /* 
+   * FIXME if it's too expensive looking up the method every time,
+   * consider storing it in some transient 'traversal' object?
+   */
+  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+  g_return_if_fail(class->accumulate != NULL);
+  return class->accumulate(self, idx, dest);
+}
+
+

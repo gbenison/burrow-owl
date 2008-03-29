@@ -10,8 +10,9 @@ libgw_guile_spectrum_la_LDFLAGS=-L.. -lburrow @GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_G
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \
-$(headers_dir)/burrow/spectrum.h \
-$(headers_dir)/burrow/nih.h \
+$(headers_dir)/include/spectrum.h \
+$(headers_dir)/include/spectrum_integrate.h \
+$(headers_dir)/include/nih.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
 $(headers_dir)/painter_gdk.h \
