@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 #include "hosbacking.h"
 #include "hosdimensionsim.h"
-#include <burrow/spectrum.h>
+#include "burrow/spectrum.h"
 
 /* peace in our time */
 #ifdef __cplusplus

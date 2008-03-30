@@ -15,8 +15,9 @@
 
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)
-        "#include <include/spectrum.h>\n"
-        "#include <include/spectrum_integrate.h>\n"
+        "#include <burrow/spectrum.h>\n"
+        "#include <burrow/spectrum_integrate.h>\n"
+        "#include <burrow/nih.h>\n"
         "#include <hoscanvas.h>\n"
         "#include <canvasitem.h>\n"
         "#include <marker.h>\n"
@@ -29,7 +30,6 @@
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
         "#include <painter_gdk.h>\n"
-        "#include <include/nih.h>\n"
         "#include <hosbackingsim.h>\n"
         "\n"))
 

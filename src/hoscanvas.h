@@ -21,7 +21,6 @@
 #define _HOS_HAVE_CANVAS_H
 
 #include <gtk/gtk.h>
-#include <burrow/spectrum.h>
 
 G_BEGIN_DECLS
 

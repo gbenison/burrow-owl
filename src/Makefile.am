@@ -13,7 +13,7 @@ nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm guile/burrow/
 BUILT_SOURCES=marshal.c marshal.h
 
 burrowincludedir=$(includedir)/burrow
-burrowinclude_HEADERS=include/spectrum.h include/nih.h
+burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
 include_HEADERS=burrow.h
 
 # disabled sources -- awaiting updating
@@ -62,9 +62,9 @@ cursor.h \
 marker_text.c \
 marker_text.h \
 nih.c  \
-include/spectrum.h  \
-include/spectrum_integrate.h \
-include/nih.h  \
+burrow/spectrum.h  \
+burrow/spectrum_integrate.h \
+burrow/nih.h  \
 cairo_shapes.c \
 cairo_shapes.h \
 ornament.c  \

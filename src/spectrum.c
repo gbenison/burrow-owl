@@ -31,7 +31,7 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-#include <include/spectrum.h>
+#include "burrow/spectrum.h"
 #include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "ticket.h"
@@ -82,6 +82,9 @@ struct _HosSpectrumPrivate
 {
   GMutex *traversal_lock;
   GList  *projections;
+
+  gint    *idx;  /* current index for traversal */
+  gdouble *ptr;  /* buffer pointer for traversal */
 };
 
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
@@ -107,7 +110,7 @@ static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
-static void          spectrum_traverse_internal (HosSpectrum* spec);
+static void          spectrum_traverse_internal_depr (HosSpectrum* spec);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
@@ -115,6 +118,7 @@ static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
 static gpointer      g_list_nth_first           (GList* list, guint n);
 static gboolean      spectrum_is_ready          (HosSpectrum *self);
 
+static gboolean      spectrum_bump_idx          (HosSpectrum* self, gint* idx);
 
 static void          ensure_traversal_setup     (void);
 static void          queue_pending_push         (HosSpectrum* spectrum);
@@ -156,7 +160,7 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  spectrum_traverse_internal(spec);
+  spectrum_traverse_internal_depr(spec);
   return spec->buf;
 }
 
@@ -175,7 +179,7 @@ spectrum_traverse(HosSpectrum *spec)
 }
 
 static void
-spectrum_traverse_internal(HosSpectrum* self)
+spectrum_traverse_internal_depr(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
 
@@ -1113,6 +1117,7 @@ hos_spectrum_finalize(GObject *object)
   HosSpectrum *spectrum = HOS_SPECTRUM(object);
 
   spectrum_invalidate_cache(spectrum);
+  g_free(SPECTRUM_PRIVATE(spectrum, idx));
 
   G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
@@ -1344,12 +1349,79 @@ traversal_thread_func(gpointer not_used)
   while (1)
     {
       HosSpectrum* next = queue_pending_fetch();
-      spectrum_traverse_internal(next);
+      spectrum_traverse_internal_depr(next);
       queue_ready_push(next);
     }
 }
 
 /*
+ * increment 'idx' in traversal order of 'self.
+ *
+ * returns:
+ *   TRUE:  reached end point and wrapped around
+ *   FALSE: not at end of spectrum
+ */
+static gboolean
+spectrum_bump_idx(HosSpectrum* self, gint* idx)
+{
+  int dim = 0;
+  while (1)
+    {
+      if (dim >= self->ndim)
+	return TRUE;
+      idx[dim]++;
+      if (idx[dim] < self->np[dim])
+	break;
+      idx[dim] = 0;
+    }
+  return FALSE;
+}
+
+/*
+ * Continue traversal of spectrum 'self', possibly blocking on
+ * a point that is not immediately available.  Tickle all remaining
+ * points in 'self'.
+ *
+ * returns:
+ *   TRUE:   finished; no more points to instantiate.
+ *   FALSE:  points remaining to be instantiated.
+ *
+ */
+static gboolean
+spectrum_traverse_tick(HosSpectrum* self)
+{
+  /* FIXME */
+  HosSpectrumPrivate *priv = HOS_SPECTRUM_GET_PRIVATE(self);
+
+  if (priv->idx == NULL)
+    priv->idx = g_new0(gint, self->ndim);
+
+  while (1)
+    {
+      /* accumulate current point; blocked? break */
+      if (!spectrum_accumulate(self, priv->idx, priv->ptr))
+	break;
+
+      if (spectrum_bump_idx(self, priv->idx))
+	return TRUE;
+      priv->ptr++;
+    }
+
+  /* tickle all remaining points */
+  gint idx[self->ndim];
+  memcpy(idx, priv->idx, self->ndim * sizeof(gint));
+  while (!spectrum_bump_idx(self, idx))
+    {
+      gdouble val;
+      spectrum_tickle(self, idx, &val);
+    }
+}
+
+
+/*
+ * Returns:
+ *   TRUE  - point was available, '*dest' now contains value of point 'idx'; 
+ *   FALSE - point not available yet; '*dest' is unchanged.
  */
 gboolean
 spectrum_tickle(HosSpectrum* self, guint* idx, gdouble* dest)
@@ -1373,6 +1445,11 @@ spectrum_tickle(HosSpectrum* self, guint* idx, gdouble* dest)
 /*
  * Caches an intermediate result, so that multiple calls are guaranteed
  * to converge eventually to an answer.
+ *
+ * Returns:
+ *   TRUE  - point was available, '*dest' now contains value of point 'idx'; 
+ *   FALSE - point not available yet; '*dest' is unchanged.
+ *
  */
 gboolean
 spectrum_accumulate(HosSpectrum* self, guint* idx, gdouble* dest)

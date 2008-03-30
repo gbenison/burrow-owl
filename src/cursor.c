@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006, 2007 Greg Benison
+ *  Copyright (C) 2005-2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include <math.h>
 #include "marshal.h"
 #include "cursor.h"
-#include <burrow/spectrum.h>
 
 #define CLICK_RADIUS 5
 

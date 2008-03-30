@@ -56,6 +56,8 @@ struct _HosSpectrum
   
   gint ndim;
 
+  gint *np;
+
   GList *dimensions;
 
 };
