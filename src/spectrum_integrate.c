@@ -38,7 +38,11 @@ G_DEFINE_TYPE (HosSpectrumIntegrated, hos_spectrum_integrated, HOS_TYPE_SPECTRUM
 static void
 hos_spectrum_integrated_class_init(HosSpectrumIntegratedClass *klass)
 {
+  GObjectClass     *gobject_class  = G_OBJECT_CLASS(klass);
   HosSpectrumClass *spectrum_class = HOS_SPECTRUM_CLASS(klass);
+
+  gobject_class->dispose     = spectrum_integrated_dispose;
+  gobject_class->finalize    = spectrum_integrated_finalize;
 
   spectrum_class->accumulate = spectrum_integrated_accumulate;
   spectrum_class->tickle     = spectrum_integrated_tickle;
@@ -52,10 +56,18 @@ hos_spectrum_integrated_init(HosSpectrumIntegrated* self)
 }
 
 static void
+hos_spectrum_integrated_dispose(GObject *object)
+{
+  /* FIXME unref the integrand */
+  g_object_unref();
+  G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->dispose (object);
+}
+
+static void
 hos_spectrum_integrated_finalize(GObject *object)
 {
   HosSpectrumIntegrated *spectrum_integrated = HOS_SPECTRUM_INTEGRATED(object);
-  /* FIXME unref the integrand */
+  /* FIXME free the accumulation buffer? */
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->finalize (object);
 }
 
