@@ -31,7 +31,7 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-#include <include/spectrum.h>
+#include "burrow/spectrum.h"
 #include "hosdimension.h"
 #include "hosdimensionblock.h"
 #include "ticket.h"

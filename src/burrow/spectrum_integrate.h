@@ -20,7 +20,7 @@
 #ifndef HAVE_SPECTRUM_INTEGRATE_H
 #define HAVE_SPECTRUM_INTEGRATE_H
 
-#include "include/spectrum.h"
+#include <burrow/spectrum.h>
 
 G_BEGIN_DECLS
 
