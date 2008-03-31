@@ -2,6 +2,8 @@
 check_PROGRAMS=t_spectrum
 TESTS = guile-gnome-test run-tests $(check_PROGRAMS)
 
+t_spectrum_SOURCES=t_spectrum.c spectrum-ramp.c spectrum-ramp.h
+
 AM_CPPFLAGS=-I@top_srcdir@/src @GTK_CFLAGS@ @GTHREAD_CFLAGS@
 AM_LDFLAGS=-L../src -lburrow
 
