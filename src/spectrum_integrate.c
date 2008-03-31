@@ -30,8 +30,12 @@ struct _HosSpectrumIntegratedPrivate
   guint       integrand_np;  /* vector length of 'accumulator' */
 };
 
-static gboolean spectrum_integrated_accumulate (HosSpectrum* self, guint* idx, gdouble* dest);
-static gboolean spectrum_integrated_tickle     (HosSpectrum* self, guint* idx, gdouble* dest);
+static gboolean spectrum_integrated_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+static gboolean spectrum_integrated_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+
+static void   spectrum_integrated_dispose  (GObject *object);
+static void   spectrum_integrated_finalize (GObject *object);
+
 
 G_DEFINE_TYPE (HosSpectrumIntegrated, hos_spectrum_integrated, HOS_TYPE_SPECTRUM)
 
@@ -56,15 +60,14 @@ hos_spectrum_integrated_init(HosSpectrumIntegrated* self)
 }
 
 static void
-hos_spectrum_integrated_dispose(GObject *object)
+spectrum_integrated_dispose(GObject *object)
 {
-  /* FIXME unref the integrand */
-  g_object_unref();
+  g_object_unref(SPECTRUM_INTEGRATED_PRIVATE(object, integrand));
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->dispose (object);
 }
 
 static void
-hos_spectrum_integrated_finalize(GObject *object)
+spectrum_integrated_finalize(GObject *object)
 {
   HosSpectrumIntegrated *spectrum_integrated = HOS_SPECTRUM_INTEGRATED(object);
   /* FIXME free the accumulation buffer? */
@@ -83,7 +86,7 @@ hos_spectrum_integrated_finalize(GObject *object)
  *   FALSE - point not available yet; '*dest' is unchanged.
  */
 static gboolean
-spectrum_integrated_tickle(HosSpectrum* self, guint* idx, gdouble* dest)
+spectrum_integrated_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
   /* FIXME */
   /* tickle all child spectrum points; if all available, then success */
@@ -98,7 +101,7 @@ spectrum_integrated_tickle(HosSpectrum* self, guint* idx, gdouble* dest)
  *   FALSE - point not available yet; '*dest' is unchanged.
  */
 static gboolean
-spectrum_integrated_accumulate(HosSpectrum* self, guint* idx, gdouble* dest)
+spectrum_integrated_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
   /* FIXME */
   

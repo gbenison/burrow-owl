@@ -35,14 +35,6 @@ G_BEGIN_DECLS
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
 
-/* spectrum status */
-enum
-{
-  NO_STATUS = 0,
-  LATENT,
-  TRAVERSING,
-  COMPLETE
-};
 
 struct _HosSpectrum
 {
@@ -52,7 +44,6 @@ struct _HosSpectrum
   gdouble *buf;
 
   gboolean negated;
-  guint    status;
   
   gint ndim;
 
@@ -68,8 +59,8 @@ struct _HosSpectrumClass
 
   void       (*ready)      (HosSpectrum *spec);
 
-  gboolean   (*tickle)     (HosSpectrum* self, guint* idx, gdouble* dest);
-  gboolean   (*accumulate) (HosSpectrum* self, guint* idx, gdouble* dest);
+  gboolean   (*tickle)     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+  gboolean   (*accumulate) (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
 
 
 };
