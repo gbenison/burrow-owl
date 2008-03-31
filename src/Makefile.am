@@ -53,6 +53,10 @@ hosdimension.h  \
 hosdimensionsim.c  \
 hosdimensionsim.h  \
 spectrum.c  \
+burrow/spectrum.h  \
+spectrum_priv.h \
+spectrum_integrate.c \
+burrow/spectrum_integrate.h \
 marker.c  \
 marker.h  \
 grid.c \
@@ -62,8 +66,6 @@ cursor.h \
 marker_text.c \
 marker_text.h \
 nih.c  \
-burrow/spectrum.h  \
-burrow/spectrum_integrate.h \
 burrow/nih.h  \
 cairo_shapes.c \
 cairo_shapes.h \

@@ -18,6 +18,7 @@
  */
 
 #include "burrow/spectrum_integrate.h"
+#include "spectrum_priv.h"
 
 #define SPECTRUM_INTEGRATED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_INTEGRATED, HosSpectrumIntegratedPrivate))
 #define SPECTRUM_INTEGRATED_PRIVATE(o, field) ((SPECTRUM_INTEGRATED_GET_PRIVATE(o))->field)
@@ -50,6 +51,8 @@ hos_spectrum_integrated_class_init(HosSpectrumIntegratedClass *klass)
 
   spectrum_class->accumulate = spectrum_integrated_accumulate;
   spectrum_class->tickle     = spectrum_integrated_tickle;
+
+  g_type_class_add_private(gobject_class, sizeof(HosSpectrumIntegratedPrivate));
 }
 
 static void
