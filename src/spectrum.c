@@ -1138,6 +1138,8 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 {
   GObjectClass *gobject_class;
 
+  g_assert(DATUM_UNKNOWN_VALUE != DATUM_UNKNOWN_VALUE_SUBSTITUTE);
+
   gobject_class = G_OBJECT_CLASS (klass);
   
   gobject_class->set_property = hos_spectrum_set_property;
@@ -1401,13 +1403,12 @@ spectrum_traverse_internal(HosSpectrum* self)
   if (SPECTRUM_PRIVATE(self, status) != COMPLETE)
     {
       g_mutex_lock(SPECTRUM_PRIVATE(self, traversal_lock));
-      
-      g_assert(DATUM_UNKNOWN_VALUE != DATUM_UNKNOWN_VALUE_SUBSTITUTE);
      
       if (SPECTRUM_PRIVATE(self, status) != COMPLETE)
 	{
 	  g_assert(SPECTRUM_PRIVATE(self, status) == LATENT);
-	  /* FIXME should not traverse if already traversed!! */
+	  SPECTRUM_PRIVATE(self, status) = TRAVERSING;
+
 	  /* create a destination buffer for the spectral data. */
 	  g_assert(self->buf == NULL);
 	  int total_np = spectrum_total_np(self);
