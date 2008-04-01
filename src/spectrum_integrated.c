@@ -37,10 +37,10 @@ struct _HosSpectrumIntegratedPrivate
 
 static gdouble  spectrum_integrated_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 static gboolean spectrum_integrated_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
-static void     wipe_accumulator               (HosSpectrumIntegrated *self);
 
 static void   spectrum_integrated_dispose  (GObject *object);
 static void   spectrum_integrated_finalize (GObject *object);
+static void   initialize_integrand_idx     (HosSpectrumIntegratedPrivate *priv, guint* idx);
 
 
 G_DEFINE_TYPE (HosSpectrumIntegrated, hos_spectrum_integrated, HOS_TYPE_SPECTRUM)
@@ -102,7 +102,7 @@ spectrum_integrated_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdo
   HosSpectrumIntegrated *spectrum_integrated = HOS_SPECTRUM_INTEGRATED(self);
   HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
 
-  memcpy(priv->integrand_idx, idx, priv->integrand_ndim * sizeof(guint));
+  initialize_integrand_idx(priv, idx);
 
   gboolean success = TRUE;
   gint i;
@@ -124,6 +124,7 @@ spectrum_integrated_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdo
 
 }
 
+
 /*
  * Returns point 'idx' in spectrum 'self', possibly blocking.
  */
@@ -132,7 +133,7 @@ spectrum_integrated_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
   HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
 
-  memcpy(priv->integrand_idx, idx, priv->integrand_ndim * sizeof(guint));
+  initialize_integrand_idx(priv, idx);
 
   gdouble result = 0;
   gint i;
@@ -154,7 +155,11 @@ spectrum_integrate (HosSpectrum* self)
 {
   HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM_INTEGRATED, NULL);
   guint integrand_ndim = spectrum_ndim(self);
-  result->ndim = integrand_ndim - 1;
+
+  spectrum_set_ndim(result, integrand_ndim - 1);
+  gint i;
+  for (i = 1; i < integrand_ndim; ++i)
+    spectrum_set_np(result, i - 1, spectrum_np(self, i));
 
   g_object_ref(self);
 
@@ -170,10 +175,7 @@ spectrum_integrate (HosSpectrum* self)
 }
 
 static void
-wipe_accumulator(HosSpectrumIntegrated *self)
+initialize_integrand_idx(HosSpectrumIntegratedPrivate *priv, guint* idx)
 {
-  gint i;
-  HosSpectrumIntegratedPrivate* priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
-  for (i = 0; i < priv->integrand_np; ++i)
-    priv->accumulator[i] = DATUM_UNKNOWN_VALUE;
+  memcpy(priv->integrand_idx + 1, idx, (priv->integrand_ndim - 1) * sizeof(guint));
 }

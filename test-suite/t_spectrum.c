@@ -9,10 +9,10 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  HosSpectrumRamp *spec = spectrum_ramp_new();
+  HosSpectrum *spec = HOS_SPECTRUM(spectrum_ramp_new());
   g_message("Made new ramped spectrum with %d dimensions\n", spectrum_ndim(spec));
 
-  HosSpectrumTestCube *cube = spectrum_test_cube_new();
+  HosSpectrum *cube = HOS_SPECTRUM(spectrum_test_cube_new());
   g_message("Made new test cube spectrum with %d dimensions\n", spectrum_ndim(cube));
 
   spectrum_traverse_blocking(HOS_SPECTRUM(spec));

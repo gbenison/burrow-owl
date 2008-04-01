@@ -1512,3 +1512,22 @@ spectrum_total_np (HosSpectrum* self)
     result *= spectrum_np(self, i);
   return result;
 }
+
+/*
+ * Used by constructors to initialize spectrum metadata
+ */
+void
+spectrum_set_ndim (HosSpectrum* self, const guint ndim)
+{
+  self->ndim = ndim;
+  self->np   = g_new0(gint, ndim);
+
+  /* FIXME sw? sf? */
+}
+
+void
+spectrum_set_np (HosSpectrum* self, const guint dim, const gint np)
+{
+  check_dim_count(self, dim);
+  self->np[dim] = np;
+}

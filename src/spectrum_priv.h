@@ -20,5 +20,8 @@
 gdouble  spectrum_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
 
+void     spectrum_set_ndim   (HosSpectrum* self, const guint ndim);
+void     spectrum_set_np     (HosSpectrum* self, const guint dim, const gint np);
+
 #endif /* not  _HOS_HAVE_SPECTRUM_PRIV_H */
 
