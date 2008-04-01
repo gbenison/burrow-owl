@@ -277,7 +277,6 @@ dimension_copy_func(HosDimension* src, HosDimension* dest)
   COPY_THE(np);
   COPY_THE(backing);
 
-  COPY_THE(integrated);
 #undef COPY_THE
 }
 
@@ -335,17 +334,11 @@ hos_dimension_class_init (HosDimensionClass *klass)
 */
 }
 
-void
-dimension_integrate(HosDimension* self)
-{
-  self->integrated = TRUE;
-}
 
 
 static void
 hos_dimension_init(HosDimension  *self)
 {
-  self->integrated = FALSE;
 }
 
 static void

@@ -379,13 +379,8 @@ set_buffer_stride(GList *list, guint *stride)
 {
   HosDimension *dimen = HOS_DIMENSION(g_list_nth_data(list, 0));
 
-  if (dimen->integrated)
-    dimen->buffer_stride = 0;
-  else
-    {
-      dimen->buffer_stride = *stride;
-      *stride *= dimen->np;
-    }
+  dimen->buffer_stride = *stride;
+  *stride *= dimen->np;
 
 }
 
@@ -626,18 +621,6 @@ dimen_list_lookup_nth(GList* list, guint n)
 
   while (1)
     {
-      /* skip integrated dims */
-      while (1)
-	{
-	  assert(list != NULL);
-	  {
-	    HosDimension* dimen = HOS_DIMENSION(((GList*)(list->data))->data);
-	    if (!(dimen->integrated))
-	      break;
-	    ++result;
-	    list = list->next;
-	  }
-	}
       if (n == 0)
 	return result;
       else
@@ -880,27 +863,6 @@ spectrum_project_pt(HosSpectrum* self, const guint pt)
   return result;
 }
 
-/*
- * FIXME obsolete -- remove
- *
- * Set the integration flag on the first dimension.
- */
-HosSpectrum*
-spectrum_integrate_depr(HosSpectrum* self)
-{
-  HosSpectrum *result = spectrum_cache(spectrum_copy(self));
-  guint idx = dimen_list_lookup_nth(result->dimensions, 0);
-
-  GList* list_orig = dimen_list_get_nth(result->dimensions, 0);
-  GList* dimen_list_0 = dimen_list_copy((GList*)list_orig);
-
-  (HOS_DIMENSION(g_list_nth_data(dimen_list_0, 0)))->integrated = TRUE;
-  /* FIXME unref old dimensions? */
-  (g_list_nth(result->dimensions, idx))->data = dimen_list_0;
-
-  return result;
-}
-
 HosSpectrum*
 spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
 {
@@ -1061,8 +1023,6 @@ spectrum_cache(HosSpectrum* self)
  * available buffer slot.
  * list is a 'list of lists of dimensions'
  * backing_list is a list of backing objects
- *
- * FIXME: handle integrated dimensions!
  *
  */
 static gdouble*

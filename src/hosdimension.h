@@ -47,8 +47,6 @@ struct _HosDimension
   gdouble sf;
   gdouble sw;
 
-  gboolean integrated;
-
   HosBacking *backing;
 
   /* stateful members- used during traversal */
@@ -103,7 +101,6 @@ extern void dimension_interpolate(HosDimension*, gpointer);
 extern void dimension_reset(HosDimension*, gpointer);
 extern void dimension_prime(HosDimension*, gpointer);
 extern void dimension_increment(HosDimension*, gboolean*);
-extern void dimension_integrate(HosDimension*);
 
 extern GList* dimen_list_copy(GList* dimens);
 
