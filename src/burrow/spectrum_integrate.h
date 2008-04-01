@@ -44,14 +44,6 @@ struct _HosSpectrumIntegratedClass
   HosSpectrumClass parent_class;
 };
 
-/* 
- * The 'CONSTRUCTOR' tag is inserted into function prototypes
- * so that h2def.py will mark them as constructors and allow
- * the caller to own the reference to the return value.
- * The CONSTRUCTOR tag has no influence on C compilation.
- */
-#define CONSTRUCTOR  /* empty */
-
 HosSpectrum* CONSTRUCTOR spectrum_integrate (HosSpectrum* self);
 
 GType hos_spectrum_integrated_get_type (void);
