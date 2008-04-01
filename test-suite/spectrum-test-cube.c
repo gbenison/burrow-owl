@@ -6,7 +6,7 @@ static gboolean test_cube_tickle     (HosSpectrum* self, HosSpectrum* root, guin
 
 G_DEFINE_TYPE (HosSpectrumTestCube, hos_spectrum_test_cube, HOS_TYPE_SPECTRUM)
 
-static const int default_np = 32;
+static const int default_np = 100;
 
 static void
 hos_spectrum_test_cube_class_init(HosSpectrumTestCubeClass *klass)
@@ -31,7 +31,7 @@ hos_spectrum_test_cube_init(HosSpectrumTestCube *self)
 static gdouble
 test_cube_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
-  return idx[0] + 100 * idx[1] + 10000 * idx[2];
+  return idx[0] + 1000 * idx[1] + 1e6 * idx[2];
 }
 
 static gboolean

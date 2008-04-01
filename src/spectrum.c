@@ -1420,15 +1420,19 @@ spectrum_traverse_internal(HosSpectrum* self)
 	  while (1)
 	    {
 	      /* inner loop -- tickle remaining points */
-	      memcpy(tickle_idx, accumulate_idx, self->ndim * sizeof(gint));
-	      gdouble* tickle_dest = accumulate_dest;
-	      while (1)
+	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
 		{
-		  if (!ALREADY_INSTANTIATED(*tickle_dest))
-		    spectrum_tickle(self, self, tickle_idx, tickle_dest);
-		  ++tickle_dest;
-		  if (spectrum_bump_idx(self, tickle_idx))
-		    break;
+
+		  memcpy(tickle_idx, accumulate_idx, self->ndim * sizeof(gint));
+		  gdouble* tickle_dest = accumulate_dest;
+		  while (1)
+		    {
+		      if (!ALREADY_INSTANTIATED(*tickle_dest))
+			spectrum_tickle(self, self, tickle_idx, tickle_dest);
+		      ++tickle_dest;
+		      if (spectrum_bump_idx(self, tickle_idx))
+			break;
+		    }
 		}
 	      
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
