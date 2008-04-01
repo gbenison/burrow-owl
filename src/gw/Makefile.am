@@ -11,7 +11,7 @@ libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \
 $(headers_dir)/burrow/spectrum.h \
-$(headers_dir)/burrow/spectrum_integrate.h \
+$(headers_dir)/burrow/spectrum_integrated.h \
 $(headers_dir)/burrow/nih.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
@@ -36,7 +36,7 @@ $(headers_dir)/contourplot.h
 
 H2DEF=@srcdir@/h2def.py
 
-hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3)
+hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
 	$(H2DEF) --all $(HEADERS_1) > $@
 	$(H2DEF) --all $(HEADERS_2) >> $@
 	$(H2DEF) --all $(HEADERS_3) >> $@
