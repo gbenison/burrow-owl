@@ -60,7 +60,7 @@ struct _HosSpectrumClass
   void       (*ready)      (HosSpectrum *spec);
 
   gboolean   (*tickle)     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
-  gboolean   (*accumulate) (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+  gdouble    (*accumulate) (HosSpectrum* self, HosSpectrum* root, guint* idx);
 
 
 };

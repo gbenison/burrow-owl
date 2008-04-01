@@ -19,7 +19,7 @@
 
 #include "spectrum_segmented.h"
 
-static gboolean spectrum_segmented_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+static gdouble  spectrum_segmented_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 static gboolean spectrum_segmented_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrumSegmented, hos_spectrum_segmented, HOS_TYPE_SPECTRUM)
@@ -40,8 +40,8 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   /* FIXME anything? */
 }
 
-static gboolean
-spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+static gdouble
+spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
   /*
    * FIXME

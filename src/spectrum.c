@@ -1432,7 +1432,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 		}
 	      
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
-		spectrum_accumulate(self, self, accumulate_idx, accumulate_dest);
+		*accumulate_dest = spectrum_accumulate(self, self, accumulate_idx);
 	      
 	      ++accumulate_dest;
 	      if (spectrum_bump_idx(self, accumulate_idx))
@@ -1481,8 +1481,8 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
  *   FALSE - point not available yet; '*dest' is unchanged.
  *
  */
-gboolean
-spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+gdouble
+spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
   /* FIXME */
   /* 'idx' already instantiated? just return. */
@@ -1496,9 +1496,7 @@ spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* d
    */
   HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
   g_return_if_fail(class->accumulate != NULL);
-  gboolean result = class->accumulate(self, root, idx, dest);
-  if (result) DATUM_ENSURE_KNOWN(*dest);
-  return result;
+  return class->accumulate(self, root, idx);
 }
 
 static gint

@@ -17,7 +17,7 @@
 #define DATUM_IS_KNOWN(x)               ((x) != DATUM_UNKNOWN_VALUE)
 
 
-gboolean spectrum_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+gdouble  spectrum_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
 
 #endif /* not  _HOS_HAVE_SPECTRUM_PRIV_H */

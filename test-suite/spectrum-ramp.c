@@ -2,7 +2,7 @@
 #include "spectrum-ramp.h"
 
 
-static gboolean spectrum_ramp_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+static gdouble  spectrum_ramp_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 static gboolean spectrum_ramp_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
 
 G_DEFINE_TYPE (HosSpectrumRamp, hos_spectrum_ramp, HOS_TYPE_SPECTRUM)
@@ -32,11 +32,10 @@ spectrum_ramp_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* 
   return TRUE;
 }
 
-static gboolean
-spectrum_ramp_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+static gdouble
+spectrum_ramp_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
-  *dest = *idx;
-  return TRUE;
+  return (gdouble)(*idx);
 }
 
 HosSpectrumRamp*
