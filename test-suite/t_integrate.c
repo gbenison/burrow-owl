@@ -35,7 +35,10 @@ main()
       gint i;
       g_print("Cube (%6d, ...) = ", start);
       for (i = 0; i < n; ++i)
-	g_print("%.2f ", spectrum_peek(cube, start + i));
+	{
+	  g_print("%.2f ", spectrum_peek(cube, start + i));
+	  g_assert(spectrum_peek(cube, start + i) == test_cube_predict(start + i));
+	}
       g_print("\n");
     }
 
@@ -45,7 +48,10 @@ main()
   g_print("S3 = ");
   gint i;
   for (i = 0; i < 10; ++i)
-    g_print("%.2f ", spectrum_peek(S3, i));
+    {
+      g_print("%.2f ", spectrum_peek(S3, i));
+      g_assert(spectrum_peek(S3, i) == test_cube_I_predict(i));
+    }
   g_print("\n\n");
 
   g_assert(spectrum_peek(S3, 1) == 104950);
@@ -55,7 +61,10 @@ main()
   g_print("S4 = integrate(S3)\n");
   g_print("S4 = ");
   for (i = 0; i < 10; ++i)
-    g_print("%.2f ", spectrum_peek(S4, i));
+    {
+      g_print("%.2f ", spectrum_peek(S4, i));
+      g_assert(spectrum_peek(S4, i) == test_cube_II_predict(i));
+    }
   g_print("\n\n");
 
   return 0;

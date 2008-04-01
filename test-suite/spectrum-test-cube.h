@@ -24,6 +24,10 @@ struct _HosSpectrumTestCube
 
 HosSpectrumTestCube* spectrum_test_cube_new(void);
 
+gdouble              test_cube_predict    (guint idx);
+gdouble              test_cube_I_predict  (guint idx);
+gdouble              test_cube_II_predict (guint idx);
+
 GType hos_spectrum_test_cube_get_type (void);
 
 

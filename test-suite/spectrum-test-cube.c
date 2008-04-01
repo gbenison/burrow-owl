@@ -46,3 +46,47 @@ spectrum_test_cube_new()
 {
   return HOS_SPECTRUM_TEST_CUBE(g_object_new(HOS_TYPE_SPECTRUM_TEST_CUBE, NULL));
 }
+
+/*
+ * returns:
+ * predicted value of spectrum_peek(spectrum_test_cube_new(), idx)
+ */
+gdouble
+test_cube_predict (guint idx)
+{
+  gdouble result = 0;
+  result += idx % default_np;
+  idx /= default_np;
+  result += (idx % default_np) * 1000;
+  idx /= default_np;
+  result += (idx % default_np) * 1e6;
+
+  return result;
+}
+
+/*
+ * returns:
+ * predicted value of spectrum_peek(spectrum_integrate(spectrum_test_cube_new()), idx)
+ */
+gdouble
+test_cube_I_predict (guint idx)
+{
+  gdouble start_value = (idx % default_np) * 1000;
+  idx /= default_np;
+  start_value += (idx % default_np) * 1e6;
+  
+  return (default_np / 2) * (start_value + start_value + default_np - 1);
+}
+
+/*
+ * returns:
+ * predicted value of spectrum_peek(spectrum_integrate(spectrum_integrate(spectrum_test_cube_new())), idx)
+ */
+gdouble
+test_cube_II_predict (guint idx)
+{
+  gdouble start = test_cube_I_predict(idx * default_np);
+  gdouble stop  = test_cube_I_predict(idx * default_np + default_np - 1);
+
+  return (start + stop) * (default_np / 2);
+}
