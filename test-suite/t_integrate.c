@@ -15,10 +15,14 @@ main()
   g_message("Integrated S1 to obtain S2 with %d dimensions\n", spectrum_ndim(S2));
 
   guint np = spectrum_np(S1, 0);
-  gdouble predicted = (np * (np - 1) / 2);
+  gdouble theoretical = (np * (np - 1) / 2);
   gdouble *data = spectrum_traverse_blocking(S2);
-  g_print("S2 value: %f (%f)\n ", *data, predicted);
-  g_assert(fabs(predicted - *data) < 0.001);
+  gdouble actual = *data;
+  g_print("S2 value: %f (%f)\n ", actual, theoretical);
+
+#define ABOUT_EQUAL(a, b) (fabs((a) - (b)) < 0.001)
+
+  g_assert(ABOUT_EQUAL(theoretical, actual));
 
   return 0;
 }
