@@ -104,17 +104,6 @@ backing_reset(HosBacking* self, gpointer data)
   self->negated = FALSE;
 }
 
-HosBacking*
-backing_copy(HosBacking *self)
-{
-  HosBacking *result = g_object_new(G_TYPE_FROM_INSTANCE(self), NULL);
-
-  if (HOS_BACKING_GET_CLASS(self)->copy != NULL)
-    HOS_BACKING_GET_CLASS(self)->copy(self, result);
-
-  return result;
-}
-
 /*
  * Use as a callback for GList's of backing objects.
  */

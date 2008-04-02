@@ -59,6 +59,8 @@ spectrum_integrated.c \
 burrow/spectrum_integrated.h \
 spectrum_segmented.c \
 spectrum_segmented.h \
+spectrum_convoluted.c \
+burrow/spectrum_convoluted.h \
 marker.c  \
 marker.h  \
 grid.c \

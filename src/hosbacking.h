@@ -57,7 +57,6 @@ struct _HosBackingClass
 
 };
 
-extern HosBacking* backing_copy       (HosBacking*);
 extern void        backing_negate     (HosBacking*);
 extern void        backing_reset      (HosBacking*, gpointer);
 extern void        backing_accumulate (HosBacking*, gdouble*);

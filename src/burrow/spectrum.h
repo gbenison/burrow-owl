@@ -92,7 +92,6 @@ HosSpectrum* CONSTRUCTOR spectrum_transpose        (HosSpectrum* self, guint dim
 HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, gdouble A, gdouble B);
 HosSpectrum* CONSTRUCTOR spectrum_extract_ppm      (HosSpectrum* spec, gdouble A, gdouble B);
 HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
-HosSpectrum* CONSTRUCTOR spectrum_convolute        (HosSpectrum *A, HosSpectrum *B);
 HosSpectrum* CONSTRUCTOR spectrum_cache            (HosSpectrum* self);
 
 gdouble  spectrum_get_ranked         (HosSpectrum *spec, guint n);

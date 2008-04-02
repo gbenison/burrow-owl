@@ -62,12 +62,7 @@ struct _foreach_data
   gdouble cost;
   gint cost_mode;
 
-  gdouble *potato;
-
   HosBacking *backing;
-
-  HosBacking *original_backing;
-  HosBacking *new_backing;
 
   gdouble orig;
   gdouble giro;
@@ -114,8 +109,6 @@ static void          set_buffer_stride          (GList*, guint *stride);
 static gint          compare_cost               (GList *A, GList *B);
 static void          g_list_foreach_recursive   (GList *list,
 					         guint lvl, GFunc callback, gpointer data);
-static void          check_replace_backing      (HosDimension *dimen, struct _foreach_data* data);
-static void          replace_backing            (HosDimension *dimen, struct _foreach_data* data);
 static void          g_object_ref_data          (GObject *obj, gpointer data);
 static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
 static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
@@ -435,104 +428,6 @@ g_list_foreach_recursive(GList *list, guint lvl, GFunc callback, gpointer data)
 
       list = list->next;
     }
-}
-
-
-
-/*
- * retrieve the backing object from 'dimen'; ensure that it
- * does not occur in either target_1 or target_2.
- */
-static void
-check_replace_backing(HosDimension *dimen, struct _foreach_data* data)
-{
-  struct _foreach_data child_data;
-
-  child_data.original_backing = dimen->backing;
-  child_data.new_backing = NULL;
-
-  g_list_foreach_recursive(data->target_1, 2, (GFunc)replace_backing, &child_data);
-  g_list_foreach_recursive(data->target_2, 2, (GFunc)replace_backing, &child_data);
-
-}
-
-/*
- * Used as a callback in double traversal.
- * If this dimension's backing matches the one we are trying to replace,
- * then replace it with the new one.
- * If the new one hasn't been created yet, first create it by making
- * a copy of the old one.
- */
-static void
-replace_backing(HosDimension *dimen, struct _foreach_data* data)
-{
-  if (dimen->backing != data->original_backing)
-    return;
-
-  if (data->new_backing == NULL)
-   data->new_backing = backing_copy(data->original_backing);
-
-  dimen->backing = data->new_backing;
-
-}
-
-/*
- * Returns: the convolution of spectrum A and spectrum B.
- *
- * Definition:  let C <- spectrum_convolute(A, B);
- *   then  C(a', b', a, b) = A(a', b') * B(a, b)
- *
- * Care must be taken to preserve referential transparency
- * of spectra A, B, and C; to achieve this, the dimensions
- * of spectrum B are copied.  If any backing object in
- * spectrum A appears in spectrum B, that backing object is
- * replaced with a copy in spectrum B.
- */
-HosSpectrum*
-spectrum_convolute(HosSpectrum *spec_A, HosSpectrum *spec_B)
-{
-  HosSpectrum *result = spectrum_copy(spec_A);
-  GList *B_projections = g_list_copy(SPECTRUM_PRIVATE(spec_B, projections));
-  GList *B_dimensions = g_list_copy(spec_B->dimensions);
-  GList *list_iter;
-  guint dims_a = spectrum_ndim(spec_A);
-  guint dims_b = spectrum_ndim(spec_B);
-
-  /* replace B dimensions with copies. */
-  for (list_iter = B_projections; list_iter != NULL; list_iter = list_iter->next)
-    list_iter->data = dimen_list_copy((GList*)(list_iter->data));
-
-  for (list_iter = B_dimensions; list_iter != NULL; list_iter = list_iter->next)
-    list_iter->data = dimen_list_copy((GList*)(list_iter->data));
-
-  /* ensure no backing objects are shared between A and B. */
-  {
-
-    struct _foreach_data data;
-
-    data.target_1 = B_projections;
-    data.target_2 = B_dimensions;
-
-    g_list_foreach_recursive(SPECTRUM_PRIVATE(spec_A, projections), 2,
-			     (GFunc)check_replace_backing,
-			     &data);
-
-    g_list_foreach_recursive(spec_A->dimensions, 2,
-			     (GFunc)check_replace_backing,
-			     &data);
-
-  }
-
-  /* tack B dimensions onto the end of A dimensions */
-  SPECTRUM_PRIVATE(result, projections) = g_list_concat(SPECTRUM_PRIVATE(result, projections), B_projections);
-  result->dimensions = g_list_concat(result->dimensions, B_dimensions);
-
-  result->negated = spec_A->negated && spec_B->negated;
-
-  assert(spectrum_ndim(result) == dims_a + dims_b);
-
-  return result;
-
 }
 
 /*
