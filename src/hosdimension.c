@@ -65,20 +65,6 @@ dimen_list_copy(GList *dimens)
   return result;
 }
 
-/*
- * Calculate a 'cost function' for this dimension;
- * it is supposed to reflect the cost of traversing
- * the physical backing for this dimension.
- * For example, block spectra with big strides have
- * a large cost because of the big IO seeks involved.
- */
-void
-dimension_cost(HosDimension* self, gdouble *accum)
-{
-  if (HOS_DIMENSION_GET_CLASS(self)->cost)
-    *accum += HOS_DIMENSION_GET_CLASS(self)->cost(self);
-}
-
 guint
 dimension_np(HosDimension* self)
 {

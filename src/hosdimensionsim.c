@@ -116,12 +116,6 @@ sim_prime(HosDimensionSim *self, HosBackingSim *backing)
   sim_reset(self, backing);
 }
 
-static gdouble
-sim_cost(HosDimensionSim* self)
-{
-  return 1.0;
-}
-
 static void
 hos_dimension_sim_class_init (HosDimensionSimClass *klass)
 {
@@ -137,7 +131,6 @@ hos_dimension_sim_class_init (HosDimensionSimClass *klass)
   dimension_class->increment = (IncrementFunc)sim_increment;
   dimension_class->reset = (IncrementFunc)sim_reset;
   dimension_class->prime = (IncrementFunc)sim_prime;
-  dimension_class->cost = (DimenCostFunc)sim_cost;
 
 /*
 

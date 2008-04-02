@@ -56,11 +56,6 @@ enum
  */
 struct _foreach_data
 {
-  GList *target_1;
-  GList *target_2;
-
-  gdouble cost;
-  gint cost_mode;
 
   HosBacking *backing;
 
@@ -106,7 +101,6 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GParamSpec      *pspec);
 
 static void          set_buffer_stride          (GList*, guint *stride);
-static gint          compare_cost               (GList *A, GList *B);
 static void          g_list_foreach_recursive   (GList *list,
 					         guint lvl, GFunc callback, gpointer data);
 static void          g_object_ref_data          (GObject *obj, gpointer data);
@@ -115,7 +109,6 @@ static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
-static void          spectrum_traverse_internal_depr (HosSpectrum* spec);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static gint          spectrum_total_np          (HosSpectrum* self);
@@ -163,69 +156,25 @@ spectrum_traverse_blocking(HosSpectrum *spec)
 }
 
 /*
- * If the spectrum contents are ready, immediately returns
- * the buffer containing the contents.
- * If the contents are not ready, returns NULL, but when the
- * contents are ready, the spectrum will emit the 'ready' signal.
+ * Instantiate 'spec', asynchronously.
+ * Returns either the spectral data or 'NULL' if not ready yet.
+ * Does not block.
+ * Spectrum will emit the 'ready' signal when instantiated.
  */
 gdouble*
 spectrum_traverse(HosSpectrum *spec)
 {
-  if (spec->buf == NULL)
-    queue_pending_push(spec);
-  return (spec->buf);
-}
-
-static void
-spectrum_traverse_internal_depr(HosSpectrum* self)
-{
-  g_return_if_fail(HOS_IS_SPECTRUM(self));
-
-  g_mutex_lock(SPECTRUM_PRIVATE(self, traversal_lock));
-
-  if (self->buf == NULL)
+  if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
+    return spec->buf;
+  else
     {
-
-      guint spectrum_size = 1;    /* total size in number of points */
-      GList* backing_list = NULL;
-      gdouble *buffer = NULL;
-      HosSpectrum* spec = spectrum_copy(self);
-      
-      g_list_foreach(spec->dimensions, (GFunc)set_buffer_stride, &spectrum_size);
-      
-      /* quit if spectrum is empty. */
-      if (spectrum_size > 0)
-	{
-      
-	  buffer = g_renew(gdouble, buffer, spectrum_size);
-	  assert(buffer);
-	  spec->buf = buffer;
-	  memset(buffer, 0, spectrum_size * sizeof(gdouble));
-	  
-	  g_list_foreach_recursive(SPECTRUM_PRIVATE(spec, projections), 2, (GFunc)append_backing, &backing_list);
-	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)append_backing, &backing_list);
-	  g_list_foreach(backing_list, (GFunc)backing_reset, NULL);
-	  
-	  spec->dimensions = g_list_sort(spec->dimensions, (GCompareFunc)compare_cost);
-	  
-	  /*
-	   * Perform the actual traversal--
-	   * reset all dimensions,
-	   * then call recursive traverser function.
-	   */
-	  g_list_foreach_recursive(SPECTRUM_PRIVATE(spec, projections), 2, (GFunc)dimension_prime, NULL);
-	  g_list_foreach_recursive(spec->dimensions, 2, (GFunc)dimension_prime, NULL);
-	  dimension_traverse_internal(spec->dimensions, spec->buf, backing_list);
-	  
-	  self->buf = spec->buf;
-	  spec->buf = 0;
-	}
-      
-      g_object_unref(spec);
+      /*
+       * FIXME
+       * start asynchronous traversal-
+       * add spectrum_traverse_internal to thread pool
+       */
+      return NULL;
     }
-
-  g_mutex_unlock(SPECTRUM_PRIVATE(self, traversal_lock));
-
 }
 
 /*
@@ -328,8 +277,7 @@ spectrum_peek(HosSpectrum *spec, guint idx)
   gdouble* buf = spectrum_traverse_blocking(spec);
   int spec_size = spectrum_total_points(spec);
 
-  /* FIXME fail more gracefully */
-  assert(idx < spec_size);
+  g_return_if_fail(idx < spec_size);
 
   return buf[idx];
 
@@ -373,35 +321,6 @@ set_buffer_stride(GList *list, guint *stride)
 
   dimen->buffer_stride = *stride;
   *stride *= dimen->np;
-
-}
-
-/*
- * Compare the cost of dimension list A to the cost of
- * dimension list B.
- *
- * The cost of the list is the sum of the costs of its
- * members.
- *
- * note: a comparison function must return a negative
- * value if the first item comes before the second
- */
-static gint
-compare_cost(GList *A, GList *B)
-{
-  gdouble cost_A = 0;
-  gdouble cost_B = 0;
-
-  g_list_foreach(A, (GFunc)dimension_cost, &cost_A);
-  g_list_foreach(B, (GFunc)dimension_cost, &cost_B);
-
-  if (cost_A > cost_B)
-    return -1;
-
-  if (cost_A < cost_B)
-    return 1;
-
-  return 0;
 
 }
 
@@ -1203,13 +1122,14 @@ signal_spectra_ready(void)
   g_idle_add((GSourceFunc)idle_spectra_ready, NULL);
 }
 
+/* FIXME obsolete */
 static gpointer
 traversal_thread_func(gpointer not_used)
 {
   while (1)
     {
       HosSpectrum* next = queue_pending_fetch();
-      spectrum_traverse_internal_depr(next);
+      /*       spectrum_traverse_internal_depr(next); */
       queue_ready_push(next);
     }
 }

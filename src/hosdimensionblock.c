@@ -219,12 +219,6 @@ block_prime(HosDimensionBlock *self, HosBackingBlock *backing)
   self->negated = self->negated_initially;
 }
 
-static gdouble
-block_cost(HosDimensionBlock* self)
-{
-  return self->stride;
-}
-
 static void
 hos_dimension_block_class_init (HosDimensionBlockClass *klass)
 {
@@ -242,7 +236,6 @@ hos_dimension_block_class_init (HosDimensionBlockClass *klass)
   dimension_class->reset = (ResetFunc)block_reset;
   dimension_class->prime = (ResetFunc)block_prime;
   dimension_class->clip_lower = (void_func_dimen_guint)block_clip_lower;
-  dimension_class->cost = (DimenCostFunc)block_cost;
 
 /* here is where you would set klass->member etc. */
   

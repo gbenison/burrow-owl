@@ -53,14 +53,12 @@ struct _HosDimension
   gsize iterate_index;
   gboolean multiplier;
   gsize buffer_stride;
-  gdouble cost;
 
 };
 
 typedef void(*BackingManipulateFunc)(HosDimension*, HosBacking*);
 typedef void(*LimitManipulateFunc)(HosDimension*, const guint);
 typedef void(*DimenCopyFunc)(HosDimension*, HosDimension*);
-typedef gdouble(*DimenCostFunc)(HosDimension*);
 typedef void(*InterpolateFunc)(HosDimension*, const guint);
 typedef void(*IncrementFunc)(HosDimension*, HosBacking*);
 typedef void(*ResetFunc)(HosDimension*, HosBacking*);
@@ -80,11 +78,8 @@ struct _HosDimensionClass
   void (*reset)(HosDimension*, HosBacking*);
   void (*prime)(HosDimension*, HosBacking*);
 
-  gdouble (*cost)(HosDimension*);
-
 };
 
-extern void dimension_cost(HosDimension*, gdouble*);
 extern guint dimension_np(HosDimension*);
 extern gdouble dimension_sw(HosDimension*);
 extern gdouble dimension_sf(HosDimension*);
