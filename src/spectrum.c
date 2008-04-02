@@ -158,7 +158,6 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  /* FIXME here: check for status?  lock it? */
   spectrum_traverse_internal(spec);
   return spec->buf;
 }

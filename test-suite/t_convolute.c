@@ -11,15 +11,14 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  HosSpectrum *S1 = spectrum_flakify(spectrum_ramp_new(), 0.5);
-  HosSpectrum *S2 = spectrum_flakify(spectrum_ramp_new(), 0.5);
+  HosSpectrum *S1 = spectrum_flakify(HOS_SPECTRUM(spectrum_ramp_new()), 0.5);
+  HosSpectrum *S2 = spectrum_flakify(HOS_SPECTRUM(spectrum_ramp_new()), 0.5);
   HosSpectrum *S3 = spectrum_convolute(S1, S2);
 			
   g_assert(spectrum_ndim(S3) == 2);
   g_assert(spectrum_np(S3, 0) == spectrum_np(S1, 0));
   g_assert(spectrum_np(S3, 1) == spectrum_np(S2, 0));
 
-  spectrum_traverse_blocking(S3);
   gint i, j;
   for (i = 0; i < 10; ++i)
     {
@@ -29,7 +28,7 @@ main()
     }
 
   HosSpectrum *S4 = spectrum_integrate(S3);
-  spectrum_traverse_blocking(S4);
+
   g_print("Integrated:\n");
   for (i = 0; i < 10; ++i)
     g_print("%8.f", spectrum_peek(S4, i));

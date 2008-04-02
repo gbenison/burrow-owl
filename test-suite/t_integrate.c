@@ -27,7 +27,7 @@ main()
 
   HosSpectrum *cube = HOS_SPECTRUM(spectrum_test_cube_new());
   g_message("Made new test cube spectrum with %d dimensions\n", spectrum_ndim(cube));
-  spectrum_traverse_blocking(cube);
+
   gint start;
   static const gint n = 10;
   for (start = 1; start < 100000; start *= 4)
@@ -43,7 +43,6 @@ main()
     }
 
   HosSpectrum *S3 = spectrum_integrate(cube);
-  spectrum_traverse_blocking(S3);
   g_print("S3 = integrate(cube)\n");
   g_print("S3 = ");
   gint i;
@@ -57,7 +56,6 @@ main()
   g_assert(spectrum_peek(S3, 1) == 104950);
 
   HosSpectrum *S4 = spectrum_integrate(S3);
-  spectrum_traverse_blocking(S4);
   g_print("S4 = integrate(S3)\n");
   g_print("S4 = ");
   for (i = 0; i < 10; ++i)
