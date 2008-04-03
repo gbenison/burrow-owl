@@ -52,6 +52,8 @@ hos_spectrum_segmented_class_init(HosSpectrumSegmentedClass *klass)
 
   spectrum_class->accumulate = spectrum_segmented_accumulate;
   spectrum_class->tickle     = spectrum_segmented_tickle;
+
+  g_type_class_add_private(gobject_class, sizeof(HosSpectrumSegmentedPrivate));
 }
 
 static void

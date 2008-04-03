@@ -16,7 +16,7 @@ main()
   gint i;
   for (i = 0; i < n_spectra; ++i)
       spectra[i] =
-	spectrum_integrate(spectrum_integrate(spectrum_flakify(HOS_SPECTRUM(spectrum_test_cube_new()), 1.0 - 1e-4)));
+	spectrum_integrate(spectrum_integrate(spectrum_flakify(HOS_SPECTRUM(spectrum_test_cube_new()), 1.0 - 1e-5)));
 
   g_print("Asynchronously traversing %d spectra...", n_spectra);
   for (i = 0; i < n_spectra; ++i)
