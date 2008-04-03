@@ -121,13 +121,10 @@ static gboolean      spectrum_is_ready          (HosSpectrum *self);
 static gboolean      spectrum_bump_idx          (HosSpectrum* self, gint* idx);
 
 static void          ensure_traversal_setup     (void);
-static void          queue_pending_push         (HosSpectrum* spectrum);
 static void          queue_ready_push           (HosSpectrum* spectrum);
-static HosSpectrum*  queue_pending_fetch        (void);
 static HosSpectrum*  queue_ready_fetch          (void);
 static void          signal_spectra_ready       (void);
 static gboolean      idle_spectra_ready         (gpointer not_used);
-static gpointer      traversal_thread_func      (gpointer not_used);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
@@ -969,13 +966,8 @@ hos_spectrum_get_property (GObject         *object,
 
 /******* the traversal thread *****/
 
-static GList*   spectra_pending        = NULL;
 static GList*   spectra_ready          = NULL;
-static GMutex*  spectrum_queue_lock    = NULL;   /* deprecated? */
-static GThread* traversal_thread       = NULL;
-static GError*  traversal_thread_error = NULL;
-static GCond*   spectrum_pending_cond  = NULL;
-static GMutex*  traversal_lock         = NULL;
+static GMutex*  spectrum_queue_lock    = NULL;
 static GThreadPool* traversal_pool     = NULL;
 
 static void
@@ -999,36 +991,6 @@ ensure_traversal_setup()
 
   if (spectrum_queue_lock == NULL)
     spectrum_queue_lock = g_mutex_new();
-  if (traversal_lock == NULL)
-    traversal_lock = g_mutex_new();
-  if (traversal_thread == NULL)
-    {
-      traversal_thread =
-	g_thread_create((GThreadFunc)traversal_thread_func,
-			NULL,
-			FALSE,
-			&traversal_thread_error);
-      g_assert(traversal_thread != NULL);
-    }
-  if (spectrum_pending_cond == NULL)
-    spectrum_pending_cond = g_cond_new();
-  g_assert(traversal_thread_error == NULL);
-}
-
-static void
-queue_pending_push(HosSpectrum* spectrum)
-{
-  ensure_traversal_setup();
-  g_mutex_lock(spectrum_queue_lock);
-
-  /* push the argument to the head of the list. */
-  GList* prev = g_list_find(spectra_pending, (gpointer)spectrum);
-  if (prev)
-    spectra_pending = g_list_delete_link(spectra_pending, prev);
-  spectra_pending = g_list_prepend(spectra_pending, spectrum);
-  g_cond_signal(spectrum_pending_cond);
-
-  g_mutex_unlock(spectrum_queue_lock);
 }
 
 static void
@@ -1045,28 +1007,6 @@ queue_ready_push(HosSpectrum* spectrum)
   signal_spectra_ready();
 
   g_mutex_unlock(spectrum_queue_lock);
-}
-
-/*
- * returns: next 'pending' spectrum--
- * will block until one is available
- */
-static HosSpectrum*
-queue_pending_fetch(void)
-{
-  ensure_traversal_setup();
-  g_mutex_lock(spectrum_queue_lock);
-  while (g_list_length(spectra_pending) == 0)
-    g_cond_wait(spectrum_pending_cond, spectrum_queue_lock);
-
-  g_assert(g_list_length(spectra_pending) != 0);
-  HosSpectrum* result = (HosSpectrum*)g_list_nth_data(spectra_pending, 0);
-  spectra_pending = g_list_delete_link(spectra_pending, g_list_first(spectra_pending));
-
-  g_mutex_unlock(spectrum_queue_lock);
-
-  g_assert(result != NULL);
-  return result;
 }
 
 /*
@@ -1115,18 +1055,6 @@ static void
 signal_spectra_ready(void)
 {
   g_idle_add((GSourceFunc)idle_spectra_ready, NULL);
-}
-
-/* FIXME obsolete */
-static gpointer
-traversal_thread_func(gpointer not_used)
-{
-  while (1)
-    {
-      HosSpectrum* next = queue_pending_fetch();
-      /*       spectrum_traverse_internal_depr(next); */
-      queue_ready_push(next);
-    }
 }
 
 /*
@@ -1217,6 +1145,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 
 	  g_atomic_pointer_set(&self->buf, buf);
 	  priv->status = COMPLETE;
+	  queue_ready_push(self);
 	}
       g_mutex_unlock(priv->traversal_lock);
     }
