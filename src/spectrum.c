@@ -74,8 +74,8 @@ enum {
   PROP_READY
 };
 
-#define HOS_SPECTRUM_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
-#define SPECTRUM_PRIVATE(o, field) ((HOS_SPECTRUM_GET_PRIVATE(o))->field)
+#define SPECTRUM_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
+#define SPECTRUM_PRIVATE(o, field) ((SPECTRUM_GET_PRIVATE(o))->field)
 typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 
 struct _HosSpectrumPrivate
@@ -155,27 +155,6 @@ spectrum_traverse_blocking(HosSpectrum *spec)
   return spec->buf;
 }
 
-/*
- * Instantiate 'spec', asynchronously.
- * Returns either the spectral data or 'NULL' if not ready yet.
- * Does not block.
- * Spectrum will emit the 'ready' signal when instantiated.
- */
-gdouble*
-spectrum_traverse(HosSpectrum *spec)
-{
-  if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
-    return spec->buf;
-  else
-    {
-      /*
-       * FIXME
-       * start asynchronous traversal-
-       * add spectrum_traverse_internal to thread pool
-       */
-      return NULL;
-    }
-}
 
 /*
  * Emit the 'ready' signal from spectrum 'self',
@@ -997,11 +976,27 @@ static GThread* traversal_thread       = NULL;
 static GError*  traversal_thread_error = NULL;
 static GCond*   spectrum_pending_cond  = NULL;
 static GMutex*  traversal_lock         = NULL;
+static GThreadPool* traversal_pool     = NULL;
 
 static void
 ensure_traversal_setup()
 {
   if (!g_thread_supported ()) g_thread_init (NULL);
+
+  if (traversal_pool == NULL)
+    {
+      gpointer user_data = NULL;
+      gint max_threads   = 5;    /* FIXME this should be adjustable */
+      gboolean exclusive = TRUE;
+      GError*  error     = NULL;
+      traversal_pool = g_thread_pool_new ((GFunc)spectrum_traverse_internal,
+					  user_data,
+					  max_threads,
+					  exclusive,
+					  &error);
+      g_assert(error == NULL);
+    }
+
   if (spectrum_queue_lock == NULL)
     spectrum_queue_lock = g_mutex_new();
   if (traversal_lock == NULL)
@@ -1165,26 +1160,28 @@ static void
 spectrum_traverse_internal(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
-  if (SPECTRUM_PRIVATE(self, status) != COMPLETE)
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  if (priv->status == LATENT)
     {
-      g_mutex_lock(SPECTRUM_PRIVATE(self, traversal_lock));
+      g_mutex_lock(priv->traversal_lock);
      
-      if (SPECTRUM_PRIVATE(self, status) != COMPLETE)
+      if (priv->status == LATENT)
 	{
-	  g_assert(SPECTRUM_PRIVATE(self, status) == LATENT);
-	  SPECTRUM_PRIVATE(self, status) = TRAVERSING;
+	  priv->status = TRAVERSING;
 
 	  /* create a destination buffer for the spectral data. */
 	  g_assert(self->buf == NULL);
 	  int total_np = spectrum_total_np(self);
-	  self->buf = g_new(gdouble, total_np);
+	  gdouble *buf = g_new(gdouble, total_np);
+	  /* 	  self->buf = g_new(gdouble, total_np); */
+
 	  int i;
 	  for (i = 0; i < total_np; ++i)
-	    self->buf[i] = DATUM_UNKNOWN_VALUE;
+	    buf[i] = DATUM_UNKNOWN_VALUE;
 	  
 	  gint accumulate_idx[self->ndim];
 	  memset(accumulate_idx, 0, self->ndim * sizeof(gint));
-	  gdouble* accumulate_dest = self->buf;
+	  gdouble* accumulate_dest = buf;
 	  
 	  gint tickle_idx[self->ndim];
 	  
@@ -1217,10 +1214,11 @@ spectrum_traverse_internal(HosSpectrum* self)
 		break;
 	      
 	    }
-	  
-	  SPECTRUM_PRIVATE(self, status) = COMPLETE;
+
+	  g_atomic_pointer_set(&self->buf, buf);
+	  priv->status = COMPLETE;
 	}
-      g_mutex_unlock(SPECTRUM_PRIVATE(self, traversal_lock));
+      g_mutex_unlock(priv->traversal_lock);
     }
 }
 
@@ -1304,4 +1302,23 @@ spectrum_set_np (HosSpectrum* self, const guint dim, const gint np)
 {
   check_dim_count(self, dim);
   self->np[dim] = np;
+}
+
+/*
+ * Instantiate 'spec', asynchronously.
+ * Returns either the spectral data or 'NULL' if not ready yet.
+ * Does not block.
+ * Spectrum will emit the 'ready' signal when instantiated.
+ */
+gdouble*
+spectrum_traverse(HosSpectrum *spec)
+{
+  if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
+    return spec->buf;
+  else
+    {
+      ensure_traversal_setup();
+      g_thread_pool_push(traversal_pool, spec, NULL);
+      return NULL;
+    }
 }
