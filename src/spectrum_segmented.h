@@ -42,6 +42,8 @@ struct _HosSpectrumSegmented
 struct _HosSpectrumSegmentedClass
 {
   HosSpectrumClass parent_class;
+
+  void  (*idx2segment) (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
 };
 
 GType hos_spectrum_segmented_get_type (void);

@@ -1044,9 +1044,6 @@ idle_spectra_ready(gpointer not_used)
   return TRUE;
 }
 
-
-
-
 /*
  * signal the main thread that spectra have been traversed and are ready
  * for use.
@@ -1054,6 +1051,7 @@ idle_spectra_ready(gpointer not_used)
 static void
 signal_spectra_ready(void)
 {
+  /* FIXME could this be done with a glib main-loop 'source'? */
   g_idle_add((GSourceFunc)idle_spectra_ready, NULL);
 }
 
