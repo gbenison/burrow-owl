@@ -37,13 +37,16 @@ typedef struct _HosSpectrumSegmentedClass  HosSpectrumSegmentedClass;
 struct _HosSpectrumSegmented
 {
   HosSpectrum parent_instance;
+
+  guint segment_size;
 };
 
 struct _HosSpectrumSegmentedClass
 {
   HosSpectrumClass parent_class;
 
-  void  (*idx2segment) (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
+  void     (*idx2segment)  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
+  void     (*read_segment) (HosSpectrumSegmented *self, guint segid, gdouble *buf);
 };
 
 GType hos_spectrum_segmented_get_type (void);

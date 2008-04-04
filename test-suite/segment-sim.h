@@ -8,7 +8,7 @@
 G_BEGIN_DECLS
 
 #define HOS_TYPE_SPECTRUM_SEGMENT_SIM  (hos_spectrum_segment_sim_get_type())
-#define HOS_SPECTRUM_SEGMENT_SIM(obj)  (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_SPECTRUM_SEGMENT_SIM, HosSpectrumSegmentSim);
+#define HOS_SPECTRUM_SEGMENT_SIM(obj)  (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_SPECTRUM_SEGMENT_SIM, HosSpectrumSegmentSim))
 
 typedef struct _HosSpectrumSegmentSimClass HosSpectrumSegmentSimClass;
 typedef struct _HosSpectrumSegmentSim      HosSpectrumSegmentSim;
@@ -22,6 +22,8 @@ struct _HosSpectrumSegmentSim
 {
   HosSpectrumSegmented parent_instance;
 };
+
+gdouble segment_sim_predict (HosSpectrumSegmentSim* self, guint idx);
 
 G_END_DECLS
 
