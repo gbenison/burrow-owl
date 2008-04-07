@@ -29,6 +29,9 @@ struct _HosSpectrumSegmentedPrivate
   GThread *io_thread;
   GCond   *segment_requested_cond;
   GCond   *segment_ready_cond;
+
+  guint   segment_ptr;
+  guint   segment_size;
 };
 
 static gdouble  spectrum_segmented_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
@@ -40,6 +43,18 @@ static void     idx2segment                   (HosSpectrumSegmented *self,
 					       guint *idx, gint *dest_segid, gint *dest_pt_idx);
 static void     request_segment_accumulate    (HosSpectrumSegmented *self, gint segid);
 static gboolean segmented_fetch_point         (HosSpectrumSegmented *self, gint segid, gint pt_idx, gdouble *dest);
+
+typedef struct _cache_slot cache_slot_t;
+struct _cache_slot
+{
+  guint    id;
+  gboolean valid;
+  gint     segid;
+  gdouble  *buf;
+};
+
+static cache_slot_t* segment_cache_obtain_slot     (HosSpectrumSegmented *self);
+static void          segment_cache_bless_slot      (cache_slot_t* slot);
 
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrumSegmented, hos_spectrum_segmented, HOS_TYPE_SPECTRUM)
@@ -111,8 +126,28 @@ spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 static gboolean
 segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdouble *dest)
 {
-  /* FIXME */
-  return FALSE;
+  /* Find slot corresponding to 'segid' */
+  cache_slot_t* slot = NULL;  /* FIXME */
+
+  if (slot == NULL)
+    return FALSE;
+
+  guint id = slot->id;
+
+  if (slot->valid == FALSE)
+    return FALSE;
+
+  gdouble result = slot->buf[pt_idx];
+
+  if (slot->segid != segid)
+    return FALSE;
+
+  if (slot->id != id)
+    return FALSE;
+
+  *dest = result;
+
+  return TRUE;
 }
 
 static void
@@ -204,9 +239,51 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_cond_wait(priv->segment_requested_cond, priv->segment_lock);
 	}
       g_mutex_unlock(priv->segment_lock);
-      /* FIXME read next_segment_id */
-      /* FIXME put next segment in 'segment cache'! */
+
+      cache_slot_t* slot = segment_cache_obtain_slot(self);
+      g_assert(slot != NULL);
+      g_assert(slot->buf != NULL);
+      slot->segid = next_segment_id;
+      class->read_segment(self, next_segment_id, slot->buf);
+      segment_cache_bless_slot(slot);
+
       g_cond_signal(priv->segment_ready_cond);
 
     }
 }
+
+/*
+ * Acquire a cache slot in spectrum 'self', mark it as invalid
+ * so it can be filled with data.
+ */
+static cache_slot_t*
+segment_cache_obtain_slot(HosSpectrumSegmented *self)
+{
+  cache_slot_t *result = NULL;
+
+  /* FIXME find an available slot */
+
+  if (0)
+    {
+      result->valid = FALSE;
+      ++result->id;
+    }
+
+  return result;
+}
+
+static void
+segment_cache_bless_slot(cache_slot_t *slot)
+{
+  ++slot->id;
+  slot->valid = TRUE;
+}
+
+void
+spectrum_segmented_set_segment_size(HosSpectrumSegmented *self, guint size)
+{
+  SEGMENTED_PRIVATE(self, segment_size) = size;
+  /* FIXME allocate buffers */
+}
+
+

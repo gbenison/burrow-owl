@@ -26,7 +26,8 @@ hos_spectrum_segment_sim_init(HosSpectrumSegmentSim *self)
   spectrum_set_ndim(HOS_SPECTRUM(self), 1);
   spectrum_set_np(HOS_SPECTRUM(self), 0, np);
 
-  HOS_SPECTRUM_SEGMENTED(self)->segment_size = segment_size;
+  spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
+
 }
 
 static void
@@ -48,6 +49,9 @@ segment_sim_predict(HosSpectrumSegmentSim* self, guint idx)
 static void
 sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf)
 {
+  gint delay = g_random_int_range(0, 10);
+  g_usleep(delay * 1e5);
+
   gint offset = segid * segment_size;
   gint i;
   for (i = 0; i < segment_size; ++i)
