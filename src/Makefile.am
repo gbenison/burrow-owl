@@ -25,6 +25,8 @@ libburrow_la_SOURCES=\
 @builddir@/marshal.h \
 boomerang.c  \
 boomerang.h  \
+skiplist.c \
+skiplist.h \
 burrow.h  \
 contour.c  \
 contour.h  \
