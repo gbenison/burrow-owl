@@ -5,6 +5,14 @@
 
 skip_node_t* list;
 
+static gint
+skip_list_insert_random(skip_node_t* list)
+{
+  gint result = g_random_int_range(0, 100);
+  skip_list_insert(list, result, GINT_TO_POINTER(result));
+  return result;
+}
+
 /*
  * At random, increment one key and decrement another
  */
@@ -14,8 +22,14 @@ skip_list_jitter(gpointer data)
   while (1)
     {
       g_usleep(g_random_int_range(10000, 100000));
-      skip_list_insert(list, g_random_int_range(0, 100), NULL);
+      skip_list_insert_random(list);
     }
+}
+
+void
+print_node(gpointer data, gchar* fmt)
+{
+  g_printf(fmt, GPOINTER_TO_INT(data));
 }
 
 int
@@ -29,18 +43,20 @@ main()
 
   int i;
   for (i = 0; i < 50; ++i)
-    skip_list_insert(list, g_random_int_range(0, 100), NULL);
+    skip_list_insert_random(list);
 
   skip_list_print(list);
 
   for (i = 0; i < 50; ++i)
     {
-      gint next = g_random_int_range(0, 100);
-      skip_list_insert(list, next, NULL);
+      gint next = skip_list_insert_random(list);
       gint popped = skip_list_pop_first(list);
       g_printf("Inserted %d, popped %d\n", next, popped);
       skip_list_print(list);
     }
+
+  g_printf("==== for-each test =====\n");
+  skip_list_foreach (list, (GFunc)print_node, "--> %d");
 
   g_printf("\n\n\n");
 

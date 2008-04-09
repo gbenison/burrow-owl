@@ -165,16 +165,7 @@ skip_list_pop_first(skip_node_t* list)
     return -1;
 
   gint result = node->next->key;
-
-  /* Unlink the nodes */
-  for (node = list; node != NULL; node = node->down)
-    if (node->next->key == result)
-      {
-	skip_node_t* dead = node->next;
-	g_atomic_pointer_set(&node->next,
-			     g_atomic_pointer_get(&node->next->next));
-	g_slice_free(skip_node_t, dead);
-      }
+  skip_list_pop(list, result);
 
   return result;
 }
@@ -258,10 +249,19 @@ skip_list_pop(skip_node_t* list, gint key)
 
 }
 
+void
+skip_list_foreach   (skip_node_t* list,
+		     GFunc func,
+		     gpointer user_data)
+{
+  if (list == NULL)
+    return;
 
+  /* Find bottom row */
+  while (list->down != NULL)
+    list = list->down;
 
-
-
-
-
-
+  /* traverse */
+  for (; list = list->next; list != NULL)
+    func(list->data, user_data);
+}

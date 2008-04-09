@@ -10,5 +10,8 @@ gint         skip_list_pop_first (skip_node_t* list);
 gpointer     skip_list_lookup    (skip_node_t* list, gint key);
 gpointer     skip_list_pop       (skip_node_t* list, gint key);
 void         skip_list_print     (skip_node_t* list);
+void         skip_list_foreach   (skip_node_t* list,
+				  GFunc func,
+				  gpointer user_data);
 
 #endif /* not HAVE_SKIPLIST_H */
