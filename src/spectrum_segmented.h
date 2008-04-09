@@ -48,6 +48,7 @@ struct _HosSpectrumSegmentedClass
 };
 
 void spectrum_segmented_set_segment_size (HosSpectrumSegmented *self, guint size);
+void spectrum_segmented_set_cache_size   (HosSpectrumSegmented *self, guint size);
 
 GType hos_spectrum_segmented_get_type (void);
 

@@ -18,6 +18,7 @@
  */
 
 #include "spectrum_segmented.h"
+#include "skiplist.h"
 
 #define SEGMENTED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_SEGMENTED, HosSpectrumSegmentedPrivate))
 #define SEGMENTED_PRIVATE(o, field) ((SEGMENTED_GET_PRIVATE(o))->field)
@@ -32,6 +33,13 @@ struct _HosSpectrumSegmentedPrivate
 
   guint   segment_ptr;
   guint   segment_size;
+
+  skip_node_t *request_queue;
+  skip_node_t *subsequent_queue;
+
+  GPtrArray   *segment_cache;
+  guint        segment_cache_size;
+  skip_node_t *segment_index;
 };
 
 static gdouble  spectrum_segmented_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
@@ -47,9 +55,10 @@ static gboolean segmented_fetch_point         (HosSpectrumSegmented *self, gint 
 typedef struct _cache_slot cache_slot_t;
 struct _cache_slot
 {
-  guint    id;
-  gboolean valid;
-  gint     segid;
+  guint     id;
+  gboolean  valid;
+  gint      segid;
+  guint     n_access;
   gdouble  *buf;
 };
 
@@ -75,9 +84,15 @@ static void
 hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
-  priv->segment_lock = g_mutex_new();
+  priv->segment_lock           = g_mutex_new();
   priv->segment_requested_cond = g_cond_new();
-  priv->segment_ready_cond = g_cond_new();
+  priv->request_queue          = skip_list_new(16, 0.5);
+  priv->subsequent_queue       = skip_list_new(16, 0.5);
+  priv->segment_ready_cond     = g_cond_new();
+  priv->segment_cache          = g_ptr_array_new();
+  priv->segment_index          = skip_list_new(20, 0.7);
+
+  spectrum_segmented_set_cache_size(self, 32);
 }
 
 static gdouble
@@ -138,6 +153,14 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
     return FALSE;
 
   gdouble result = slot->buf[pt_idx];
+
+  /*
+   * Note: this is not 'thread-safe', but it doesn't have to be--
+   * n_access just needs to be 'about right'.
+   */
+  guint n_access = g_atomic_int_get(&slot->n_access);
+  ++n_access;
+  g_atomic_int_set(&slot->n_access, n_access);
 
   if (slot->segid != segid)
     return FALSE;
@@ -242,8 +265,11 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
       cache_slot_t* slot = segment_cache_obtain_slot(self);
       g_assert(slot != NULL);
+      cache_slot_t* popped = skip_list_pop(priv->segment_index, slot->segid);
+      g_assert((popped == NULL) || (popped == slot));
       g_assert(slot->buf != NULL);
       slot->segid = next_segment_id;
+      skip_list_insert(priv->segment_index, slot->segid, slot);
       class->read_segment(self, next_segment_id, slot->buf);
       segment_cache_bless_slot(slot);
 
@@ -260,14 +286,26 @@ static cache_slot_t*
 segment_cache_obtain_slot(HosSpectrumSegmented *self)
 {
   cache_slot_t *result = NULL;
+  HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
-  /* FIXME find an available slot */
-
-  if (0)
+  if (priv->segment_cache->len < priv->segment_cache_size)
     {
-      result->valid = FALSE;
-      ++result->id;
+      /* create new slot */
+      result      = g_new(cache_slot_t, 1);
+      result->buf = g_new(gdouble, priv->segment_size);
     }
+  else
+    {
+      /* grab existing slot */
+      /* FIXME */
+      /* find slot with lowest n_access field */
+    }
+
+  g_assert(result != NULL);
+
+  result->valid = FALSE;
+  result->n_access = 0;
+  ++result->id;
 
   return result;
 }
@@ -283,7 +321,19 @@ void
 spectrum_segmented_set_segment_size(HosSpectrumSegmented *self, guint size)
 {
   SEGMENTED_PRIVATE(self, segment_size) = size;
-  /* FIXME allocate buffers */
+
+  GPtrArray *segment_cache = SEGMENTED_PRIVATE(self, segment_cache);
+  guint i;
+  for (i = 0; i < segment_cache->len; ++i)
+    {
+      cache_slot_t* slot = g_ptr_array_index(segment_cache, i);
+      slot->valid = FALSE;
+      slot->buf   = g_renew(gdouble, slot->buf, size);
+    }
 }
 
-
+void
+spectrum_segmented_set_cache_size(HosSpectrumSegmented *self, guint size)
+{
+  SEGMENTED_PRIVATE(self, segment_cache_size) = size;
+}
