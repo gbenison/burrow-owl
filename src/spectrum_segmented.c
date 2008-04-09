@@ -37,9 +37,10 @@ struct _HosSpectrumSegmentedPrivate
   skip_node_t *request_queue;
   skip_node_t *subsequent_queue;
 
-  GPtrArray   *segment_cache;
+  skip_node_t *segment_cache;
   guint        segment_cache_size;
-  skip_node_t *segment_index;
+  guint        segment_cache_max_size;
+
 };
 
 static gdouble  spectrum_segmented_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
@@ -51,6 +52,7 @@ static void     idx2segment                   (HosSpectrumSegmented *self,
 					       guint *idx, gint *dest_segid, gint *dest_pt_idx);
 static void     request_segment_accumulate    (HosSpectrumSegmented *self, gint segid);
 static gboolean segmented_fetch_point         (HosSpectrumSegmented *self, gint segid, gint pt_idx, gdouble *dest);
+static void     load_segment                  (HosSpectrumSegmented *self, gint segid);
 
 typedef struct _cache_slot cache_slot_t;
 struct _cache_slot
@@ -58,13 +60,15 @@ struct _cache_slot
   guint     id;
   gboolean  valid;
   gint      segid;
-  guint     n_access;
+  guint     last_access_time;
   gdouble  *buf;
 };
 
 static cache_slot_t* segment_cache_obtain_slot     (HosSpectrumSegmented *self);
 static void          segment_cache_bless_slot      (cache_slot_t* slot);
-
+static void          find_least_used_slot          (cache_slot_t* slot, cache_slot_t** result);
+static cache_slot_t* cache_slot_new                (guint segment_size);
+static guint         access_timer                  (void);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrumSegmented, hos_spectrum_segmented, HOS_TYPE_SPECTRUM)
 
@@ -89,8 +93,7 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->request_queue          = skip_list_new(16, 0.5);
   priv->subsequent_queue       = skip_list_new(16, 0.5);
   priv->segment_ready_cond     = g_cond_new();
-  priv->segment_cache          = g_ptr_array_new();
-  priv->segment_index          = skip_list_new(20, 0.7);
+  priv->segment_cache          = skip_list_new(20, 0.7);
 
   spectrum_segmented_set_cache_size(self, 32);
 }
@@ -154,13 +157,7 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
 
   gdouble result = slot->buf[pt_idx];
 
-  /*
-   * Note: this is not 'thread-safe', but it doesn't have to be--
-   * n_access just needs to be 'about right'.
-   */
-  guint n_access = g_atomic_int_get(&slot->n_access);
-  ++n_access;
-  g_atomic_int_set(&slot->n_access, n_access);
+  g_atomic_int_set(&slot->last_access_time, access_timer());
 
   if (slot->segid != segid)
     return FALSE;
@@ -262,20 +259,57 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_cond_wait(priv->segment_requested_cond, priv->segment_lock);
 	}
       g_mutex_unlock(priv->segment_lock);
-
-      cache_slot_t* slot = segment_cache_obtain_slot(self);
-      g_assert(slot != NULL);
-      cache_slot_t* popped = skip_list_pop(priv->segment_index, slot->segid);
-      g_assert((popped == NULL) || (popped == slot));
-      g_assert(slot->buf != NULL);
-      slot->segid = next_segment_id;
-      skip_list_insert(priv->segment_index, slot->segid, slot);
-      class->read_segment(self, next_segment_id, slot->buf);
-      segment_cache_bless_slot(slot);
-
+      load_segment(self, next_segment_id);
       g_cond_signal(priv->segment_ready_cond);
-
     }
+}
+
+static void
+load_segment(HosSpectrumSegmented *self, gint segid)
+{
+  HosSpectrumSegmentedClass   *class = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
+  HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
+
+  cache_slot_t* slot = segment_cache_obtain_slot(self);
+  g_assert(slot != NULL);
+  cache_slot_t* popped = skip_list_pop(priv->segment_cache, slot->segid);
+  g_assert((popped == NULL) || (popped == slot));
+  g_assert(slot->buf != NULL);
+  slot->segid = segid;
+  skip_list_insert(priv->segment_cache, slot->segid, slot);
+  class->read_segment(self, segid, slot->buf);
+  segment_cache_bless_slot(slot);
+}
+
+/*
+ * For testing purposes, force 'self' to load segment 'segid'.
+ */
+void
+spectrum_segmented_test_load_segment(HosSpectrumSegmented *self, gint segid)
+{
+  load_segment(self, segid);
+}
+
+/*
+ * Callback for skip_list_foreach();
+ */
+static void
+find_least_used_slot(cache_slot_t* slot, cache_slot_t** result)
+{
+  if (*result == NULL)
+    *result = slot;
+
+  if (slot->last_access_time > (*result)->last_access_time)
+    *result = slot;
+}
+
+static cache_slot_t*
+cache_slot_new(guint segment_size)
+{
+  cache_slot_t* result = g_new(cache_slot_t, 1);
+  result->buf = g_new(gdouble, segment_size);
+
+  return result;
 }
 
 /*
@@ -288,23 +322,18 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
   cache_slot_t *result = NULL;
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
-  if (priv->segment_cache->len < priv->segment_cache_size)
+  if (priv->segment_cache_size < priv->segment_cache_max_size)
     {
-      /* create new slot */
-      result      = g_new(cache_slot_t, 1);
-      result->buf = g_new(gdouble, priv->segment_size);
+      result = cache_slot_new(priv->segment_size);
+      ++priv->segment_cache_size;
     }
   else
-    {
-      /* grab existing slot */
-      /* FIXME */
-      /* find slot with lowest n_access field */
-    }
+    skip_list_foreach(priv->segment_cache, (GFunc)find_least_used_slot, &result);
 
   g_assert(result != NULL);
 
   result->valid = FALSE;
-  result->n_access = 0;
+  result->last_access_time = 0;
   ++result->id;
 
   return result;
@@ -317,23 +346,46 @@ segment_cache_bless_slot(cache_slot_t *slot)
   slot->valid = TRUE;
 }
 
+static void
+set_segment_size(cache_slot_t* slot, gpointer data)
+{
+  guint size = GPOINTER_TO_UINT(data);
+  slot->valid = FALSE;
+  slot->buf   = g_renew(gdouble, slot->buf, size);
+}
+
 void
 spectrum_segmented_set_segment_size(HosSpectrumSegmented *self, guint size)
 {
-  SEGMENTED_PRIVATE(self, segment_size) = size;
-
-  GPtrArray *segment_cache = SEGMENTED_PRIVATE(self, segment_cache);
-  guint i;
-  for (i = 0; i < segment_cache->len; ++i)
+  if (size != SEGMENTED_PRIVATE(self, segment_size))
     {
-      cache_slot_t* slot = g_ptr_array_index(segment_cache, i);
-      slot->valid = FALSE;
-      slot->buf   = g_renew(gdouble, slot->buf, size);
+      SEGMENTED_PRIVATE(self, segment_size) = size;
+      
+      skip_node_t *segment_cache = SEGMENTED_PRIVATE(self, segment_cache);
+      
+      skip_list_foreach(SEGMENTED_PRIVATE(self, segment_cache),
+			(GFunc)set_segment_size, GUINT_TO_POINTER(size));
     }
 }
 
 void
 spectrum_segmented_set_cache_size(HosSpectrumSegmented *self, guint size)
 {
-  SEGMENTED_PRIVATE(self, segment_cache_size) = size;
+  SEGMENTED_PRIVATE(self, segment_cache_max_size) = size;
+}
+
+/*
+ * Roughly, provide an incrementing value on every call, like a timer.
+ * Since this function will be called from multiple threads, it is not
+ * thread-safe, e.g. not guaranteed to return unique values.  But for
+ * its application, it is OK for it to behave "about right".
+ */
+static guint
+access_timer()
+{
+  static guint clicks = 0;
+
+  guint _clicks = g_atomic_int_get(&clicks);
+  ++_clicks;
+  g_atomic_int_set(&clicks, _clicks);
 }

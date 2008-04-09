@@ -47,8 +47,9 @@ struct _HosSpectrumSegmentedClass
   void     (*read_segment) (HosSpectrumSegmented *self, guint segid, gdouble *buf);
 };
 
-void spectrum_segmented_set_segment_size (HosSpectrumSegmented *self, guint size);
-void spectrum_segmented_set_cache_size   (HosSpectrumSegmented *self, guint size);
+void spectrum_segmented_set_segment_size  (HosSpectrumSegmented *self, guint size);
+void spectrum_segmented_set_cache_size    (HosSpectrumSegmented *self, guint size);
+void spectrum_segmented_test_load_segment (HosSpectrumSegmented *self, gint segid);
 
 GType hos_spectrum_segmented_get_type (void);
 
