@@ -263,3 +263,35 @@ skip_list_foreach   (skip_node_t* list,
   for (; list = list->next; list != NULL)
     func(list->data, user_data);
 }
+
+gint
+skip_list_length(skip_node_t* node)
+{
+  if (node == NULL)
+    return 0;
+
+  gint result = 0;
+  /* find bottom row */
+  while (node->down != NULL)
+    node = node->down;
+
+  while (node->next != NULL)
+    {
+      ++result;
+      node = node->next;
+    }
+  return result;
+}
+
+gboolean
+skip_list_is_empty  (skip_node_t* node)
+{
+  if (node == NULL)
+    return TRUE;
+
+  /* find bottom row */
+  while (node->down != NULL)
+    node = node->down;
+
+  return node->next == NULL ? TRUE : FALSE;
+}

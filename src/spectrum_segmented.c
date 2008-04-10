@@ -171,15 +171,13 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
 static void
 request_segment_accumulate(HosSpectrumSegmented *self, gint segid)
 {
-  /*
-   * FIXME
-   *
-   * maintain per-'root' record of 'accumulation segment request' which the IO thread will consult
-   * to decide on the next segment to obtain.
-   *
-   * set the accumulation request of 'root', then block waiting for it to be instantiated by IO thread
-   * block by waiting on segment_ready_cond
-   */
+  /* FIXME pull in the tickles */
+
+  HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+  skip_node_t *queue =
+    (segid >= priv->segment_ptr) ? priv->request_queue : priv->subsequent_queue;
+
+  skip_list_insert(queue, segid, NULL);
 }
 
 static gboolean
@@ -221,14 +219,24 @@ segmented_ensure_io_thread(HosSpectrumSegmented *self)
 static gint
 determine_next_segment(HosSpectrumSegmented *self)
 {
-  /* FIXME */
+  HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
-  /* 
-   * decide next segment -- 
-   * consult all per-'root' accumulation-records and tickle-request-queues.
-   */
+  if (skip_list_is_empty(priv->request_queue))
+    {
+      /* swap request_queue and subsequent_queue */
+      skip_node_t* tmp       = priv->request_queue;
+      priv->request_queue    = priv->subsequent_queue;
+      priv->subsequent_queue = tmp;
 
-  return -1;
+      priv->segment_ptr = 0;
+    }
+
+  /* underflow condition? no segment requests pending */
+  if (skip_list_is_empty(priv->request_queue))
+    return -1;
+
+  return skip_list_pop_first(priv->request_queue);
+
 }
 
 static void
@@ -282,6 +290,7 @@ load_segment(HosSpectrumSegmented *self, gint segid)
       slot->segid = segid;
       skip_list_insert(priv->segment_cache, slot->segid, slot);
       class->read_segment(self, segid, slot->buf);
+      priv->segment_ptr = segid + 1;
       segment_cache_bless_slot(slot);
     }
 }

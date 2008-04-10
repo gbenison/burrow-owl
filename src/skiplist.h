@@ -13,5 +13,7 @@ void         skip_list_print     (skip_node_t* list);
 void         skip_list_foreach   (skip_node_t* list,
 				  GFunc func,
 				  gpointer user_data);
+gint         skip_list_length    (skip_node_t* node);
+gboolean     skip_list_is_empty  (skip_node_t* node);
 
 #endif /* not HAVE_SKIPLIST_H */
