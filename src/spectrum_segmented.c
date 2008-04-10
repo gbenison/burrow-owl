@@ -313,7 +313,7 @@ find_least_used_slot(cache_slot_t* slot, cache_slot_t** result)
   if (*result == NULL)
     *result = slot;
 
-  if (slot->last_access_time > (*result)->last_access_time)
+  if (slot->last_access_time < (*result)->last_access_time)
     *result = slot;
 }
 

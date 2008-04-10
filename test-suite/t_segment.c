@@ -39,11 +39,19 @@ main()
   spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
 
   g_print("Traversing...\n");
-  spectrum_traverse_blocking(HOS_SPECTRUM(spec_sim));
-  g_print("Done.\n");
+  spectrum_traverse(HOS_SPECTRUM(spec_sim));
+  while (1)
+    {
+      g_usleep(1000000);
+      spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
+      //      g_printf(".");
+      if (spec_sim->buf != NULL)
+	break;
+    }
+  g_print("\nDone.\n");
   g_print("Validating...\n");
 
-  for (i = 0; i < spectrum_np(spec_sim, 0); ++i)
+  for (i = 1; i < spectrum_np(spec_sim, 0); ++i)
     {
       g_assert(segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(spec_sim), i) == spectrum_peek(spec_sim, i));
     }
