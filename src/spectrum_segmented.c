@@ -267,7 +267,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	}
       g_mutex_unlock(priv->segment_lock);
       load_segment(self, next_segment_id);
-      g_cond_signal(priv->segment_ready_cond);
+      g_cond_broadcast(priv->segment_ready_cond);
     }
 }
 
@@ -424,5 +424,5 @@ spectrum_segmented_test_peek(HosSpectrumSegmented *self, gint *idx, gdouble *des
 void
 spectrum_segmented_test_print_cache  (HosSpectrumSegmented *self)
 {
-  skip_list_print(SEGMENTED_PRIVATE(self, segment_cache));
+  skip_list_print_last_row(SEGMENTED_PRIVATE(self, segment_cache));
 }

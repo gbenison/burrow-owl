@@ -171,6 +171,21 @@ skip_list_pop_first(skip_node_t* list)
 }
 
 void
+skip_list_print_last_row(skip_node_t* node)
+{
+  if (node == NULL)
+    return;
+
+  while (node->down != NULL)
+    node = node->down;
+  
+  for (; node != NULL; node = node->next)
+    g_printf("%d-", node->key);
+  
+  g_printf("\n");
+}
+
+void
 skip_list_print(skip_node_t* node)
 {
   if (node == NULL)
@@ -209,13 +224,18 @@ skip_list_print(skip_node_t* node)
 gpointer
 skip_list_lookup(skip_node_t* list, gint key)
 {
-  while ((list->next != NULL) && (list->next->key <= key))
-    list = list->next;
+  if (list == NULL)
+    return NULL;
 
-  if (list->down != NULL)
-    return skip_list_lookup(list->down, key);
-  else
-    return (list->key == key) ? list->data : NULL;
+  skip_node_t* down = list->down;
+  skip_node_t* next = list->next;
+
+  if ((next != NULL) && (next->key <= key))
+    return skip_list_lookup(next, key);
+  else if (down != NULL)
+    return skip_list_lookup(down, key);
+  else return (list->key == key) ? list->data : NULL;
+  
 }
 
 /*

@@ -27,7 +27,7 @@ main()
 	{
 	  gdouble value = 0;
 	  guint idx = g_random_int_range(0, segment_sim_np);
-	  gboolean success = spectrum_segmented_test_peek(spec_sim, &idx, &value);
+	  gboolean success = spectrum_segmented_test_peek(HOS_SPECTRUM_SEGMENTED(spec_sim), &idx, &value);
 	  if (success)
 	    g_assert(value == segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(spec_sim), idx));
 	  g_printf("%6d %s| ", idx, success ? "*" : " ");
@@ -44,7 +44,6 @@ main()
     {
       g_usleep(1000000);
       spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
-      //      g_printf(".");
       if (spec_sim->buf != NULL)
 	break;
     }
@@ -56,5 +55,38 @@ main()
       g_assert(segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(spec_sim), i) == spectrum_peek(spec_sim, i));
     }
 
-  return 1; /* implementation not complete */
+  g_print("Testing simultaneous asynchronous traversals...\n");
+
+  spec_sim = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
+  static const guint n_readers = 20;
+  HosSpectrum* readers[n_readers];
+  for (i = 0; i < n_readers; ++i)
+    {
+      readers[i] = spectrum_integrate(spec_sim);
+      spectrum_traverse(readers[i]);
+    }
+
+  while (1)
+    {
+      g_usleep(500000);
+      guint n_remaining = n_readers;
+      for (i = 0; i < n_readers; ++i)
+	if (readers[i]->buf != NULL) --n_remaining;
+      g_printf("(%d) ", n_remaining);
+      spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
+      if (n_remaining == 0)
+	break;
+    }
+
+  /* validate readers */
+  gdouble predicted = 
+    ((gdouble)segment_sim_np * (gdouble)(segment_sim_np - 1)) / 2;
+  for (i = 0; i < n_readers; ++i)
+    {
+      gdouble actual = spectrum_peek(readers[i], 0);
+      g_assert((actual / predicted) > 0.999999);
+      g_assert((actual / predicted) < 1.000001);
+    }
+
+  return 0;
 }

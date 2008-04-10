@@ -73,7 +73,7 @@ static void
 sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf)
 {
   gint delay = g_random_int_range(0, 10);
-  g_usleep(delay * 1e5);
+  g_usleep(delay * 1e4);
 
   gint offset = segment2block[segid] * segment_sim_segment_size;
   gint i;
