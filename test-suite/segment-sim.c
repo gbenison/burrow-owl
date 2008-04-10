@@ -8,8 +8,8 @@ static void sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *
 
 G_DEFINE_TYPE (HosSpectrumSegmentSim, hos_spectrum_segment_sim, HOS_TYPE_SPECTRUM_SEGMENTED)
 
-static const guint segment_size = 1024;
-static const guint np = 100000;
+const guint segment_sim_segment_size = 1024;
+const guint segment_sim_np = 100000;
 
 static void
 hos_spectrum_segment_sim_class_init(HosSpectrumSegmentSimClass *klass)
@@ -24,17 +24,17 @@ static void
 hos_spectrum_segment_sim_init(HosSpectrumSegmentSim *self)
 {
   spectrum_set_ndim(HOS_SPECTRUM(self), 1);
-  spectrum_set_np(HOS_SPECTRUM(self), 0, np);
+  spectrum_set_np(HOS_SPECTRUM(self), 0, segment_sim_np);
 
-  spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
+  spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_sim_segment_size);
 
 }
 
 static void
 sim_idx2segment(HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt)
 {
-  *pt    = idx[0] % segment_size;
-  *segid = idx[0] / segment_size;
+  *pt    = idx[0] % segment_sim_segment_size;
+  *segid = idx[0] / segment_sim_segment_size;
 }
 
 gdouble
@@ -52,8 +52,8 @@ sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf)
   gint delay = g_random_int_range(0, 10);
   g_usleep(delay * 1e5);
 
-  gint offset = segid * segment_size;
+  gint offset = segid * segment_sim_segment_size;
   gint i;
-  for (i = 0; i < segment_size; ++i)
+  for (i = 0; i < segment_sim_segment_size; ++i)
     buf[i] = offset + i;
 }

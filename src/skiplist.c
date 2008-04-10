@@ -209,7 +209,7 @@ skip_list_print(skip_node_t* node)
 gpointer
 skip_list_lookup(skip_node_t* list, gint key)
 {
-  while ((list->key < key) && (list->next != NULL))
+  while ((list->next != NULL) && (list->next->key <= key))
     list = list->next;
 
   if (list->down != NULL)
@@ -232,8 +232,6 @@ skip_list_pop(skip_node_t* list, gint key)
     list = list->next;
 
   skip_node_t* down = g_atomic_pointer_get(&list->down);
-
-  gpointer down_result = skip_list_pop(list->down, key);
   gpointer result = NULL;
 
   if ((list->next != NULL) && (list->next->key == key))

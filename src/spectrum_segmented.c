@@ -94,6 +94,7 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->subsequent_queue       = skip_list_new(16, 0.5);
   priv->segment_ready_cond     = g_cond_new();
   priv->segment_cache          = skip_list_new(20, 0.7);
+  priv->segment_cache_size     = 0;
 
   spectrum_segmented_set_cache_size(self, 32);
 }
@@ -134,9 +135,6 @@ spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
  * (possibly) fill '*dest' with the value from segmented spectrum 'self' in segment 'segid'
  * with point index 'pt_idx'.
  *
- * FIXME must be thread-safe
- * non-blocking
- *
  * returns:
  *   TRUE - available; '*dest' contains the point value
  *  FALSE - not available; '*dest' unchanged
@@ -145,7 +143,7 @@ static gboolean
 segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdouble *dest)
 {
   /* Find slot corresponding to 'segid' */
-  cache_slot_t* slot = NULL;  /* FIXME */
+  cache_slot_t* slot = skip_list_lookup(SEGMENTED_PRIVATE(self, segment_cache), segid);
 
   if (slot == NULL)
     return FALSE;
@@ -187,16 +185,17 @@ request_segment_accumulate(HosSpectrumSegmented *self, gint segid)
 static gboolean
 spectrum_segmented_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
-  /*
-   * FIXME
-   *
-   * maintain per-'root' tickle-request-queue, sorted list of requested segments.
-   * IO thread consults tickle-request-queue (together with accumulation-request-record) to
-   * determine next segment to read.
-   *
-   * Grab point if the segment is instantiated; otherwise add segment to the tickle-request-queue.
-   */
-  return FALSE;
+  gint segid, pt;
+  idx2segment(HOS_SPECTRUM_SEGMENTED(self), idx, &segid, &pt);
+  gboolean result = segmented_fetch_point (HOS_SPECTRUM_SEGMENTED(self), segid, pt, dest);
+
+  if (result == FALSE)
+    {
+      /* FIXME */
+      /* add segid to a 'tickle request queue' to trigger reading of the missing segment */
+    }
+
+  return result;
 }
 
 static void
@@ -270,15 +269,21 @@ load_segment(HosSpectrumSegmented *self, gint segid)
   HosSpectrumSegmentedClass   *class = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
   HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
 
-  cache_slot_t* slot = segment_cache_obtain_slot(self);
-  g_assert(slot != NULL);
-  cache_slot_t* popped = skip_list_pop(priv->segment_cache, slot->segid);
-  g_assert((popped == NULL) || (popped == slot));
-  g_assert(slot->buf != NULL);
-  slot->segid = segid;
-  skip_list_insert(priv->segment_cache, slot->segid, slot);
-  class->read_segment(self, segid, slot->buf);
-  segment_cache_bless_slot(slot);
+  if (!skip_list_lookup(priv->segment_cache, segid))
+    {
+      cache_slot_t* slot = segment_cache_obtain_slot(self);
+      g_assert(slot != NULL);
+      if (slot->segid >= 0)
+	{
+	  cache_slot_t* popped = skip_list_pop(priv->segment_cache, slot->segid);
+	  g_assert(popped == slot);
+	}
+      g_assert(slot->buf != NULL);
+      slot->segid = segid;
+      skip_list_insert(priv->segment_cache, slot->segid, slot);
+      class->read_segment(self, segid, slot->buf);
+      segment_cache_bless_slot(slot);
+    }
 }
 
 /*
@@ -306,8 +311,9 @@ find_least_used_slot(cache_slot_t* slot, cache_slot_t** result)
 static cache_slot_t*
 cache_slot_new(guint segment_size)
 {
-  cache_slot_t* result = g_new(cache_slot_t, 1);
+  cache_slot_t* result = g_new0(cache_slot_t, 1);
   result->buf = g_new(gdouble, segment_size);
+  result->segid = -1;
 
   return result;
 }
@@ -324,8 +330,8 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
 
   if (priv->segment_cache_size < priv->segment_cache_max_size)
     {
-      result = cache_slot_new(priv->segment_size);
       ++priv->segment_cache_size;
+      result = cache_slot_new(priv->segment_size);
     }
   else
     skip_list_foreach(priv->segment_cache, (GFunc)find_least_used_slot, &result);
@@ -388,4 +394,26 @@ access_timer()
   guint _clicks = g_atomic_int_get(&clicks);
   ++_clicks;
   g_atomic_int_set(&clicks, _clicks);
+}
+
+/*
+ * Look up point 'idx' in 'self' without triggering traversal; store result
+ * in *dest if found.
+ *
+ * Returns:
+ * TRUE:  value found
+ * FALSE: point not instantiated; *dest unchanged
+ */
+gboolean
+spectrum_segmented_test_peek(HosSpectrumSegmented *self, gint *idx, gdouble *dest)
+{
+  return spectrum_tickle(HOS_SPECTRUM(self),
+			 HOS_SPECTRUM(self),
+			 idx, dest);
+}
+
+void
+spectrum_segmented_test_print_cache  (HosSpectrumSegmented *self)
+{
+  skip_list_print(SEGMENTED_PRIVATE(self, segment_cache));
 }

@@ -58,7 +58,21 @@ main()
   g_printf("==== for-each test =====\n");
   skip_list_foreach (list, (GFunc)print_node, "--> %d");
 
-  g_printf("\n\n\n");
+  g_printf("\n====== pop test =======\n");
+  for (i = 0; i < 500; ++i)
+    {
+      gint next   = skip_list_insert_random(list);
+      gint popped = GPOINTER_TO_INT(skip_list_pop(list, next));
+      g_assert(popped == next);
+    }
+
+  g_printf("\n====== lookup test =======\n");
+  for (i = 0; i < 500; ++i)
+    {
+      gint next   = skip_list_insert_random(list);
+      gint looked = GPOINTER_TO_INT(skip_list_lookup(list, next));
+      g_assert(looked == next);
+    }
 
   g_printf("======== start multithread test =============\n");
   g_printf("DISABLED\n");
