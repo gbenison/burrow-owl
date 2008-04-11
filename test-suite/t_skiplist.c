@@ -3,10 +3,10 @@
 #include <glib/gprintf.h>
 #include "skiplist.h"
 
-skip_node_t* list;
+skip_list_t* list;
 
 static gint
-skip_list_insert_random(skip_node_t* list)
+skip_list_insert_random(skip_list_t* list)
 {
   gint result = g_random_int_range(0, 100);
   skip_list_insert(list, result, GINT_TO_POINTER(result));

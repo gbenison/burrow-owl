@@ -34,10 +34,10 @@ struct _HosSpectrumSegmentedPrivate
   guint   segment_ptr;
   guint   segment_size;
 
-  skip_node_t *request_queue;
-  skip_node_t *subsequent_queue;
+  skip_list_t *request_queue;
+  skip_list_t *subsequent_queue;
 
-  skip_node_t *segment_cache;
+  skip_list_t *segment_cache;
   guint        segment_cache_size;
   guint        segment_cache_max_size;
 
@@ -174,7 +174,7 @@ request_segment_accumulate(HosSpectrumSegmented *self, gint segid)
   /* FIXME pull in the tickles */
 
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
-  skip_node_t *queue =
+  skip_list_t *queue =
     (segid >= priv->segment_ptr) ? priv->request_queue : priv->subsequent_queue;
 
   skip_list_insert(queue, segid, NULL);
@@ -224,7 +224,7 @@ determine_next_segment(HosSpectrumSegmented *self)
   if (skip_list_is_empty(priv->request_queue))
     {
       /* swap request_queue and subsequent_queue */
-      skip_node_t* tmp       = priv->request_queue;
+      skip_list_t* tmp       = priv->request_queue;
       priv->request_queue    = priv->subsequent_queue;
       priv->subsequent_queue = tmp;
 
@@ -376,7 +376,7 @@ spectrum_segmented_set_segment_size(HosSpectrumSegmented *self, guint size)
     {
       SEGMENTED_PRIVATE(self, segment_size) = size;
       
-      skip_node_t *segment_cache = SEGMENTED_PRIVATE(self, segment_cache);
+      skip_list_t *segment_cache = SEGMENTED_PRIVATE(self, segment_cache);
       
       skip_list_foreach(SEGMENTED_PRIVATE(self, segment_cache),
 			(GFunc)set_segment_size, GUINT_TO_POINTER(size));

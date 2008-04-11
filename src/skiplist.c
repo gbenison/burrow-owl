@@ -33,29 +33,42 @@
 #include <assert.h>
 #include "skiplist.h"
 
+typedef struct _skip_node skip_node_t;
 struct _skip_node
 {
   skip_node_t *next;
   skip_node_t *down;
 
-  gdouble      prob;
   gint         key;
   gpointer     data;
 };
 
-static skip_node_t* insert_inner  (skip_node_t* node, gint key, gpointer data);
-static skip_node_t* link_new_node (skip_node_t* base, gint key, skip_node_t* down);
+struct _skip_list
+{
+  gdouble      prob;
+  GPtrArray   *free_list;
+  skip_node_t *nodes;
+};
 
+static skip_node_t* insert_inner  (skip_list_t* list, skip_node_t* node, gint key, gpointer data);
+static skip_node_t* link_new_node (skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down);
+static void         print_inner   (skip_node_t* node);
+static gpointer     pop_inner     (skip_list_t* list, skip_node_t* node, gint key);
+static gpointer     lookup_inner  (skip_node_t* node, gint key);
 
 static skip_node_t*
-link_new_node(skip_node_t* base, gint key, skip_node_t* down)
+link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
 {
-  skip_node_t* result = g_slice_alloc(sizeof(skip_node_t));
+
+#define g_ptr_array_pop(r) (g_ptr_array_remove_index(r, r->len - 1))
+  skip_node_t* result = 
+    (list->free_list->len == 0) ?
+    g_slice_alloc(sizeof(skip_node_t)) :
+    g_ptr_array_pop(list->free_list);
 
   result->next = base->next;
   result->key = key;
   result->down = down;
-  result->prob = base->prob;
 
   g_atomic_pointer_set(&base->next, result);
 
@@ -85,9 +98,9 @@ link_new_node(skip_node_t* base, gint key, skip_node_t* down)
  * set the value corresponding to 'key' to 'data'
  */
 void
-skip_list_insert(skip_node_t* self, gint key, gpointer data)
+skip_list_insert(skip_list_t* list, gint key, gpointer data)
 {
-  insert_inner(self, key, data);
+  insert_inner(list, list->nodes, key, data);
 }
 
 /*
@@ -97,7 +110,7 @@ skip_list_insert(skip_node_t* self, gint key, gpointer data)
  * link should be created.
  */
 static skip_node_t*
-insert_inner(skip_node_t* node, gint key, gpointer data)
+insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
 {
   if (node == NULL)
     return NULL;
@@ -115,13 +128,13 @@ insert_inner(skip_node_t* node, gint key, gpointer data)
 
   gboolean is_bottom_row = (node->down == NULL);
   
-  skip_node_t* down = insert_inner(node->down, key, data);
+  skip_node_t* down = insert_inner(list, node->down, key, data);
 
   if (is_bottom_row || down)
     {
-      skip_node_t* new_node = link_new_node(node, key, down);
+      skip_node_t* new_node = link_new_node(list, node, key, down);
       new_node->data = data;
-      return (g_random_double_range(0, 1.0) < node->prob) ? new_node : NULL;
+      return (g_random_double_range(0, 1.0) < list->prob) ? new_node : NULL;
     }
   else
     return NULL;
@@ -129,20 +142,28 @@ insert_inner(skip_node_t* node, gint key, gpointer data)
   g_assert_not_reached();
 }
 
-skip_node_t*
+skip_list_t*
 skip_list_new(gint n_level, gdouble prob)
 {
   if (n_level == 0)
     return NULL;
 
-  skip_node_t* result = g_slice_alloc(sizeof(skip_node_t));
-
-  result->key  = -1;
-  result->next = NULL;
+  skip_list_t* result = g_new0(skip_list_t, 1);
   result->prob = prob;
+  result->free_list = g_ptr_array_new();
 
-  g_atomic_pointer_set(&result->down, skip_list_new(n_level - 1, prob));
+  int i;
+  for (i = 0; i < n_level; ++i)
+    {
 
+      skip_node_t* node = g_slice_alloc(sizeof(skip_node_t));
+
+      node->key  = -1;
+      node->next = NULL;
+      node->down = result->nodes;
+      result->nodes = node;
+
+    }
   return result;
 }
 
@@ -152,12 +173,12 @@ skip_list_new(gint n_level, gdouble prob)
  * The second column of 'list' is deleted.
  */
 gint
-skip_list_pop_first(skip_node_t* list)
+skip_list_pop_first(skip_list_t* list)
 {
-  g_assert(list->key == -1);
+  skip_node_t* node = list->nodes;
+  g_assert(node->key == -1);
 
   /* Find bottom row */
-  skip_node_t* node = list;
   while (node->down != NULL)
     node = node->down;
 
@@ -171,10 +192,12 @@ skip_list_pop_first(skip_node_t* list)
 }
 
 void
-skip_list_print_last_row(skip_node_t* node)
+skip_list_print_last_row(skip_list_t* list)
 {
-  if (node == NULL)
+  if (list == NULL)
     return;
+
+  skip_node_t* node = list->nodes;
 
   while (node->down != NULL)
     node = node->down;
@@ -186,7 +209,16 @@ skip_list_print_last_row(skip_node_t* node)
 }
 
 void
-skip_list_print(skip_node_t* node)
+skip_list_print(skip_list_t* list)
+{
+  if (list == NULL)
+    return;
+
+  print_inner(list->nodes);
+}
+
+static void
+print_inner(skip_node_t* node)
 {
   if (node == NULL)
     return;
@@ -196,99 +228,131 @@ skip_list_print(skip_node_t* node)
     {
       g_printf("%2d", cur->key);
 
-      if (cur->next != NULL)
+      skip_node_t* next = cur->next;
+      if (next != NULL)
 	{
 	  g_printf("-");
 
 	  /* track out to bottom node */
 	  skip_node_t* track = cur;
-	  while (track->down != NULL)
-	    track = track->down;
-
-	  while (track->next->key != cur->next->key)
+	  while (1)
 	    {
-	      g_printf("---");
-	      track = track->next;
+	      skip_node_t* down = track->down;
+	      if (down == NULL)
+		break;
+	      track = down;
 	    }
 
+	  while (1)
+	    {
+	      if (track == NULL)
+		break;
+	      track = track->next;
+	      if (track == NULL)
+		break;
+	      if (track->key == next->key)
+		break;
+	      g_printf("---");
+	    }
 	}
     }
 
   g_printf("\n");
-  skip_list_print(node->down);
+  print_inner(node->down);
 }
 
 /*
  * Find the data corresponding to 'key' in 'list' 
  */
 gpointer
-skip_list_lookup(skip_node_t* list, gint key)
+skip_list_lookup(skip_list_t* list, gint key)
 {
   if (list == NULL)
     return NULL;
+  return lookup_inner(list->nodes, key);
+}
 
-  skip_node_t* down = list->down;
-  skip_node_t* next = list->next;
+static gpointer
+lookup_inner(skip_node_t* node, gint key)
+{
+  skip_node_t* down = node->down;
+  skip_node_t* next = node->next;
 
   if ((next != NULL) && (next->key <= key))
-    return skip_list_lookup(next, key);
+    return lookup_inner(next, key);
   else if (down != NULL)
-    return skip_list_lookup(down, key);
-  else return (list->key == key) ? list->data : NULL;
-  
+    return lookup_inner(down, key);
+  else return (node->key == key) ? node->data : NULL;
 }
 
 /*
  * like skip_list_lookup(), but delete 'key' from 'list'
  * after finding it.
+ *
+ * FIXME
+ *
  */
 gpointer
-skip_list_pop(skip_node_t* list, gint key)
+skip_list_pop(skip_list_t* list, gint key)
 {
   if (list == NULL)
     return NULL;
 
-  while ((list->next != NULL) && (list->next->key < key))
-    list = list->next;
+  return pop_inner(list, list->nodes, key);
+}
 
-  skip_node_t* down = g_atomic_pointer_get(&list->down);
+static gpointer
+pop_inner(skip_list_t* list, skip_node_t* node, gint key)
+{
+  while ((node->next != NULL) && (node->next->key < key))
+    node = node->next;
+
+  skip_node_t* down = g_atomic_pointer_get(&node->down);
   gpointer result = NULL;
 
-  if ((list->next != NULL) && (list->next->key == key))
+  if ((node->next != NULL) && (node->next->key == key))
     {
-      result = list->next->data;
-      skip_node_t* dead = list->next;
-      g_atomic_pointer_set(&list->next,
-			   g_atomic_pointer_get(&list->next->next));
-      g_slice_free(skip_node_t, dead);
+      result = node->next->data;
+      skip_node_t* dead = node->next;
+      g_atomic_pointer_set(&node->next,
+			   g_atomic_pointer_get(&node->next->next));
+      g_atomic_pointer_set(&dead->next, NULL);
+      g_atomic_pointer_set(&dead->down, NULL);
+      g_atomic_pointer_set(&dead->data, NULL);
+      g_atomic_int_set(&dead->key, -1);
+      g_ptr_array_add(list->free_list, dead);
     }
 
-  return (down == NULL) ? result : skip_list_pop(down, key);
+  return (down == NULL) ? result : pop_inner(list, down, key);
 
 }
 
 void
-skip_list_foreach   (skip_node_t* list,
+skip_list_foreach   (skip_list_t* list,
 		     GFunc func,
 		     gpointer user_data)
 {
   if (list == NULL)
     return;
 
+  skip_node_t* node = list->nodes;
+
   /* Find bottom row */
-  while (list->down != NULL)
-    list = list->down;
+  while (node->down != NULL)
+    node = node->down;
 
   /* traverse */
-  for (; list = list->next; list != NULL)
-    func(list->data, user_data);
+  for (; node = node->next; node != NULL)
+    func(node->data, user_data);
 }
 
 gint
-skip_list_length(skip_node_t* node)
+skip_list_length(skip_list_t* list)
 {
-  if (node == NULL)
+  if (list == NULL)
     return 0;
+
+  skip_node_t* node = list->nodes;
 
   gint result = 0;
   /* find bottom row */
@@ -304,10 +368,12 @@ skip_list_length(skip_node_t* node)
 }
 
 gboolean
-skip_list_is_empty  (skip_node_t* node)
+skip_list_is_empty  (skip_list_t* list)
 {
-  if (node == NULL)
+  if (list == NULL)
     return TRUE;
+
+  skip_node_t* node = list->nodes;
 
   /* find bottom row */
   while (node->down != NULL)
