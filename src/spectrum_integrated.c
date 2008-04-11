@@ -109,7 +109,9 @@ spectrum_integrated_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdo
   for (i = 0; i < priv->integrand_np; ++i)
     {
       priv->integrand_idx[0] = i;
-      success = (success && spectrum_tickle(priv->integrand, root, priv->integrand_idx, &priv->accumulator[i]));
+      gboolean pt_found =
+	spectrum_tickle(priv->integrand, root, priv->integrand_idx, &priv->accumulator[i]);
+      success = success && pt_found;
     }
 
   if (success)

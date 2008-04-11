@@ -52,6 +52,7 @@ void spectrum_segmented_set_cache_size    (HosSpectrumSegmented *self, guint siz
 void spectrum_segmented_test_load_segment (HosSpectrumSegmented *self, gint segid);
 gboolean spectrum_segmented_test_peek     (HosSpectrumSegmented *self, gint *idx, gdouble *dest);
 void spectrum_segmented_test_print_cache  (HosSpectrumSegmented *self);
+void spectrum_segmented_report_request_status (HosSpectrumSegmented *self);
 
 GType hos_spectrum_segmented_get_type (void);
 

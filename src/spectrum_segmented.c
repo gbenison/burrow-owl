@@ -37,6 +37,8 @@ struct _HosSpectrumSegmentedPrivate
   skip_list_t *request_queue;
   skip_list_t *subsequent_queue;
 
+  gint        *tickle_stack;
+
   skip_list_t *segment_cache;
   guint        segment_cache_size;
   guint        segment_cache_max_size;
@@ -53,6 +55,7 @@ static void     idx2segment                   (HosSpectrumSegmented *self,
 static void     request_segment_accumulate    (HosSpectrumSegmented *self, gint segid);
 static gboolean segmented_fetch_point         (HosSpectrumSegmented *self, gint segid, gint pt_idx, gdouble *dest);
 static void     load_segment                  (HosSpectrumSegmented *self, gint segid);
+static void     wipe_tickle_stack             (HosSpectrumSegmented *self);
 
 typedef struct _cache_slot cache_slot_t;
 struct _cache_slot
@@ -148,19 +151,24 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
   if (slot == NULL)
     return FALSE;
 
-  guint id = slot->id;
+  guint start_id = g_atomic_int_get(&slot->id);
 
-  if (slot->valid == FALSE)
+  gboolean slot_valid = g_atomic_int_get(&slot->valid);
+  if (slot_valid == FALSE)
     return FALSE;
 
-  gdouble result = slot->buf[pt_idx];
+  gdouble* slot_buf = g_atomic_pointer_get(&slot->buf);
+  gdouble result = slot_buf[pt_idx];
 
   g_atomic_int_set(&slot->last_access_time, access_timer());
 
-  if (slot->segid != segid)
+  gint slot_segid = g_atomic_int_get(&slot->segid);
+  if (slot_segid != segid)
     return FALSE;
 
-  if (slot->id != id)
+  guint end_id = g_atomic_int_get(&slot->id);
+
+  if (end_id != start_id)
     return FALSE;
 
   *dest = result;
@@ -168,11 +176,24 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
   return TRUE;
 }
 
+void
+spectrum_segmented_report_request_status(HosSpectrumSegmented *self)
+{
+  HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+
+  g_printf("tickles: ");
+  int i;
+  for (i = 0; i < priv->segment_cache_max_size; ++i)
+    g_printf("%d ", priv->tickle_stack[i]);
+  g_printf("\n");
+
+  /* FIXME report on request & subsequent queues */
+}
+
 static void
 request_segment_accumulate(HosSpectrumSegmented *self, gint segid)
 {
   /* FIXME pull in the tickles */
-
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
   skip_list_t *queue =
     (segid >= priv->segment_ptr) ? priv->request_queue : priv->subsequent_queue;
@@ -189,10 +210,21 @@ spectrum_segmented_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdou
 
   if (result == FALSE)
     {
-      /* FIXME */
-      /* add segid to a 'tickle request queue' to trigger reading of the missing segment */
+      HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+      int  i;
+      gint x = segid;
+      for (i = 0; i < priv->segment_cache_max_size; i++)
+	{
+	  if (priv->tickle_stack[i] == x)
+	    break;
+	  if ((priv->tickle_stack[i] > x) || (priv->tickle_stack[i] < 0))
+	    {
+	      gint tmp = x;
+	      x = priv->tickle_stack[i];
+	      priv->tickle_stack[i] = tmp;
+	    }
+	}
     }
-
   return result;
 }
 
@@ -227,6 +259,8 @@ determine_next_segment(HosSpectrumSegmented *self)
       skip_list_t* tmp       = priv->request_queue;
       priv->request_queue    = priv->subsequent_queue;
       priv->subsequent_queue = tmp;
+
+      wipe_tickle_stack(self);
 
       priv->segment_ptr = 0;
     }
@@ -287,7 +321,7 @@ load_segment(HosSpectrumSegmented *self, gint segid)
 	  g_assert(popped == slot);
 	}
       g_assert(slot->buf != NULL);
-      slot->segid = segid;
+      g_atomic_int_set(&slot->segid, segid);
       skip_list_insert(priv->segment_cache, slot->segid, slot);
       class->read_segment(self, segid, slot->buf);
       priv->segment_ptr = segid + 1;
@@ -347,9 +381,10 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
 
   g_assert(result != NULL);
 
-  result->valid = FALSE;
+  gint old_id = g_atomic_int_get(&result->id);
+  g_atomic_int_set(&result->valid, FALSE);
   result->last_access_time = 0;
-  ++result->id;
+  g_atomic_int_set(&result->id, old_id + 1);
 
   return result;
 }
@@ -357,7 +392,8 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
 static void
 segment_cache_bless_slot(cache_slot_t *slot)
 {
-  ++slot->id;
+  gint old_id = g_atomic_int_get(&slot->id);
+  g_atomic_int_set(&slot->id, old_id + 1);
   slot->valid = TRUE;
 }
 
@@ -383,10 +419,21 @@ spectrum_segmented_set_segment_size(HosSpectrumSegmented *self, guint size)
     }
 }
 
+static void
+wipe_tickle_stack(HosSpectrumSegmented *self)
+{
+  gint* stack = SEGMENTED_PRIVATE(self, tickle_stack);
+  int i;
+  for (i = 0; i < SEGMENTED_PRIVATE(self, segment_cache_max_size); ++i)
+    stack[i] = -1;
+}
+
 void
 spectrum_segmented_set_cache_size(HosSpectrumSegmented *self, guint size)
 {
   SEGMENTED_PRIVATE(self, segment_cache_max_size) = size;
+  SEGMENTED_PRIVATE(self, tickle_stack) = g_renew(gint, SEGMENTED_PRIVATE(self, tickle_stack), size);
+  wipe_tickle_stack(self);
 }
 
 /*
