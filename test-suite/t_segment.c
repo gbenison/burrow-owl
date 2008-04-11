@@ -86,8 +86,11 @@ main()
   for (i = 0; i < n_readers; ++i)
     {
       gdouble actual = spectrum_peek(readers[i], 0);
-      g_assert((actual / predicted) > 0.999999);
-      g_assert((actual / predicted) < 1.000001);
+      if ((actual > 0) && (predicted > 0))
+	{
+	  g_assert((actual / predicted) > 0.999999);
+	  g_assert((actual / predicted) < 1.000001);
+	}
     }
 
   return 0;
