@@ -134,19 +134,35 @@ static gdouble
 spectrum_integrated_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
   HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
-
   initialize_integrand_idx(priv, idx);
 
-  gdouble result = 0;
   gint i;
+  for (i = 0; i < priv->integrand_np; ++i) priv->accumulator[i] = DATUM_UNKNOWN_VALUE;
+
   for (i = 0; i < priv->integrand_np; ++i)
     {
-      priv->integrand_idx[0] = i;
-      gdouble next = spectrum_accumulate(priv->integrand, root, priv->integrand_idx);
-
-      result += next;
+      if (!DATUM_IS_KNOWN(priv->accumulator[i]))
+	{
+	  gint j;
+	  for (j = i + 1; j < priv->integrand_np; ++j)
+	    {
+	      if (!DATUM_IS_KNOWN(priv->accumulator[j]))
+		{
+		  priv->integrand_idx[0] = j;
+		  gboolean found = spectrum_tickle(priv->integrand, root, priv->integrand_idx, &priv->accumulator[j]);
+		  if (found)
+		    DATUM_ENSURE_KNOWN(priv->accumulator[j]);
+		}
+	    }
+	  priv->integrand_idx[0] = i;
+	  gdouble next = spectrum_accumulate(priv->integrand, root, priv->integrand_idx);
+	  priv->accumulator[i] = next;
+	}
     }
 
+  gdouble result = 0;
+  for (i = 0; i < priv->integrand_np; ++i)
+    result += priv->accumulator[i];
   return result;
 }
 

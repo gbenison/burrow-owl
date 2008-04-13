@@ -294,9 +294,9 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	    break;
 	  g_cond_wait(priv->segment_requested_cond, priv->segment_lock);
 	}
-      g_mutex_unlock(priv->segment_lock);
       load_segment(self, next_segment_id);
       g_cond_broadcast(priv->segment_ready_cond);
+      g_mutex_unlock(priv->segment_lock);
     }
 }
 
