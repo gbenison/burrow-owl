@@ -188,7 +188,7 @@ spectrum_integrate (HosSpectrum* self)
   priv->integrand      = self;
   priv->integrand_np   = spectrum_np(self, 0);
   priv->integrand_ndim = integrand_ndim;
-  priv->accumulator    = g_new(gdouble, priv->integrand_np);
+  priv->accumulator    = g_new0(gdouble, priv->integrand_np);
   priv->integrand_idx  = g_new(guint, integrand_ndim);
 
   return result;

@@ -385,6 +385,11 @@ skip_list_foreach   (skip_list_t* list,
     func(node->data, user_data);
 }
 
+/*
+ * FIXME
+ * since this is performance-costly, it would be nice to cache the
+ * result somehow
+ */
 gint
 skip_list_length(skip_list_t* list)
 {

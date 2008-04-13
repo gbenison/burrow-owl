@@ -103,7 +103,7 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 static gdouble
 spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
-  gdouble result;
+  gdouble result = 0;
   HosSpectrumSegmented *self_segmented = HOS_SPECTRUM_SEGMENTED(self);
   segmented_ensure_io_thread(self_segmented);
 
@@ -112,9 +112,10 @@ spectrum_segmented_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 
   if (!segmented_fetch_point(self_segmented, segid, pt, &result))
     {
-      GMutex *lock                   = SEGMENTED_PRIVATE(self, segment_lock);
-      GCond  *segment_ready_cond     = SEGMENTED_PRIVATE(self, segment_ready_cond);
-      GCond  *segment_requested_cond = SEGMENTED_PRIVATE(self, segment_requested_cond);
+      HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+      GMutex *lock                   = priv->segment_lock;
+      GCond  *segment_ready_cond     = priv->segment_ready_cond;
+      GCond  *segment_requested_cond = priv->segment_requested_cond;
 
       g_mutex_lock(lock);
 
@@ -176,11 +177,14 @@ spectrum_segmented_report_request_status(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
+  /* FIXME it no longer seems valuable to report on the tickles */
+#ifdef UNDEF
   g_printf("tickles: ");
   int i;
   for (i = 0; i < priv->segment_cache_max_size; ++i)
     g_printf("%d ", priv->tickle_stack[i]);
   g_printf("\n");
+#endif
 
   /* FIXME report on request & subsequent queues */
 }
@@ -188,8 +192,24 @@ spectrum_segmented_report_request_status(HosSpectrumSegmented *self)
 static void
 request_segment_accumulate(HosSpectrumSegmented *self, gint segid)
 {
-  /* FIXME pull in the tickles */
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+
+  gint i;
+  for (i = 0; i < priv->segment_cache_max_size; ++i)
+    {
+      gint segid = priv->tickle_stack[i];
+
+      if (segid >= 0)
+	{
+	  skip_list_t *queue =
+	    (segid >= priv->segment_ptr) ? priv->request_queue : priv->subsequent_queue;
+	  
+	  skip_list_insert(queue, segid, NULL);
+	}
+
+      priv->tickle_stack[i] = -1;
+    }
+
   skip_list_t *queue =
     (segid >= priv->segment_ptr) ? priv->request_queue : priv->subsequent_queue;
 
@@ -248,23 +268,31 @@ determine_next_segment(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
-  if (skip_list_is_empty(priv->request_queue))
+  while (1)
     {
-      /* swap request_queue and subsequent_queue */
-      skip_list_t* tmp       = priv->request_queue;
-      priv->request_queue    = priv->subsequent_queue;
-      priv->subsequent_queue = tmp;
+      if (skip_list_is_empty(priv->request_queue))
+	{
+	  /* swap request_queue and subsequent_queue */
+	  skip_list_t* tmp       = priv->request_queue;
+	  priv->request_queue    = priv->subsequent_queue;
+	  priv->subsequent_queue = tmp;
+	  
+	  wipe_tickle_stack(self);
+	  
+	  priv->segment_ptr = 0;
+	}
+      
+      /* underflow condition? no segment requests pending */
+      if (skip_list_is_empty(priv->request_queue))
+	return -1;
+      
+      gint next = skip_list_pop_first(priv->request_queue);
 
-      wipe_tickle_stack(self);
-
-      priv->segment_ptr = 0;
+      if (!skip_list_lookup(priv->segment_cache, next))
+	return next;
     }
-
-  /* underflow condition? no segment requests pending */
-  if (skip_list_is_empty(priv->request_queue))
-    return -1;
-
-  return skip_list_pop_first(priv->request_queue);
+  
+  g_assert_not_reached();
 
 }
 
@@ -379,7 +407,7 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
 
   gint old_id = g_atomic_int_get(&result->id);
   g_atomic_int_set(&result->valid, FALSE);
-  result->last_access_time = 0;
+  g_atomic_int_set(&result->last_access_time, access_timer());
   g_atomic_int_set(&result->id, old_id + 1);
 
   return result;
