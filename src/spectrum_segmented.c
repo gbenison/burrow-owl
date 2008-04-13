@@ -40,7 +40,6 @@ struct _HosSpectrumSegmentedPrivate
   gint        *tickle_stack;
 
   skip_list_t *segment_cache;
-  guint        segment_cache_size;
   guint        segment_cache_max_size;
 
 };
@@ -97,7 +96,6 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->subsequent_queue       = skip_list_new(16, 0.5);
   priv->segment_ready_cond     = g_cond_new();
   priv->segment_cache          = skip_list_new(20, 0.7);
-  priv->segment_cache_size     = 0;
 
   spectrum_segmented_set_cache_size(self, 32);
 }
@@ -151,27 +149,24 @@ segmented_fetch_point(HosSpectrumSegmented *self, gint segid, gint pt_idx, gdoub
   if (slot == NULL)
     return FALSE;
 
-  guint start_id = g_atomic_int_get(&slot->id);
+  guint    slot_id_before    = g_atomic_int_get(&slot->id);
+  gboolean slot_valid_before = g_atomic_int_get(&slot->valid);
+  gdouble* slot_buf          = g_atomic_pointer_get(&slot->buf);
 
-  gboolean slot_valid = g_atomic_int_get(&slot->valid);
-  if (slot_valid == FALSE)
-    return FALSE;
+  if (slot_valid_before == FALSE)    return FALSE;
 
-  gdouble* slot_buf = g_atomic_pointer_get(&slot->buf);
-  gdouble result = slot_buf[pt_idx];
+  gdouble  result   = slot_buf[pt_idx];
 
-  g_atomic_int_set(&slot->last_access_time, access_timer());
+  gint     slot_segid       = g_atomic_int_get(&slot->segid);
+  guint    slot_id_after    = g_atomic_int_get(&slot->id);
+  gboolean slot_valid_after = g_atomic_int_get(&slot->valid);
 
-  gint slot_segid = g_atomic_int_get(&slot->segid);
-  if (slot_segid != segid)
-    return FALSE;
-
-  guint end_id = g_atomic_int_get(&slot->id);
-
-  if (end_id != start_id)
-    return FALSE;
+  if (slot_segid != segid)              return FALSE;
+  if (slot_valid_after == FALSE)        return FALSE;
+  if (slot_id_before != slot_id_after) return FALSE;
 
   *dest = result;
+  g_atomic_int_set(&slot->last_access_time, access_timer());
 
   return TRUE;
 }
@@ -310,20 +305,17 @@ load_segment(HosSpectrumSegmented *self, gint segid)
 {
   HosSpectrumSegmentedClass   *class = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
   HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
+  
+  g_assert(skip_list_self_consistent(priv->segment_cache));
 
   if (!skip_list_lookup(priv->segment_cache, segid))
     {
       cache_slot_t* slot = segment_cache_obtain_slot(self);
       g_assert(slot != NULL);
-      if (slot->segid >= 0)
-	{
-	  cache_slot_t* popped = skip_list_pop(priv->segment_cache, slot->segid);
-	  g_assert(popped == slot);
-	}
       g_assert(slot->buf != NULL);
-      g_atomic_int_set(&slot->segid, segid);
-      skip_list_insert(priv->segment_cache, slot->segid, slot);
       class->read_segment(self, segid, slot->buf);
+      g_atomic_int_set(&slot->segid, segid);
+      skip_list_insert(priv->segment_cache, segid, slot);
       priv->segment_ptr = segid + 1;
       segment_cache_bless_slot(slot);
     }
@@ -371,13 +363,17 @@ segment_cache_obtain_slot(HosSpectrumSegmented *self)
   cache_slot_t *result = NULL;
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
-  if (priv->segment_cache_size < priv->segment_cache_max_size)
-    {
-      ++priv->segment_cache_size;
-      result = cache_slot_new(priv->segment_size);
-    }
+  if (skip_list_length(priv->segment_cache) < priv->segment_cache_max_size)
+    result = cache_slot_new(priv->segment_size);
   else
-    skip_list_foreach(priv->segment_cache, (GFunc)find_least_used_slot, &result);
+    {
+      skip_list_foreach(priv->segment_cache, (GFunc)find_least_used_slot, &result);
+      g_assert(result != NULL);
+
+      cache_slot_t* popped = skip_list_pop(priv->segment_cache, result->segid);
+      g_assert(popped == result);
+      g_atomic_int_set(&result->segid, -1);
+    }
 
   g_assert(result != NULL);
 

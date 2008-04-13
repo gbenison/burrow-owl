@@ -54,7 +54,7 @@ main()
       g_print(".");
     }
 
-  g_printf("%d points verified\n", n_read);
+  g_printf("\n%d points verified\n", n_read);
 
   return 0;
 

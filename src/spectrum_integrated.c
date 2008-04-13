@@ -142,7 +142,9 @@ spectrum_integrated_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
   for (i = 0; i < priv->integrand_np; ++i)
     {
       priv->integrand_idx[0] = i;
-      result += spectrum_accumulate(priv->integrand, root, priv->integrand_idx);
+      gdouble next = spectrum_accumulate(priv->integrand, root, priv->integrand_idx);
+
+      result += next;
     }
 
   return result;

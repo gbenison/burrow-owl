@@ -65,6 +65,6 @@ main()
 
   g_printf("\n%8d cache hits\n%8d misses\n", successes, failures);
 
-  return 1;  /* implementation incomplete */
+  return 0;
 
 }

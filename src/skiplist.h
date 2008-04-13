@@ -14,6 +14,7 @@ void         skip_list_foreach   (skip_list_t* list,
 				  gpointer user_data);
 gint         skip_list_length    (skip_list_t* list);
 gboolean     skip_list_is_empty  (skip_list_t* list);
+gboolean     skip_list_self_consistent(skip_list_t* list);
 
 void         skip_list_print          (skip_list_t* list);
 void         skip_list_print_last_row (skip_list_t* list);

@@ -28,10 +28,18 @@
  * be perceived in a consistent state.
  */
 
+#ifdef DEBUG
+#define ASSERT_CONSISTENT(x) {if (!skip_list_self_consistent(x)) skip_list_trap(x);}
+#else
+#define ASSERT_CONSISTENT(x) {}
+#endif
+
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <assert.h>
 #include "skiplist.h"
+
+static void skip_list_trap(skip_list_t* self) {}
 
 typedef struct _skip_node skip_node_t;
 struct _skip_node
@@ -67,7 +75,7 @@ link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
     g_ptr_array_pop(list->free_list);
 
   result->next = base->next;
-  result->key = key;
+  result->key  = key;
   result->down = down;
 
   g_atomic_pointer_set(&base->next, result);
@@ -101,6 +109,7 @@ void
 skip_list_insert(skip_list_t* list, gint key, gpointer data)
 {
   insert_inner(list, list->nodes, key, data);
+  ASSERT_CONSISTENT(list);
 }
 
 /*
@@ -112,12 +121,15 @@ skip_list_insert(skip_list_t* list, gint key, gpointer data)
 static skip_node_t*
 insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
 {
-  if (node == NULL)
-    return NULL;
+  if (node == NULL) return NULL;
 
   g_assert(node->key < key);
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
+
+  gboolean is_bottom_row = (node->down == NULL);
+
+  skip_node_t* down = insert_inner(list, node->down, key, data);
 
   /* 'key' already present? finished. */
   if ((node->next != NULL) && (node->next->key == key))
@@ -125,10 +137,6 @@ insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
       node->next->data = data;
       return NULL;
     }
-
-  gboolean is_bottom_row = (node->down == NULL);
-  
-  skip_node_t* down = insert_inner(list, node->down, key, data);
 
   if (is_bottom_row || down)
     {
@@ -161,9 +169,11 @@ skip_list_new(gint n_level, gdouble prob)
       node->key  = -1;
       node->next = NULL;
       node->down = result->nodes;
+      node->data = NULL;
       result->nodes = node;
 
     }
+  ASSERT_CONSISTENT(result);
   return result;
 }
 
@@ -187,6 +197,8 @@ skip_list_pop_first(skip_list_t* list)
 
   gint result = node->next->key;
   skip_list_pop(list, result);
+
+  ASSERT_CONSISTENT(list);
 
   return result;
 }
@@ -285,12 +297,34 @@ lookup_inner(skip_node_t* node, gint key)
   else return (node->key == key) ? node->data : NULL;
 }
 
+gboolean
+skip_list_self_consistent(skip_list_t* list)
+{
+  skip_node_t *row;
+  gboolean result = TRUE;
+  for (row = list->nodes; row != NULL; row = row->down)
+    {
+      skip_node_t* column;
+      for (column = row; column->next != NULL; column = column->next)
+	{
+	  if (column->down != NULL)
+	    {
+	      if (column->down->key != column->key)
+		result = FALSE;
+	      if (column->down->data != column->data)
+		result = FALSE;
+	    }
+	  if (column->next->key <= column->key)
+	    result = FALSE;
+	}
+    }
+
+  return result;
+}
+
 /*
  * like skip_list_lookup(), but delete 'key' from 'list'
  * after finding it.
- *
- * FIXME
- *
  */
 gpointer
 skip_list_pop(skip_list_t* list, gint key)
@@ -298,7 +332,12 @@ skip_list_pop(skip_list_t* list, gint key)
   if (list == NULL)
     return NULL;
 
-  return pop_inner(list, list->nodes, key);
+  gpointer result = pop_inner(list, list->nodes, key);
+
+  ASSERT_CONSISTENT(list);
+
+  return result;
+
 }
 
 static gpointer

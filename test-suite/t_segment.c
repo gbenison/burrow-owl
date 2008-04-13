@@ -28,7 +28,7 @@ main()
 	  gdouble value = 0;
 	  guint idx = g_random_int_range(0, segment_sim_np);
 	  gboolean success = spectrum_segmented_test_peek(HOS_SPECTRUM_SEGMENTED(spec_sim), &idx, &value);
-	  if (success)
+	  if (success && (value > 0))
 	    g_assert(value == segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(spec_sim), idx));
 	  g_printf("%6d %s| ", idx, success ? "*" : " ");
 	}
