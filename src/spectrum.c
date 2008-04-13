@@ -105,7 +105,6 @@ static void          g_list_foreach_recursive   (GList *list,
 					         guint lvl, GFunc callback, gpointer data);
 static void          g_object_ref_data          (GObject *obj, gpointer data);
 static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
-static gdouble*      dimension_traverse_internal(GList*, gdouble*, GList*);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
@@ -807,60 +806,6 @@ spectrum_cache(HosSpectrum* self)
   return result;
 }
 
-/*
- * internal traverser; must return a pointer into the next
- * available buffer slot.
- * list is a 'list of lists of dimensions'
- * backing_list is a list of backing objects
- *
- */
-static gdouble*
-dimension_traverse_internal(GList *list, gdouble *buf, GList *backing_list)
-{
-  GList *dimen_list;
-  HosDimension *dimen;
-  gboolean done;
-
-  if (list == NULL)
-    {
-	  gdouble sum = 1.0;
-	  g_list_foreach(backing_list, (GFunc)backing_accumulate, &sum);
-	  *buf += sum;
-	  return buf;
-    }
-  else
-    {
-      dimen_list = (GList*)list->data;
-      dimen = (HosDimension*)g_list_nth_data(dimen_list, 0);
-      done = FALSE;
-      
-      while (1)
-	{
-	  if (list->next == NULL)
-	    {
-	      gdouble sum = 1.0;
-	      g_list_foreach(backing_list, (GFunc)backing_accumulate, &sum);
-	      *buf += sum;
-	    }
-	  else
-	    dimension_traverse_internal(list->next, buf, backing_list);
-	  
-	  g_list_foreach(dimen_list, (GFunc)dimension_increment, &done);
-	  
-	  if (done == TRUE)
-	    {
-	      g_list_foreach(dimen_list, (GFunc)dimension_reset, NULL);
-	      return buf;
-	    }
-	  buf += dimen->buffer_stride;
-	}
-    }
-
-  /* UNREACHABLE */
-  return NULL;
-
-}
-
 static void
 hos_spectrum_finalize(GObject *object)
 {
@@ -978,7 +923,7 @@ ensure_traversal_setup()
   if (traversal_pool == NULL)
     {
       gpointer user_data = NULL;
-      gint max_threads   = 5;    /* FIXME this should be adjustable */
+      gint max_threads   = 8;    /* FIXME this should be adjustable */
       gboolean exclusive = TRUE;
       GError*  error     = NULL;
       traversal_pool = g_thread_pool_new ((GFunc)spectrum_traverse_internal,
