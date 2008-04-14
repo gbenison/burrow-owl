@@ -17,7 +17,8 @@
  *
  */
 
-#include <burrow/spectrum.h>
+#include <string.h>
+#include "burrow/spectrum.h"
 #include "spectrum_priv.h"
 
 /* no new public fields */
@@ -117,7 +118,7 @@ spectrum_project(HosSpectrum *self, guint idx)
 
   g_object_ref(self);
 
-  HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(self);
+  HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(result);
 
   priv->base      = self;
   priv->base_ndim = spectrum_ndim(self);
