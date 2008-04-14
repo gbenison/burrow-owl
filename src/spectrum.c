@@ -56,12 +56,8 @@ enum
  */
 struct _foreach_data
 {
-
-  HosBacking *backing;
-
   gdouble orig;
   gdouble giro;
-
 };
 
 enum {
@@ -81,11 +77,7 @@ typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 struct _HosSpectrumPrivate
 {
   GMutex *traversal_lock;
-  GList  *projections;
   GList  *dimensions;
-
-  gint    *idx;  /* current index for traversal */
-  gdouble *ptr;  /* buffer pointer for traversal */
 
   guint status;
 };
@@ -104,14 +96,12 @@ static void hos_spectrum_get_property (GObject         *object,
 static void          set_buffer_stride          (GList*, guint *stride);
 static void          g_list_foreach_recursive   (GList *list,
 					         guint lvl, GFunc callback, gpointer data);
-static void          g_object_ref_data          (GObject *obj, gpointer data);
 static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
 static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
 static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
-static gint          spectrum_total_np          (HosSpectrum* self);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
 static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
@@ -313,15 +303,6 @@ g_list_foreach_recursive(GList *list, guint lvl, GFunc callback, gpointer data)
 
       list = list->next;
     }
-}
-
-/*
- * g_object_ref which can be used as a callback in list traversal.
- */
-static void
-g_object_ref_data(GObject *obj, gpointer data)
-{
-  g_object_ref(obj);
 }
 
 void
@@ -629,12 +610,6 @@ spectrum_extract(HosSpectrum* self, const guint A, const guint B)
 #endif
 }
 
-static void
-dimension_clip_lower_cb(HosDimension* self, gpointer data)
-{
-  dimension_clip_lower(self, GPOINTER_TO_UINT(data));
-}
-
 HosSpectrum*
 spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
 {
@@ -659,65 +634,6 @@ static void
 dimension_extract_cb_ppm(HosDimension* dimen, struct _foreach_data* data)
 {
   dimension_extract_ppm(dimen, data->orig, data->giro);
-}
-
-
-HosSpectrum*
-spectrum_diagonal_project_depr(HosSpectrum* self)
-{
-  g_assert_not_reached();
-  /* FIXME obsolete */
-#ifdef UNDEF
-  HosSpectrum *result = spectrum_copy(self);
-  guint idx_0 = dimen_list_lookup_nth(result->dimensions, 0);
-  guint idx_1 = dimen_list_lookup_nth(result->dimensions, 1);
-
-  GList* dimen_list_0 = dimen_list_copy((GList*)g_list_nth_data(result->dimensions, idx_0));
-  GList* dimen_list_1 = dimen_list_copy((GList*)g_list_nth_data(result->dimensions, idx_1));
-
-  gdouble orig_new = MIN(spectrum_orig_ppm(result, 0),
-			 spectrum_orig_ppm(result, 1));
-  gdouble giro_new = MAX(spectrum_giro_ppm(result, 0),
-			 spectrum_giro_ppm(result, 1));
-
-
-  /* 
-   * sanity checks- ranges of interested dimensions must overlap
-   */
-  g_return_val_if_fail(orig_new > giro_new, NULL);
-
-  {
-
-    struct _foreach_data data;
-
-    data.orig = orig_new;
-    data.giro = giro_new;
-
-    g_list_foreach(dimen_list_0, (GFunc)dimension_extract_cb_ppm, &data);
-    g_list_foreach(dimen_list_1, (GFunc)dimension_extract_cb_ppm, &data);
-
-  }
-
-  g_list_foreach(dimen_list_0,
-		 (GFunc)dimension_interpolate,
-		 GUINT_TO_POINTER(dimension_np(HOS_DIMENSION(g_list_nth_data(dimen_list_1, 0)))));
-
-  /* Cut out the old dimensions, add the new synchronized ones */
-  dimen_list_0 = g_list_concat(dimen_list_0, dimen_list_1);
-
-  /* FIXME unref old dimensions? */
-  result->dimensions = g_list_delete_link(result->dimensions,
-					  g_list_nth(result->dimensions, idx_0));
-  if (idx_1 > idx_0)
-    --idx_1;
-  result->dimensions = g_list_delete_link(result->dimensions,
-					  g_list_nth(result->dimensions, idx_1));
-
-  result->dimensions = g_list_prepend(result->dimensions, dimen_list_0);
-
-  return result;
-#endif
-
 }
 
 HosSpectrum*
@@ -790,7 +706,6 @@ hos_spectrum_finalize(GObject *object)
   HosSpectrum *spectrum = HOS_SPECTRUM(object);
 
   spectrum_invalidate_cache(spectrum);
-  g_free(SPECTRUM_PRIVATE(spectrum, idx));
 
   G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
@@ -1020,7 +935,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 
 	  /* create a destination buffer for the spectral data. */
 	  g_assert(self->buf == NULL);
-	  int total_np = spectrum_total_np(self);
+	  int total_np = spectrum_np_total(self);
 	  gdouble *buf = g_new(gdouble, total_np);
 	  /* 	  self->buf = g_new(gdouble, total_np); */
 
@@ -1123,16 +1038,6 @@ spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
   HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
   g_return_if_fail(class->accumulate != NULL);
   return class->accumulate(self, root, idx);
-}
-
-static gint
-spectrum_total_np (HosSpectrum* self)
-{
-  int i;
-  gint result = 1;
-  for (i = 0; i < spectrum_ndim(self); ++i)
-    result *= spectrum_np(self, i);
-  return result;
 }
 
 /*
