@@ -38,19 +38,8 @@ typedef struct _HosSpectrumClass  HosSpectrumClass;
 
 struct _HosSpectrum
 {
-
   GObject parent_instance;
-
   gdouble *buf;
-
-  gboolean negated;
-  
-  gint ndim;
-
-  gint *np;
-
-  GList *dimensions;
-
 };
 
 struct _HosSpectrumClass
@@ -74,6 +63,7 @@ struct _HosSpectrumClass
 #define CONSTRUCTOR  /* empty */
 
 gsize   spectrum_np       (HosSpectrum* spec, guint dim);
+gsize   spectrum_np_total (HosSpectrum* spec);
 gsize   spectrum_ndim     (HosSpectrum* spec);
 gdouble spectrum_sw       (HosSpectrum* spec, guint dim);
 gdouble spectrum_sw_ppm   (HosSpectrum* spec, guint dim);
@@ -85,11 +75,10 @@ gdouble spectrum_giro_ppm (HosSpectrum* spec, guint dim);
 gdouble spectrum_ppm2pt   (HosSpectrum* spec, guint dim, gdouble ppm);
 gdouble spectrum_pt2ppm   (HosSpectrum* spec, guint dim, gdouble pt);
 
-HosSpectrum* CONSTRUCTOR spectrum_project          (HosSpectrum* self);
-HosSpectrum* CONSTRUCTOR spectrum_project_pt       (HosSpectrum* self, guint pt);
+HosSpectrum* CONSTRUCTOR spectrum_project          (HosSpectrum* self, guint pt);
 HosSpectrum* CONSTRUCTOR spectrum_project_ppm      (HosSpectrum* self, gdouble ppm);
 HosSpectrum* CONSTRUCTOR spectrum_transpose        (HosSpectrum* self, guint dim);
-HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, gdouble A, gdouble B);
+HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, guint A, guint B);
 HosSpectrum* CONSTRUCTOR spectrum_extract_ppm      (HosSpectrum* spec, gdouble A, gdouble B);
 HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
 HosSpectrum* CONSTRUCTOR spectrum_cache            (HosSpectrum* self);

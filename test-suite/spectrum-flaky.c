@@ -64,13 +64,10 @@ spectrum_flakify(HosSpectrum *self, gdouble flake_factor)
 {
   HosSpectrum *result = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_FLAKY, NULL));
 
-  spectrum_set_ndim(result, spectrum_ndim(self));
+  spectrum_set_dimensions(result,
+			  spectrum_copy_dimensions(self));
 
   HOS_SPECTRUM_FLAKY(result)->flake_factor = flake_factor;
-
-  guint i;
-  for (i = 0; i < spectrum_ndim(self); ++i)
-    spectrum_set_np(result, i, spectrum_np(self, i));
 
   HOS_SPECTRUM_FLAKY(result)->flakand = self;
   g_object_ref(self);

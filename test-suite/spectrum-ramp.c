@@ -1,6 +1,6 @@
 
 #include "spectrum-ramp.h"
-
+#include "spectrum_priv.h"
 
 static gdouble  spectrum_ramp_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 static gboolean spectrum_ramp_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
@@ -20,9 +20,11 @@ static void
 hos_spectrum_ramp_init(HosSpectrumRamp* self)
 {
   HosSpectrum* spectrum = HOS_SPECTRUM(self);
-  spectrum->ndim = 1;
-  spectrum->np   = g_new0(gint, 1);
-  spectrum->np[0] = 100;
+
+  dimension_t* dimen = g_new0(dimension_t, 1);
+  dimen->np = 100;
+
+  spectrum_set_dimensions(spectrum, g_list_append(NULL, dimen));
 }
 
 static gboolean

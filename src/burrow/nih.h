@@ -19,10 +19,4 @@
 HosSpectrum* CONSTRUCTOR spectrum_nih_from_file(gchar* fname);
 HosSpectrum* CONSTRUCTOR spectrum_nih_2d_from_file(gchar* fname);
 
-void spectrum_nih_unfold(HosSpectrum *self,
-			 guint dim,
-			 guint downfield,
-			 guint upfield,
-			 gboolean negate_on_fold);
-
 #endif /* not _HAVE_NIH_H */

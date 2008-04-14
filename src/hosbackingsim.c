@@ -280,7 +280,7 @@ backing_sim_generate_spectrum(HosBackingSim* self)
 {
   HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM, NULL);
 
-  result->dimensions = self->dimensions;
+  spectrum_set_dimensions(result, self->dimensions);
 
   return result;
 }

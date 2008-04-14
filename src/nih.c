@@ -236,7 +236,8 @@ spectrum_nih_from_file(gchar* fname)
   dimen_block->negated_initially = FALSE;
   dimen_block->negate_on_fold = FALSE;
 
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
+  /* FIXME obsolete-- will be replaced with new 'segmented' spectrum type */
+  /*  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen)); */
 
   /* Y */
   dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
@@ -262,7 +263,8 @@ spectrum_nih_from_file(gchar* fname)
   dimen_block->negated_initially = FALSE;
   dimen_block->negate_on_fold = FALSE;
 
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
+  /* FIXME */
+  /*   result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen)); */
 
   /* Z */
   dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
@@ -289,7 +291,8 @@ spectrum_nih_from_file(gchar* fname)
   dimen_block->negated_initially = FALSE;
   dimen_block->negate_on_fold = FALSE;
 
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
+  /* FIXME obsolete */
+  /*  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen)); */
 
   return result;
 }
@@ -305,21 +308,10 @@ spectrum_nih_2d_from_file(gchar* fname)
 
   result = spectrum_nih_from_file(fname);
   result = spectrum_transpose(result, 2);
-  result = spectrum_project(result);
+  result = spectrum_project(result, 0);
 
   return result;
 }
 
-void
-spectrum_nih_unfold(HosSpectrum *self,
-		    guint dim,
-		    guint downfield,
-		    guint upfield,
-		    gboolean negate_on_fold)
-{
-  HosDimensionBlock *dimen =
-    (HosDimensionBlock*)g_list_nth_data((GList*)g_list_nth_data(self->dimensions, dim), 0);
-    dimension_block_unfold(dimen, downfield, upfield, negate_on_fold);
-}
 
 

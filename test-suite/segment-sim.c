@@ -46,8 +46,11 @@ hos_spectrum_segment_sim_class_init(HosSpectrumSegmentSimClass *klass)
 static void
 hos_spectrum_segment_sim_init(HosSpectrumSegmentSim *self)
 {
-  spectrum_set_ndim(HOS_SPECTRUM(self), 1);
-  spectrum_set_np(HOS_SPECTRUM(self), 0, segment_sim_np);
+  dimension_t* dimen = g_new0(dimension_t, 1);
+  dimen->np = segment_sim_np;
+
+  spectrum_set_dimensions(HOS_SPECTRUM(self),
+			  g_list_append(NULL, dimen));
 
   spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_sim_segment_size);
 

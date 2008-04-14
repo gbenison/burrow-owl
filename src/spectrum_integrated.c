@@ -174,12 +174,13 @@ HosSpectrum*
 spectrum_integrate (HosSpectrum* self)
 {
   HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM_INTEGRATED, NULL);
-  guint integrand_ndim = spectrum_ndim(self);
+  GList* dimensions   = spectrum_copy_dimensions(self);
 
-  spectrum_set_ndim(result, integrand_ndim - 1);
-  gint i;
-  for (i = 1; i < integrand_ndim; ++i)
-    spectrum_set_np(result, i - 1, spectrum_np(self, i));
+  g_free(g_list_nth_data(dimensions, 0));
+  dimensions = g_list_delete_link(dimensions, dimensions);
+  spectrum_set_dimensions(result, dimensions);
+
+  guint integrand_ndim = spectrum_ndim(self);
 
   g_object_ref(self);
 

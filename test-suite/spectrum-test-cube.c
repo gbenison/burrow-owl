@@ -1,5 +1,6 @@
 
 #include "spectrum-test-cube.h"
+#include "spectrum_priv.h"
 
 static gdouble  test_cube_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
 static gboolean test_cube_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
@@ -21,11 +22,16 @@ static void
 hos_spectrum_test_cube_init(HosSpectrumTestCube *self)
 {
   HosSpectrum* spectrum = HOS_SPECTRUM(self);
-  spectrum->ndim  = 3;
-  spectrum->np    = g_new0(gint, 3);
-  spectrum->np[0] = default_np;
-  spectrum->np[1] = default_np;
-  spectrum->np[2] = default_np;
+  GList* dimensions = NULL;
+  gint i;
+  for (i = 0; i < 3; ++i)
+    {
+      dimension_t* dimen = g_new0(dimension_t, 1);
+      dimen->np = default_np;
+      dimensions = g_list_append(dimensions, dimen);
+    }
+
+  spectrum_set_dimensions(spectrum, dimensions);
 }
 
 static gdouble

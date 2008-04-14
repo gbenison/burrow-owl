@@ -122,15 +122,10 @@ HosSpectrum*
 spectrum_convolute (HosSpectrum *A, HosSpectrum *B)
 {
   HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM_CONVOLUTED, NULL);
-  guint ndim_A = spectrum_ndim(A);
-  guint ndim_B = spectrum_ndim(B);
 
-  spectrum_set_ndim(result, ndim_A + ndim_B);
-  gint i;
-  for (i = 0; i < ndim_A; ++i)
-    spectrum_set_np(result, i, spectrum_np(A, i));
-  for (i = 0; i < ndim_B; ++i)
-    spectrum_set_np(result, i + ndim_A, spectrum_np(B, i));
+  GList* dimensions   = g_list_concat(spectrum_copy_dimensions(A),
+				      spectrum_copy_dimensions(B));
+  spectrum_set_dimensions(result, dimensions);
 
   SPECTRUM_CONVOLUTED_PRIVATE(result, A) = A;
   SPECTRUM_CONVOLUTED_PRIVATE(result, B) = B;
