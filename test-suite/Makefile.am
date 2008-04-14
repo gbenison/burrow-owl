@@ -1,7 +1,8 @@
 
 check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_skiplist t_segment_simple t_segment t_segment2 \
-               t_segment_accumulate t_project t_diagonal_project
+               t_segment_accumulate t_project t_diagonal_project \
+               t_extract
 TESTS = $(check_PROGRAMS) guile-gnome-test run-tests
 
 noinst_LTLIBRARIES=libburrowtest.la

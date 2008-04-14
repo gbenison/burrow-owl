@@ -47,19 +47,6 @@ enum
   COMPLETE
 };
 
-/*
- * A general-purpose structure that various callbacks use
- * during traversal with g_list_foreach.  This is an experiment
- * with defining one such structure for the whole file, rather
- * than a bunch of little structures appropriate to each
- * traversal.
- */
-struct _foreach_data
-{
-  gdouble orig;
-  gdouble giro;
-};
-
 enum {
   READY,
   LAST_SIGNAL
@@ -93,12 +80,7 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static void          set_buffer_stride          (GList*, guint *stride);
-static void          g_list_foreach_recursive   (GList *list,
-					         guint lvl, GFunc callback, gpointer data);
 static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
-static void          dimension_extract_cb_ppm   (HosDimension* dimen, struct _foreach_data* data);
-static void          dimension_extract_cb       (HosDimension* dimen, struct _foreach_data* data);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
@@ -259,52 +241,6 @@ spectrum_get_percentile(HosSpectrum *spec, gdouble percentile)
   return spectrum_get_ranked(spec, percentile * spectrum_np_total(spec));
 }
 
-/*
- * Use this as a callback in iteration over a list of
- * dimensions to ensure that the buffer stride in each
- * dimension is set properly; also, the 'stride' parameter
- * acts as an accumulator which, after the traversal,
- * contains the total number of points in the spectrum.
- *
- * Note: This function expects a 'list of dimensions';
- * only the buffer stride in the head element of the
- * list will be set.  So don't sort the list after calling
- * this function!
- */
-static void
-set_buffer_stride(GList *list, guint *stride)
-{
-  HosDimension *dimen = HOS_DIMENSION(g_list_nth_data(list, 0));
-
-  dimen->buffer_stride = *stride;
-  *stride *= dimen->np;
-
-}
-
-/* typedef void (*DoubleTraverseFunc)(gpointer self, gpointer data1, gpointer data2); */
-
-/*
- * Use this function to traverse over 'lists of lists'-- visiting each
- * data member once.
- * Use is constrained to lists where the depth is the same for every node.
- * Set 'lvl' to the depth of the tree.
- */
-static void
-g_list_foreach_recursive(GList *list, guint lvl, GFunc callback, gpointer data)
-{
-  assert(lvl > 0);
-
-  while (list != NULL)
-    {
-      if (lvl > 1)
-	g_list_foreach_recursive((GList*)(list->data), lvl - 1, callback, data);
-      else
-	callback(list->data, data);
-
-      list = list->next;
-    }
-}
-
 void
 spectrum_set_dimensions(HosSpectrum* self, GList *dimensions)
 {
@@ -369,16 +305,6 @@ static HosDimension*
 dimen_list_get_nth_first(GList* dimens, guint idx)
 {
   return HOS_DIMENSION(g_list_nth_data(dimen_list_get_nth(dimens, idx), 0));
-}
-
-/*
- * Return a specific member of the 'list of lists'; 
- */
-static HosDimension*
-dimen_list_get_raw(GList* dimens, guint idx_0, guint idx_1)
-{
-  GList* list_1 = (GList*)(g_list_nth_data(dimens, idx_0));
-  return HOS_DIMENSION(g_list_nth_data(list_1, idx_1));
 }
 
 /*
@@ -573,43 +499,6 @@ spectrum_pt2ppm(HosSpectrum* spec, guint dim, gdouble pt)
   return hz / dimen->sf;
 }
 
-/*
- * Return the extraction of 'self' between indices 'A' and 'B',
- * e.g.
- *
- * S'(i, j, k, ...) = S(i + A, j, k, ...)
- *
- */
-HosSpectrum*
-spectrum_extract(HosSpectrum* self, const guint A, const guint B)
-{
-  /* FIXME obsolete */
-  g_assert_not_reached();
-
-#ifdef UNDEF
-  HosSpectrum *result = spectrum_copy(self);
-  guint idx = dimen_list_lookup_nth(result->dimensions, 0);
-  GList* dimen_list_0 = (GList*)dimen_list_get_nth(result->dimensions, 0);
-  GList* new_list = dimen_list_copy(dimen_list_0);
-
-  {
-
-    struct _foreach_data data;
-
-    data.orig = A;
-    data.giro = B;
-
-    g_list_foreach(new_list, (GFunc)dimension_extract_cb, &data);
-
-  }
-
-  /* FIXME unref old dimensions? */
-  (g_list_nth(result->dimensions, idx))->data = new_list;
-
-  return result;
-#endif
-}
-
 HosSpectrum*
 spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
 {
@@ -620,20 +509,8 @@ HosSpectrum*
 spectrum_extract_ppm(HosSpectrum* self, const gdouble A, const gdouble B)
 {
   return spectrum_extract(self,
-			  spectrum_pt2ppm(self, 0, A),
-			  spectrum_pt2ppm(self, 0, B));
-}
-
-static void
-dimension_extract_cb(HosDimension* dimen, struct _foreach_data* data)
-{
-  dimension_extract(dimen, data->orig, data->giro);
-}
-
-static void
-dimension_extract_cb_ppm(HosDimension* dimen, struct _foreach_data* data)
-{
-  dimension_extract_ppm(dimen, data->orig, data->giro);
+			  spectrum_ppm2pt(self, 0, A),
+			  spectrum_ppm2pt(self, 0, B));
 }
 
 HosSpectrum*

@@ -58,6 +58,7 @@ spectrum.c  \
 burrow/spectrum.h  \
 spectrum_priv.h \
 spectrum_integrated.c \
+spectrum_extract.c \
 burrow/spectrum_integrated.h \
 spectrum_segmented.c \
 spectrum_segmented.h \
