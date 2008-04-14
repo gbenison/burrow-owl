@@ -27,8 +27,11 @@ hos_spectrum_test_cube_init(HosSpectrumTestCube *self)
   for (i = 0; i < 3; ++i)
     {
       dimension_t* dimen = g_new0(dimension_t, 1);
-      dimen->np = default_np;
-      dimensions = g_list_append(dimensions, dimen);
+      dimen->np   = default_np;
+      dimen->sw   = 5000 * (i + 1);
+      dimen->sf   = 1000;
+      dimen->orig = 10000;
+      dimensions  = g_list_append(dimensions, dimen);
     }
 
   spectrum_set_dimensions(spectrum, dimensions);

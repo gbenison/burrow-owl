@@ -662,17 +662,8 @@ dimension_extract_cb_ppm(HosDimension* dimen, struct _foreach_data* data)
 }
 
 
-/*
- * First two dimensions are combined (synchronized),
- * with a sweep width equal to the intersection of the
- * sweeps of the two dimensions.
- * The 1th (not the 0th) dimension controls the
- * digital resolution.
- * Can be thought of as: the 0th dimension is 'projected
- * away', leaving the 1th dimension unscathed.
- */
 HosSpectrum*
-spectrum_diagonal_project(HosSpectrum* self)
+spectrum_diagonal_project_depr(HosSpectrum* self)
 {
   g_assert_not_reached();
   /* FIXME obsolete */
@@ -683,13 +674,6 @@ spectrum_diagonal_project(HosSpectrum* self)
 
   GList* dimen_list_0 = dimen_list_copy((GList*)g_list_nth_data(result->dimensions, idx_0));
   GList* dimen_list_1 = dimen_list_copy((GList*)g_list_nth_data(result->dimensions, idx_1));
-
-  /*
-    #define MIN(a, b) (a) > (b) ? (b) : (a)
-    #define MAX(a, b) (a) > (b) ? (a) : (b)
-  */
-
-  /* FIXME comparison should be based on ppm, not hz! */
 
   gdouble orig_new = MIN(spectrum_orig_ppm(result, 0),
 			 spectrum_orig_ppm(result, 1));
