@@ -32,10 +32,6 @@
 #include <math.h>
 #include <glib.h>
 #include "burrow/spectrum.h"
-#include "hosdimension.h"
-#include "hosdimensionblock.h"
-#include "ticket.h"
-#include "hosbackingcache.h"
 #include "spectrum_priv.h"
 
 /* spectrum status */
@@ -83,9 +79,6 @@ static void hos_spectrum_get_property (GObject         *object,
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
-static guint         dimen_list_lookup_nth      (GList* list, guint n);
-static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
-static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
 static gboolean      spectrum_is_ready          (HosSpectrum *self);
 
 static gboolean      spectrum_bump_idx          (HosSpectrum* self, gint* idx);
@@ -275,76 +268,13 @@ spectrum_copy_dimensions(HosSpectrum *self)
 static void
 spectrum_invalidate_cache(HosSpectrum *self)
 {
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  g_mutex_lock(priv->traversal_lock);
   if (self->buf != NULL)
     g_free(self->buf);
   self->buf = NULL;
-  SPECTRUM_PRIVATE(self, status) = LATENT;
-}
-
-static GList*
-dimen_list_get_nth(GList* dimens, guint idx)
-{
-  return
-    g_list_nth_data(dimens, dimen_list_lookup_nth(dimens, idx));
-}
-
-static HosDimension*
-dimen_list_get_nth_first(GList* dimens, guint idx)
-{
-  return HOS_DIMENSION(g_list_nth_data(dimen_list_get_nth(dimens, idx), 0));
-}
-
-/*
- * returns the index in list of the nth non-integrated
- * dimension in the list
- */
-static guint
-dimen_list_lookup_nth(GList* list, guint n)
-{
-  guint result = 0;
-  guint sanity = 0;
-
-  while (1)
-    {
-      if (n == 0)
-	return result;
-      else
-	{
-	  --n;
-	  list = list->next;
-	  ++result;
-	}
-      assert(++sanity < 1000);
-    }
-}
-
-/*
- * Note: Unlike other spectrum operators, this one is destructive--
- * the argument spectrum is mutated.
- * There should only be a need to 'unfold' a dimension once.  It's
- * a property of the spectrum itself, not a property of a particular
- * view of a spectrum.
- *
- * !! Call this just after creating a block spectrum; do not
- * call on spectra that are the result of manipulations like projection
- * and extraction.
- */
-void
-spectrum_unfold_depr(HosSpectrum* self,
-		const guint idx,
-		const guint downfield,
-		const guint upfield,
-		const gboolean negate_on_fold)
-{
-  g_assert_not_reached();
-  /* FIXME obsolete */
-#ifdef UNDEF
-  HosDimension *dimen = dimen_list_get_nth_first(self->dimensions, idx);
-
-  g_return_if_fail(HOS_IS_DIMENSION_BLOCK(dimen));
-
-  dimension_block_unfold(HOS_DIMENSION_BLOCK(dimen), downfield, upfield, negate_on_fold);
-#endif
+  priv->status = LATENT;
+  g_mutex_unlock(priv->traversal_lock);
 }
 
 static void
