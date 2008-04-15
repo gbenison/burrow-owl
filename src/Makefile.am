@@ -63,6 +63,7 @@ burrow/spectrum_integrated.h \
 spectrum_segmented.c \
 spectrum_segmented.h \
 spectrum_convoluted.c \
+spectrum_transpose.c \
 spectrum_diagonal_project.c \
 burrow/spectrum_convoluted.h \
 spectrum_project.c \

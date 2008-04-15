@@ -332,7 +332,7 @@ dimen_list_lookup_nth(GList* list, guint n)
 }
 
 HosSpectrum*
-spectrum_transpose(HosSpectrum *self, const guint idx)
+spectrum_transpose_depr(HosSpectrum *self, const guint idx)
 {
   g_assert_not_reached();
 #ifdef UNDEF
