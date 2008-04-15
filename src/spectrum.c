@@ -330,7 +330,7 @@ dimen_list_lookup_nth(GList* list, guint n)
  * and extraction.
  */
 void
-spectrum_unfold(HosSpectrum* self,
+spectrum_unfold_depr(HosSpectrum* self,
 		const guint idx,
 		const guint downfield,
 		const guint upfield,

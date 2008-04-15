@@ -82,6 +82,11 @@ HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, guint A, 
 HosSpectrum* CONSTRUCTOR spectrum_extract_ppm      (HosSpectrum* spec, gdouble A, gdouble B);
 HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
 HosSpectrum* CONSTRUCTOR spectrum_cache            (HosSpectrum* self);
+HosSpectrum* CONSTRUCTOR spectrum_unfold           (HosSpectrum* self,
+						    guint idx,
+						    guint downfield,
+						    guint upfield,
+						    gboolean negate_on_fold);
 
 gdouble  spectrum_get_ranked         (HosSpectrum *spec, guint n);
 gdouble  spectrum_get_max            (HosSpectrum *spec);
