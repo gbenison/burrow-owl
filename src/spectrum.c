@@ -80,14 +80,12 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static HosSpectrum*  spectrum_copy              (HosSpectrum *src);
 static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static guint         dimen_list_lookup_nth      (GList* list, guint n);
 static GList*        dimen_list_get_nth         (GList* dimens, guint idx);
 static HosDimension* dimen_list_get_nth_first   (GList* dimens, guint idx);
-static gpointer      g_list_nth_first           (GList* list, guint n);
 static gboolean      spectrum_is_ready          (HosSpectrum *self);
 
 static gboolean      spectrum_bump_idx          (HosSpectrum* self, gint* idx);
@@ -270,17 +268,6 @@ spectrum_copy_dimensions(HosSpectrum *self)
   return result;
 }
 
-static HosSpectrum*
-spectrum_copy(HosSpectrum *src)
-{
-  /* FIXME obsolete */
-
-  g_assert_not_reached();
-
-  return NULL;
-
-}
-
 /*
  * Destroy spectrum's cached contents, forcing
  * subsequent traversals to access the underlying data source.
@@ -331,32 +318,6 @@ dimen_list_lookup_nth(GList* list, guint n)
     }
 }
 
-HosSpectrum*
-spectrum_transpose_depr(HosSpectrum *self, const guint idx)
-{
-  g_assert_not_reached();
-#ifdef UNDEF
-
-  /* FIXME obsolete */
-
-  HosSpectrum *result;
-  if (!HOS_IS_SPECTRUM(self)) return NULL;
-  result = spectrum_copy(self);
-
-  {
-    GList *new_headliner = dimen_list_get_nth(result->dimensions, idx);
- 
-    result->dimensions = g_list_remove(result->dimensions, new_headliner);
-    result->dimensions = g_list_prepend(result->dimensions, new_headliner);
-
-    assert(g_list_length(self->dimensions) == g_list_length(result->dimensions));
-  }
-
-  return result;
-#endif
-
-}
-
 /*
  * Note: Unlike other spectrum operators, this one is destructive--
  * the argument spectrum is mutated.
@@ -391,16 +352,6 @@ check_dim_count(HosSpectrum* spec, const guint dim)
 {
   g_assert(HOS_IS_SPECTRUM(spec));
   g_assert(dim < g_list_length(SPECTRUM_PRIVATE(spec, dimensions)));
-}
-
-/*
- * This little wrapper is needed for all the metadata selectors.
- * It gets the 'first element of the nth element' of its argument.
- */
-static gpointer
-g_list_nth_first(GList* list, guint n)
-{
-  return g_list_nth_data(g_list_nth_data(list, n), 0);
 }
 
 static dimension_t*
