@@ -81,7 +81,6 @@ HosSpectrum* CONSTRUCTOR spectrum_transpose        (HosSpectrum* self, guint dim
 HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, guint A, guint B);
 HosSpectrum* CONSTRUCTOR spectrum_extract_ppm      (HosSpectrum* spec, gdouble A, gdouble B);
 HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
-HosSpectrum* CONSTRUCTOR spectrum_cache            (HosSpectrum* self);
 HosSpectrum* CONSTRUCTOR spectrum_unfold           (HosSpectrum* self,
 						    guint idx,
 						    guint downfield,

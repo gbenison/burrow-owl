@@ -90,6 +90,7 @@ static void          signal_spectra_ready       (void);
 static gboolean      idle_spectra_ready         (gpointer not_used);
 
 static dimension_t*  spectrum_fetch_dimension   (HosSpectrum* self, const guint dim);
+static gint          spectrum_collapse_idx      (HosSpectrum *self, guint* idx);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
@@ -270,9 +271,10 @@ spectrum_invalidate_cache(HosSpectrum *self)
 {
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
   g_mutex_lock(priv->traversal_lock);
-  if (self->buf != NULL)
-    g_free(self->buf);
-  self->buf = NULL;
+  gdouble *old_buf = self->buf;
+  g_atomic_pointer_set(&self->buf, NULL);
+  if (old_buf != NULL)
+    g_free(old_buf);
   priv->status = LATENT;
   g_mutex_unlock(priv->traversal_lock);
 }
@@ -392,70 +394,6 @@ spectrum_extract_ppm(HosSpectrum* self, const gdouble A, const gdouble B)
   return spectrum_extract(self,
 			  spectrum_ppm2pt(self, 0, A),
 			  spectrum_ppm2pt(self, 0, B));
-}
-
-HosSpectrum*
-spectrum_cache(HosSpectrum* self)
-{
-  /*
-   * FIXME obsolete
-   *
-   * perhaps simply traverse, and then allow constructors the option
-   * of 'non-lazy-traversing' if their operands are already traversed.
-   */
-  g_assert_not_reached();
-#ifdef UNDEF
-  int i;
-  int cumulative_stride = 1;
-
-  /* create new spectrum; point its buf to old buf */
-  HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM, NULL);
-  result->buf = NULL;
-
-  /* create backing_cache object to store data */
-  HosBackingCache *backing_cache = g_object_new(HOS_TYPE_BACKING_CACHE, NULL);
-
-  /* traverse src spectrum */
-  spectrum_traverse(self);
-
-  /* set backing's data to spec's buf */
-  backing_cache->data = self->buf;
-
-  /* the new backing object holds a reference to the old spectrum */
-  g_object_ref(self);
-
-  /* create block dims and tie to backing_cache */
-  for (i = 0; i < spectrum_ndim(self); ++i)
-    {
-
-      HosDimensionBlock* dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
-      HosDimension* dimen = HOS_DIMENSION(dimen_block);
-
-      dimen->backing = HOS_BACKING(backing_cache);
-      dimen_block->schedule = NULL;
-      dimen_block->np_physical = spectrum_np(self, i);
-      dimen_block->sw_physical = spectrum_sw(self, i);
-
-      dimen->sw = spectrum_sw(self, i);
-      dimen->sf = spectrum_sf(self, i);
-      dimen->np = spectrum_np(self, i);
-      dimen->orig = spectrum_orig(self, i);
-
-      dimen_block->initial_offset = 0;
-      dimen_block->fold_allowed = TRUE;
-      dimen_block->negated_initially = FALSE;
-      dimen_block->negate_on_fold = FALSE;
-
-      dimen_block->stride = cumulative_stride;
-      cumulative_stride *= spectrum_np(self, i);
-
-      /* note: dimensions are a 'list of lists' */
-      result->dimensions = g_list_append(result->dimensions,
-					 g_list_append(NULL, dimen_block));
-    }
-
-  return result;
-#endif
 }
 
 static void
@@ -745,6 +683,26 @@ spectrum_traverse_internal(HosSpectrum* self)
     }
 }
 
+/*
+ * Return point index 'idx' of spectrum 'self' as
+ * the one-dimensional index into self->buf.
+ */
+static gint
+spectrum_collapse_idx(HosSpectrum *self, guint* idx)
+{
+  gint stride = 1;
+  gint result = 0;
+  GList* dimensions;
+
+  for (dimensions = SPECTRUM_PRIVATE(self, dimensions); dimensions != NULL; dimensions = dimensions->next)
+    {
+      result += stride * *idx;
+      stride *= ((dimension_t*)(dimensions->data))->np;
+      ++idx;
+    }
+
+  return result;
+}
 
 /*
  * Returns:
@@ -754,21 +712,29 @@ spectrum_traverse_internal(HosSpectrum* self)
 gboolean
 spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
-  /* FIXME */
   /* 'idx' already instantiated? just return. */
-  /* 'idx' cached? return the cache value. */
-
-  /* Dispatch to class-specific method. */
-
-  /* 
-   * FIXME if it's too expensive looking up the method every time,
-   * consider storing it in some transient 'traversal' object?
-   */
-  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
-  g_return_if_fail(class->tickle != NULL);
-  gboolean result =  class->tickle(self, root, idx, dest);
-  if (result) DATUM_ENSURE_KNOWN(*dest);
-  return result;
+  gdouble* buf = g_atomic_pointer_get(&self->buf);
+  if (buf != NULL)
+    {
+      *dest = buf[spectrum_collapse_idx(self, idx)];
+      return TRUE;
+    }
+  else
+    {
+      /* FIXME 'idx' cached? return the cache value. */
+      
+      /* Dispatch to class-specific method. */
+      
+      /* 
+       * FIXME if it's too expensive looking up the method every time,
+       * consider storing it in some transient 'traversal' object?
+       */
+      HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+      g_return_if_fail(class->tickle != NULL);
+      gboolean result =  class->tickle(self, root, idx, dest);
+      if (result) DATUM_ENSURE_KNOWN(*dest);
+      return result;
+    }
 }
 
 /*
@@ -783,19 +749,24 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 gdouble
 spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
-  /* FIXME */
   /* 'idx' already instantiated? just return. */
-  /* 'idx' cached? return the cache value. */
-
-  /* Dispatch to class-specific method. */
-
-  /* 
-   * FIXME if it's too expensive looking up the method every time,
-   * consider storing it in some transient 'traversal' object?
-   */
-  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
-  g_return_if_fail(class->accumulate != NULL);
-  return class->accumulate(self, root, idx);
+  gdouble* buf = g_atomic_pointer_get(&self->buf);
+  if (buf != NULL)
+    return buf[spectrum_collapse_idx(self, idx)];
+  else
+    {
+      /* FIXME 'idx' cached? return the cache value. */
+      
+      /* Dispatch to class-specific method. */
+      
+      /* 
+       * FIXME if it's too expensive looking up the method every time,
+       * consider storing it in some transient 'traversal' object?
+       */
+      HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+      g_return_if_fail(class->accumulate != NULL);
+      return class->accumulate(self, root, idx);
+    }
 }
 
 /*

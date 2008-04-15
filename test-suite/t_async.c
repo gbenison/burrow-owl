@@ -12,11 +12,14 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
+  HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
+  HosSpectrum *S2 = spectrum_flakify(S1, 1.0-1e-5);
+
   HosSpectrum *spectra[n_spectra];
   gint i;
   for (i = 0; i < n_spectra; ++i)
       spectra[i] =
-	spectrum_integrate(spectrum_integrate(spectrum_flakify(HOS_SPECTRUM(spectrum_test_cube_new()), 1.0 - 1e-5)));
+	spectrum_integrate(spectrum_integrate(S2));
 
   g_print("Asynchronously traversing %d spectra...", n_spectra);
   for (i = 0; i < n_spectra; ++i)
