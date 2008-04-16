@@ -149,20 +149,20 @@ spectrum_np_total(HosSpectrum *spec)
 gdouble
 spectrum_get_ranked(HosSpectrum *spec, guint n)
 {
-  gdouble* buf;
-  int spec_size;
+  gint np_total = spectrum_np_total(spec);
+  gdouble* buf  = g_new(gdouble, np_total);
+
+  g_assert(n < np_total);
+
   gdouble result;
 
-  buf = spectrum_traverse_blocking(spec);
-  spec_size = spectrum_np_total(spec);
+  memcpy(buf, spectrum_traverse_blocking(spec), np_total * sizeof(gdouble));
 
-  assert(spec_size > n);
-
-  qsort(buf, spec_size, sizeof(gdouble), (sortfunc)compare_gdoubles);
+  qsort(buf, np_total, sizeof(gdouble), (sortfunc)compare_gdoubles);
   result = buf[n];
-  spectrum_invalidate_cache(spec);
-  return result;
+  g_free(buf);
 
+  return result;
 }
 
 gdouble
