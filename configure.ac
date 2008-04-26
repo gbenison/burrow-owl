@@ -27,12 +27,19 @@ if test -d $srcdir/starparse; then
    AC_CONFIG_SUBDIRS(starparse)
 fi
 
-PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-0 >= 2.15,
-{
-	AC_MSG_RESULT([Using installed guile-gnome])
-	guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-0`;
-	GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-0;
-})
+GUILE_GNOME_API=none;
+PKG_CHECK_MODULES(GUILE_GNOME_0, guile-gnome-glib-0 >= 2.15, GUILE_GNOME_API=0, true);
+PKG_CHECK_MODULES(GUILE_GNOME_2, guile-gnome-glib-2 >= 2.15, GUILE_GNOME_API=2, true);
+
+if test "$GUILE_GNOME_API" = "none";
+then
+  AC_MSG_ERROR([No guile-gnome found.])
+fi
+
+PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-$GUILE_GNOME_API >= 2.15);
+
+guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-$GUILE_GNOME_API`;
+GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-$GUILE_GNOME_API;
 
 AC_SUBST(guile_gnome_prefix)
 AC_SUBST(GUILE_GNOME_CFLAGS)
