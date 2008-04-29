@@ -68,7 +68,12 @@
 (define amino-acids
   '(ASP PRO LYS ILE TRP CYS GLY PHE GLN SER ASN VAL LEU TYR GLU ARG THR ALA MET HIS))
 
-;; args should be an alternating list of atom-type, value
+; Calculate the most probable residue type corresponding to a list of assigned chemical shifts.
+; Return a list of (aa-type . probability), sorted in descending order
+; of probability.
+; 'args' is an alternating list of atom-type, chemical-shift-value
+;
+; e.g. shift-top-probabilities 'CA 55.2 'CB 32.5 'CG 22.4
 (define (shift-top-probabilities . args)
   (define (prob aa args)
     (if (< (length args) 2)
