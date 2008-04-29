@@ -11,7 +11,8 @@ CLEANFILES += $(bin_SCRIPTS)
 nobase_data_DATA=guile/spec-extra.scm \
                  guile/burrow/assignments.scm \
                  guile/burrow/hacks.scm \
-                 guile/burrow/chemical-shift-distributions.scm
+                 guile/burrow/chemical-shift-distributions.scm \
+                 guile/burrow/amino-codes.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
