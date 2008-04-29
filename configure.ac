@@ -19,10 +19,6 @@ PKG_CHECK_MODULES(GLIB, glib-2.0)
 PKG_CHECK_MODULES(GTK, gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
 
-if test -d $srcdir/nmr-utils; then
-   AC_CONFIG_SUBDIRS(nmr-utils)
-fi
-
 if test -d $srcdir/starparse; then
    AC_CONFIG_SUBDIRS(starparse)
 fi
