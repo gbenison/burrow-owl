@@ -1,5 +1,5 @@
 
-SUBDIRS = @subdirs@ src test-suite doc
+SUBDIRS = src test-suite doc
 bin_SCRIPTS=wrapper/burrow
 
 scriptdir=$(pkgdatadir)/scripts
