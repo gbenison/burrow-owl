@@ -17,7 +17,7 @@
 	     (ice-9 getopt-long)
 	     (srfi srfi-1)
 	     (srfi srfi-19)
-	     (nmr average-shift))
+	     (burrow chemical-shift-distributions))
 
 (define (confess . args) 'ok)
 ; to debug use this:
