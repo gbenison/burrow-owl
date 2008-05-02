@@ -259,7 +259,7 @@
      'Atom_name)
     ((Chem_shift_value Atom_chem_shift.Val)
      'Chem_shift_value)
-    ((Residue_label)
+    ((Atom_chem_shift.Auth_comp_ID Residue_label)
      'Residue_label)
     (else name)))
 
