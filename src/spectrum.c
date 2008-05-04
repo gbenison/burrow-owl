@@ -59,10 +59,13 @@ typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 
 struct _HosSpectrumPrivate
 {
-  GMutex *traversal_lock;
-  GList  *dimensions;
+  GMutex   *traversal_lock;
+  GList    *dimensions;
 
-  guint status;
+  guint     status;
+
+  gboolean  instantiable;
+  gboolean  instantiable_known;
 };
 
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
@@ -90,7 +93,10 @@ static void          signal_spectra_ready       (void);
 static gboolean      idle_spectra_ready         (gpointer not_used);
 
 static dimension_t*  spectrum_fetch_dimension   (HosSpectrum* self, const guint dim);
-static gint          spectrum_collapse_idx      (HosSpectrum *self, guint* idx);
+static gboolean      spectrum_grab_cached       (HosSpectrum* self, guint *idx, gdouble* dest);
+
+static void          point_cache_store          (HosSpectrum *spec, gsize idx, gdouble value);
+static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
@@ -683,25 +689,73 @@ spectrum_traverse_internal(HosSpectrum* self)
     }
 }
 
-/*
- * Return point index 'idx' of spectrum 'self' as
- * the one-dimensional index into self->buf.
- */
-static gint
-spectrum_collapse_idx(HosSpectrum *self, guint* idx)
+static void
+spectrum_determine_instantiable(HosSpectrum* self, HosSpectrumPrivate *priv)
 {
-  gint stride = 1;
-  gint result = 0;
-  GList* dimensions;
-
-  for (dimensions = SPECTRUM_PRIVATE(self, dimensions); dimensions != NULL; dimensions = dimensions->next)
+  if (priv->instantiable_known == TRUE)
+    return;
+  else
     {
-      result += stride * *idx;
-      stride *= ((dimension_t*)(dimensions->data))->np;
-      ++idx;
+      /* set 'instantiable' to false if spectrum_np_total would overflow a 'gsize'. */
+      gboolean instantiable_result = TRUE;
+      gint dim;
+      gsize result = 1;
+      for (dim = 0; dim < spectrum_ndim(self); ++dim)
+	{
+	  gsize next = spectrum_np(self, dim);
+	  if ((G_MAXSIZE / result) <= next)
+	    instantiable_result = FALSE;
+	  result *= next;
+	}
+      priv->instantiable = instantiable_result;
+      priv->instantiable_known = TRUE;
+    }
+}
+
+/*
+ * If 'self' is already instantiated, set *dest and return TRUE.
+ * If 'self[idx]' is cached, set *dest and return TRUE.
+ * Otherwise, return FALSE.
+ */
+static gboolean
+spectrum_grab_cached(HosSpectrum* self, guint *idx, gdouble* dest)
+{
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+
+  spectrum_determine_instantiable(self, priv);
+
+  if (priv->instantiable)
+    {
+      /* collapse idx */
+      gint stride = 1;
+      gsize linear_idx = 0;
+      GList* dimensions;
+
+      for (dimensions = priv->dimensions; dimensions != NULL; dimensions = dimensions->next)
+	{
+	  linear_idx += stride * *idx;
+	  stride *= ((dimension_t*)(dimensions->data))->np;
+	  ++idx;
+	}
+
+      gdouble *buf = g_atomic_pointer_get(&self->buf);
+      if (buf != NULL)
+	{
+	  *dest = buf[linear_idx];
+	  return TRUE;
+	}
+      else
+	{
+	  gdouble cached_value = point_cache_fetch(self, linear_idx);
+	  if (DATUM_IS_KNOWN(cached_value))
+	    {
+	      *dest = cached_value;
+	      return TRUE;
+	    }
+	}
     }
 
-  return result;
+  return FALSE;
 }
 
 /*
@@ -712,19 +766,13 @@ spectrum_collapse_idx(HosSpectrum *self, guint* idx)
 gboolean
 spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
-  /* 'idx' already instantiated? just return. */
-  gdouble* buf = g_atomic_pointer_get(&self->buf);
-  if (buf != NULL)
-    {
-      *dest = buf[spectrum_collapse_idx(self, idx)];
-      return TRUE;
-    }
+  gboolean cached = spectrum_grab_cached(self, idx, dest);
+  if (cached == TRUE)
+    return TRUE;
   else
     {
-      /* FIXME 'idx' cached? return the cache value. */
-      
-      /* Dispatch to class-specific method. */
-      
+      /* Dispatch to class-specific method. */      
+
       /* 
        * FIXME if it's too expensive looking up the method every time,
        * consider storing it in some transient 'traversal' object?
@@ -749,14 +797,11 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 gdouble
 spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
-  /* 'idx' already instantiated? just return. */
-  gdouble* buf = g_atomic_pointer_get(&self->buf);
-  if (buf != NULL)
-    return buf[spectrum_collapse_idx(self, idx)];
+  gdouble result;
+  if (spectrum_grab_cached(self, idx, &result))
+    return result;
   else
     {
-      /* FIXME 'idx' cached? return the cache value. */
-      
       /* Dispatch to class-specific method. */
       
       /* 
@@ -787,3 +832,23 @@ spectrum_traverse(HosSpectrum *spec)
       return NULL;
     }
 }
+
+/*********** The point cache ****************/
+
+static gsize point_cache_size = 1024 * 1024 * 16;  /* FIXME should be tunable */
+
+static void
+point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
+{
+}
+
+/*
+ * return spec[idx] from the point cache, or DATUM_UNKNOWN_VALUE
+ */
+static gdouble
+point_cache_fetch(HosSpectrum *spec, gsize idx)
+{
+  /* FIXME */
+  return DATUM_UNKNOWN_VALUE;
+}
+
