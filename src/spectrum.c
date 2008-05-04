@@ -94,6 +94,7 @@ static gboolean      idle_spectra_ready         (gpointer not_used);
 
 static dimension_t*  spectrum_fetch_dimension   (HosSpectrum* self, const guint dim);
 static gboolean      spectrum_grab_cached       (HosSpectrum* self, guint *idx, gdouble* dest);
+static void          spectrum_push_cached       (HosSpectrum *self, guint *idx, gdouble value);
 
 static void          point_cache_store          (HosSpectrum *spec, gsize idx, gdouble value);
 static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
@@ -758,6 +759,30 @@ spectrum_grab_cached(HosSpectrum* self, guint *idx, gdouble* dest)
   return FALSE;
 }
 
+static void
+spectrum_push_cached(HosSpectrum *self, guint *idx, gdouble value)
+{
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  spectrum_determine_instantiable(self, priv);
+
+  if (priv->instantiable)
+    {
+      /* collapse idx */
+      gint stride = 1;
+      gsize linear_idx = 0;
+      GList* dimensions;
+
+      for (dimensions = priv->dimensions; dimensions != NULL; dimensions = dimensions->next)
+	{
+	  linear_idx += stride * *idx;
+	  stride *= ((dimension_t*)(dimensions->data))->np;
+	  ++idx;
+	}
+
+      point_cache_store(self, linear_idx, value);
+    }
+}
+
 /*
  * Returns:
  *   TRUE  - point was available, '*dest' now contains value of point 'idx'; 
@@ -780,7 +805,11 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
       HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
       g_return_if_fail(class->tickle != NULL);
       gboolean result =  class->tickle(self, root, idx, dest);
-      if (result) DATUM_ENSURE_KNOWN(*dest);
+      if (result)
+	{
+	  DATUM_ENSURE_KNOWN(*dest);
+	  spectrum_push_cached(self, idx, *dest);
+	}
       return result;
     }
 }
@@ -810,7 +839,9 @@ spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
        */
       HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
       g_return_if_fail(class->accumulate != NULL);
-      return class->accumulate(self, root, idx);
+      result = class->accumulate(self, root, idx);
+      spectrum_push_cached(self, idx, result);
+      return result;
     }
 }
 
@@ -837,9 +868,43 @@ spectrum_traverse(HosSpectrum *spec)
 
 static gsize point_cache_size = 1024 * 1024 * 16;  /* FIXME should be tunable */
 
+static guint point_cache_hit_count  = 0;
+static guint point_cache_miss_count = 0;
+
+struct _point_cache_slot
+{
+  HosSpectrum *spec;
+  gsize        idx;
+  gint         version;
+  gdouble      value;
+};
+
+static struct _point_cache_slot *point_cache = NULL;
+
+/*
+ * Hash 'spec' and 'idx' to return a cache slot index;
+ * return value must be in range [0..point_cache_size)
+ */
+static gsize
+point_cache_hash(HosSpectrum *spec, gsize idx)
+{
+  return ((gsize)spec + idx) % point_cache_size;
+}
+
 static void
 point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
 {
+  if (point_cache == NULL)
+    point_cache = g_new0(struct _point_cache_slot, point_cache_size);
+  
+  struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
+
+  gint old_version = g_atomic_pointer_get(&(slot->version));
+  slot->spec = NULL;
+  g_atomic_int_set(&(slot->version), old_version + 1);
+  slot->idx   = idx;
+  slot->value = value;
+  g_atomic_pointer_set(&(slot->spec), spec);
 }
 
 /*
@@ -848,7 +913,25 @@ point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
 static gdouble
 point_cache_fetch(HosSpectrum *spec, gsize idx)
 {
-  /* FIXME */
+  if (point_cache != NULL)
+    {
+       struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
+
+       gint         version_start  = g_atomic_int_get(&(slot->version));
+       HosSpectrum *slot_spec      = g_atomic_pointer_get(&(slot->spec));
+       gsize        slot_idx       = slot->idx;
+       gdouble      slot_value     = slot->value;
+       gint         version_finish = g_atomic_int_get(&(slot->version));
+
+       if ((version_start == version_finish) && (slot_spec == spec) && (slot_idx == idx))
+	 {
+	   DATUM_ENSURE_KNOWN(slot_value);
+	   point_cache_hit_count++;
+	   return slot_value;
+	 }
+       else
+	 point_cache_miss_count++;
+    }
   return DATUM_UNKNOWN_VALUE;
 }
 
