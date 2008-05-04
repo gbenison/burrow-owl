@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
+AC_INIT(burrow-owl, 1.4rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/hosspectrum.c])
@@ -68,7 +68,7 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset pow sqrt])
 
 AC_CONFIG_FILES([Makefile
-                 burrow.pc
+                 burrow-owl.pc
                  doc/Makefile
                  src/Makefile
                  wrapper/burrow

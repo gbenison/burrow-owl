@@ -15,7 +15,7 @@ uninstall-hook:
 	rm -rf $(DESTDIR)/$(scriptdir)/*
 
 pkgconfigdir=$(libdir)/pkgconfig
-pkgconfig_DATA=burrow.pc
+pkgconfig_DATA=burrow-owl.pc
 
 EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 srfi-35.diff ChangeLog INSTALL-PROBLEMS
 DISTCLEANFILES=ChangeLog
