@@ -22,3 +22,4 @@ src/marshal.h
 src/marshal.c
 starparse
 nmr-utils
+ylwrap
