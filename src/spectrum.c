@@ -628,7 +628,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  if (priv->status == LATENT)
+  if (priv->status != COMPLETE)
     {
       g_mutex_lock(priv->traversal_lock);
      
@@ -866,10 +866,11 @@ spectrum_traverse(HosSpectrum *spec)
 
 /*********** The point cache ****************/
 
-static gsize point_cache_size = 1024 * 1024 * 16;  /* FIXME should be tunable */
+static gsize point_cache_size = 1024 * 1024 * 8;  /* FIXME should be tunable */
 
-static guint point_cache_hit_count  = 0;
-static guint point_cache_miss_count = 0;
+static guint point_cache_hit_count       = 0;
+static guint point_cache_miss_count      = 0;
+static guint point_cache_collision_count = 0;
 
 struct _point_cache_slot
 {
@@ -923,6 +924,8 @@ point_cache_fetch(HosSpectrum *spec, gsize idx)
        gdouble      slot_value     = slot->value;
        gint         version_finish = g_atomic_int_get(&(slot->version));
 
+       if (version_start != version_finish)
+	 point_cache_collision_count++;
        if ((version_start == version_finish) && (slot_spec == spec) && (slot_idx == idx))
 	 {
 	   DATUM_ENSURE_KNOWN(slot_value);
