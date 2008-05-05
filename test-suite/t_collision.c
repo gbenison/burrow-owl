@@ -10,8 +10,8 @@
  * is trying to read the same entry.
  */
 
-// gint desired_size = 1024 * 1024 * 32;
 gint desired_size = 1024 * 32;
+gint n_spectra = 5;
 
 static HosSpectrum*
 spectrum_make_huge(HosSpectrum *spec, gint n)
@@ -32,24 +32,38 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
+  g_print("==== point cache collision test ======\n");
+  
+  gint i;
+
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_ramp_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 0.9);
 
   gint n = log(desired_size) / log(spectrum_np(S2, 0)) + 1;
 
   HosSpectrum *S3 = spectrum_make_huge(S2, n);
-  HosSpectrum *S4 = spectrum_make_huge(spectrum_extract(S2, 1, 1e6), n);
+  for (i = 0; i < n_spectra; ++i)
+    {
+      HosSpectrum *S = spectrum_make_huge(spectrum_extract(S2, 2, spectrum_np(S2, 0) - i), n);
+      spectrum_traverse(S);
+    }
 
   spectrum_traverse(S3);
-  spectrum_traverse(S4);
 
-  spectrum_traverse_blocking(S3);
-  spectrum_traverse_blocking(S4);
+  while (1)
+    {
+      g_usleep(1 * G_USEC_PER_SEC);
+      if (S3->buf != NULL)
+	break;
+      g_print(".");
+    }
 
   /* validate */
   gdouble predicted = pow((spectrum_np(S2, 0) * (spectrum_np(S2, 0) - 1) / 2), n);
-  g_assert((spectrum_peek(S3, 0) / predicted) > 0.99);
-  g_assert((spectrum_peek(S3, 0) / predicted) < 1.01);
+  g_assert((spectrum_peek(S3, 0) / predicted) > 0.9999);
+  g_assert((spectrum_peek(S3, 0) / predicted) < 1.0001);
+
+  g_printf("OK\n");
 
   return 0;
 }
