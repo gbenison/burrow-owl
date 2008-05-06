@@ -11,8 +11,6 @@ libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \
 $(headers_dir)/burrow/spectrum.h \
-$(headers_dir)/burrow/spectrum_integrated.h \
-$(headers_dir)/burrow/spectrum_convoluted.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
 $(headers_dir)/painter_gdk.h \

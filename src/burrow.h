@@ -23,7 +23,6 @@
 /* public C api for burrow-owl */
 
 #include <burrow/spectrum.h>
-#include <burrow/spectrum_integrated.h>
 
 #endif /* not  _HAVE_BURROW_H  */
 

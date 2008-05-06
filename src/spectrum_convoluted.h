@@ -44,8 +44,6 @@ struct _HosSpectrumConvolutedClass
   HosSpectrumClass parent_class;
 };
 
-HosSpectrum* CONSTRUCTOR spectrum_convolute (HosSpectrum *A, HosSpectrum *B);
-
 GType hos_spectrum_convoluted_get_type (void);
 
 G_END_DECLS

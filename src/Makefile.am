@@ -59,14 +59,14 @@ burrow/spectrum.h  \
 spectrum_priv.h \
 spectrum_integrated.c \
 spectrum_extract.c \
-burrow/spectrum_integrated.h \
+spectrum_integrated.h \
 spectrum_segmented.c \
 spectrum_segmented.h \
 spectrum_convoluted.c \
 spectrum_transpose.c \
 spectrum_unfold.c \
 spectrum_diagonal_project.c \
-burrow/spectrum_convoluted.h \
+spectrum_convoluted.h \
 spectrum_project.c \
 marker.c  \
 marker.h  \

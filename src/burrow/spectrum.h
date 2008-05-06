@@ -87,6 +87,7 @@ HosSpectrum* CONSTRUCTOR spectrum_unfold           (HosSpectrum* self,
 						    guint downfield,
 						    guint upfield,
 						    gboolean negate_on_fold);
+HosSpectrum* CONSTRUCTOR spectrum_integrate (HosSpectrum* self);
 HosSpectrum* CONSTRUCTOR spectrum_nih_from_file(gchar* fname);
 
 gdouble  spectrum_get_ranked         (HosSpectrum *spec, guint n);

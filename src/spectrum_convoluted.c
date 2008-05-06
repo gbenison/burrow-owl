@@ -17,7 +17,7 @@
  *
  */
 
-#include "burrow/spectrum_convoluted.h"
+#include "spectrum_convoluted.h"
 #include "spectrum_priv.h"
 
 #define SPECTRUM_CONVOLUTED_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_CONVOLUTED, HosSpectrumConvolutedPrivate))

@@ -16,8 +16,8 @@
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)
         "#include <burrow/spectrum.h>\n"
-        "#include <burrow/spectrum_integrated.h>\n"
-        "#include <burrow/spectrum_convoluted.h>\n"
+        "#include <spectrum_integrated.h>\n"
+        "#include <spectrum_convoluted.h>\n"
         "#include <hoscanvas.h>\n"
         "#include <canvasitem.h>\n"
         "#include <marker.h>\n"

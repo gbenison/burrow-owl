@@ -18,7 +18,7 @@
  */
 
 #include <string.h>
-#include "burrow/spectrum_integrated.h"
+#include "spectrum_integrated.h"
 #include "spectrum_priv.h"
 
 #define SPECTRUM_INTEGRATED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_INTEGRATED, HosSpectrumIntegratedPrivate))
