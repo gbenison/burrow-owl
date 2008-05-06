@@ -110,6 +110,7 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
+  g_object_ref(spec);
   spectrum_traverse_internal(spec);
   return spec->buf;
 }
@@ -541,7 +542,6 @@ queue_ready_push(HosSpectrum* spectrum)
   g_mutex_lock(spectrum_queue_lock);
 
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
-  g_object_ref(G_OBJECT(spectrum));
 
   spectra_ready = g_list_prepend(spectra_ready, spectrum);
 
@@ -859,6 +859,7 @@ spectrum_traverse(HosSpectrum *spec)
   else
     {
       ensure_traversal_setup();
+      g_object_ref(spec);
       g_thread_pool_push(traversal_pool, spec, NULL);
       return NULL;
     }
