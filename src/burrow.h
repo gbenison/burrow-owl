@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 
 #include <burrow/spectrum.h>
 #include <burrow/spectrum_integrated.h>
-#include <burrow/nih.h>
 
 #endif /* not  _HAVE_BURROW_H  */
 

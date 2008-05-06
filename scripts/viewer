@@ -19,9 +19,9 @@
   (let* ((spec-name (cadr (command-line)))
 	 (raw-spec (spectrum-nih-from-file spec-name))
 	 (spec
-	  (if (> (spectrum-np raw-spec 2) 1)
+	  (if (> (spectrum-ndim raw-spec) 2)
 	      (spectrum-transpose raw-spec 1)
-	      (spectrum-nih-2d-from-file spec-name))))
+	      raw-spec)))
     (confess "spectrum loaded")
     (let* ((thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
 	   (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
