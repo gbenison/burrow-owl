@@ -20,6 +20,7 @@
 #include <string.h>
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
+#include "utils.h"
 
 /* no new public fields */
 typedef HosSpectrum      HosSpectrumDiagonal;
@@ -95,7 +96,7 @@ spectrum_diagonal_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdoub
 static void
 spectrum_diagonal_dispose(GObject *object)
 {
-  g_object_unref(SPECTRUM_DIAGONAL_PRIVATE(object, base));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_DIAGONAL_PRIVATE(object, base));
   G_OBJECT_CLASS(hos_spectrum_diagonal_parent_class)->dispose (object);
 }
 

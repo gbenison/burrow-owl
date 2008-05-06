@@ -20,6 +20,7 @@
 #include <string.h>
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
+#include "utils.h"
 
 /* no new public fields */
 typedef HosSpectrum      HosSpectrumUnfolded;
@@ -125,7 +126,7 @@ spectrum_unfolded_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdoub
 static void
 spectrum_unfolded_dispose(GObject *object)
 {
-  g_object_unref(SPECTRUM_UNFOLDED_PRIVATE(object, base));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_UNFOLDED_PRIVATE(object, base));
   G_OBJECT_CLASS(hos_spectrum_unfolded_parent_class)->dispose (object);
 }
 

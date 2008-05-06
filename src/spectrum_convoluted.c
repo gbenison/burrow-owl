@@ -19,6 +19,7 @@
 
 #include "spectrum_convoluted.h"
 #include "spectrum_priv.h"
+#include "utils.h"
 
 #define SPECTRUM_CONVOLUTED_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_CONVOLUTED, HosSpectrumConvolutedPrivate))
 #define SPECTRUM_CONVOLUTED_PRIVATE(o, field) ((SPECTRUM_CONVOLUTED_GET_PRIVATE(o))->field)
@@ -62,8 +63,8 @@ hos_spectrum_convoluted_init(HosSpectrumConvoluted *self)
 static void
 spectrum_convoluted_dispose(GObject *object)
 {
-  g_object_unref(SPECTRUM_CONVOLUTED_PRIVATE(object, A));
-  g_object_unref(SPECTRUM_CONVOLUTED_PRIVATE(object, B));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_CONVOLUTED_PRIVATE(object, A));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_CONVOLUTED_PRIVATE(object, B));
   G_OBJECT_CLASS(hos_spectrum_convoluted_parent_class)->dispose (object);
 }
 

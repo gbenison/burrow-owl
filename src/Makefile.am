@@ -20,9 +20,11 @@ include_HEADERS=burrow.h
 # box.c 
 # box.h 
 
+
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
+utils.h \
 boomerang.c  \
 boomerang.h  \
 skiplist.c \
@@ -32,15 +34,7 @@ contour.c  \
 contour.h  \
 contourplot.c \
 contourplot.h \
-filebuf.c  \
-filebuf.h  \
-hosbackingblock.c  \
-hosbackingblock.h  \
 hosbacking.c  \
-hosbackingcache.c  \
-hosbackingcache.h  \
-hosbackingfile.c  \
-hosbackingfile.h  \
 hosbacking.h  \
 hosbackingsim.c  \
 hosbackingsim.h  \
@@ -48,8 +42,6 @@ hoscanvas.c  \
 hoscanvas.h  \
 canvasitem.c \
 canvasitem.h \
-hosdimensionblock.c  \
-hosdimensionblock.h  \
 hosdimension.c  \
 hosdimension.h  \
 hosdimensionsim.c  \
