@@ -20,6 +20,7 @@
 #include <string.h>
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
+#include "utils.h"
 
 /* no new public fields */
 typedef HosSpectrum      HosSpectrumTransposed;
@@ -99,7 +100,7 @@ spectrum_transposed_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdo
 static void
 spectrum_transposed_dispose(GObject *object)
 {
-  g_object_unref(SPECTRUM_TRANSPOSED_PRIVATE(object, base));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_TRANSPOSED_PRIVATE(object, base));
   G_OBJECT_CLASS(hos_spectrum_transposed_parent_class)->dispose (object);
 }
 

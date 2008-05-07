@@ -18,8 +18,9 @@
  */
 
 #include <string.h>
-#include "burrow/spectrum_integrated.h"
+#include "spectrum_integrated.h"
 #include "spectrum_priv.h"
+#include "utils.h"
 
 #define SPECTRUM_INTEGRATED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_INTEGRATED, HosSpectrumIntegratedPrivate))
 #define SPECTRUM_INTEGRATED_PRIVATE(o, field) ((SPECTRUM_INTEGRATED_GET_PRIVATE(o))->field)
@@ -70,7 +71,7 @@ hos_spectrum_integrated_init(HosSpectrumIntegrated* self)
 static void
 spectrum_integrated_dispose(GObject *object)
 {
-  g_object_unref(SPECTRUM_INTEGRATED_PRIVATE(object, integrand));
+  G_OBJECT_UNREF_AND_CLEAR(SPECTRUM_INTEGRATED_PRIVATE(object, integrand));
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->dispose (object);
 }
 

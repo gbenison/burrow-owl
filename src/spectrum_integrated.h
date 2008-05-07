@@ -44,8 +44,6 @@ struct _HosSpectrumIntegratedClass
   HosSpectrumClass parent_class;
 };
 
-HosSpectrum* CONSTRUCTOR spectrum_integrate (HosSpectrum* self);
-
 GType hos_spectrum_integrated_get_type (void);
 
 G_END_DECLS
