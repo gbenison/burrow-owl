@@ -127,8 +127,6 @@ spectrum_transpose(HosSpectrum *self, guint idx)
   priv->map  = (guint*)g_new0(guint, spectrum_ndim(self));
   priv->base_ndim = spectrum_ndim(self);
 
-  g_object_ref(self);
-
   gint i;
   if (HOS_IS_SPECTRUM_TRANSPOSED(self))
     {
@@ -142,7 +140,10 @@ spectrum_transpose(HosSpectrum *self, guint idx)
       for (i = 0; i < spectrum_ndim(self); ++i)
 	priv->map[i] = i;
       priv->base = self;
+
     }
+
+  g_object_ref(priv->base);
 
   /* swap map entries */
   guint tmp = priv->map[0];
