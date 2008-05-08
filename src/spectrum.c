@@ -101,6 +101,14 @@ static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
+/* Iterators */
+static struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
+static void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
+static void     iterator_save        (struct spectrum_iterator *self);
+static void     iterator_restore     (struct spectrum_iterator *self);
+static gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
+static gdouble  iterator_accumulate  (struct spectrum_iterator *self);
+
 gsize
 spectrum_ndim(HosSpectrum *spec)
 {
@@ -938,4 +946,99 @@ point_cache_fetch(HosSpectrum *spec, gsize idx)
     }
   return DATUM_UNKNOWN_VALUE;
 }
+
+/****** iterators *******/
+
+static struct spectrum_iterator*
+spectrum_construct_iterator(HosSpectrum *self)
+{
+  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+  struct spectrum_iterator* result = class->construct_iterator(self);
+
+  result->root      = self;
+  result->root_type = G_OBJECT_TYPE(self);
+  result->ndim      = spectrum_ndim(self);
+  result->idx       = g_new0(guint, spectrum_ndim(self));
+  result->save_idx  = g_new0(guint, spectrum_ndim(self));
+  result->stride    = g_new0(gsize, spectrum_ndim(self));
+  result->can_cache = TRUE;  /* innocent until proven guilty */
+
+  gint i;
+  result->stride[0] = 1;
+  for (i = 1; i < spectrum_ndim(self); ++i)
+    {
+      gsize np   = spectrum_np(self, i);
+      gsize last = result->stride[i - 1];
+      if ((G_MAXSIZE / last) <= np)
+	result->can_cache = FALSE;
+      result->stride[i] = last * np;
+    }
+
+  return result;
+}
+
+static void
+iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
+{
+  self->idx[dim] += delta;
+  if (self->can_cache == TRUE)
+    self->idx_linear += delta * self->stride[dim];
+  (self->increment)(self, dim, delta);
+}
+
+static void
+iterator_save(struct spectrum_iterator *self)
+{
+  self->save_idx_linear = self->idx_linear;
+  gint i;
+  for (i = 0; i < self->ndim; ++i)
+    self->save_idx[i] = self->idx[i];
+  (self->save)(self);
+}
+
+static void
+iterator_restore(struct spectrum_iterator *self)
+{
+  self->idx_linear = self->save_idx_linear;
+  gint i;
+  for (i = 0; i < self->ndim; ++i)
+    self->idx[i] = self->save_idx[i];
+  (self->restore)(self);
+}
+
+static gboolean
+iterator_check_cache(struct spectrum_iterator *self, gdouble *dest)
+{
+  if (self->can_cache == TRUE)
+    {
+      if (self->root->buf != NULL)
+	{
+	  *dest = self->root->buf[self->idx_linear];
+	  return TRUE;
+	}
+      else
+	{
+	  /* FIXME check point cache */
+	}
+    }
+  else
+    return FALSE;
+}
+
+static gboolean
+iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
+{
+  if (iterator_check_cache(self, dest) == FALSE)
+    return (self->tickle)(self, dest);
+}
+
+static gdouble
+iterator_accumulate(struct spectrum_iterator *self)
+{
+  gdouble result;
+  if (iterator_check_cache(self, &result) == FALSE)
+    result = (self->accumulate)(self);
+  return result;
+}
+
 

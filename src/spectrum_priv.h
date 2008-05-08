@@ -31,5 +31,26 @@ gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, 
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
 
+/* Iterators */
+struct spectrum_iterator
+{
+  HosSpectrum *root;
+  GType        root_type;
+  gint         ndim;
+  guint       *idx;
+  guint       *save_idx;
+  gsize       *stride;
+  gsize        idx_linear;
+  gsize        save_idx_linear;
+  gboolean     can_cache;
+
+  gboolean (*tickle)      (struct spectrum_iterator* self, gdouble *dest);
+  gdouble  (*accumulate)  (struct spectrum_iterator* self);
+  void     (*increment)   (struct spectrum_iterator* self, guint dim, gint delta);
+  void     (*save)        (struct spectrum_iterator* self);
+  void     (*restore)     (struct spectrum_iterator* self);
+};
+
+
 #endif /* not  _HOS_HAVE_SPECTRUM_PRIV_H */
 
