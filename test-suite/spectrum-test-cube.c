@@ -2,8 +2,10 @@
 #include "spectrum-test-cube.h"
 #include "spectrum_priv.h"
 
-static gdouble  test_cube_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean test_cube_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+static struct spectrum_iterator* test_cube_construct_iterator (HosSpectrum *self);
+static void                      test_cube_free_iterator      (struct spectrum_iterator* self);
+static gdouble   test_cube_accumulate (struct spectrum_iterator* self);
+static gboolean  test_cube_tickle     (struct spectrum_iterator* self, gdouble *dest);
 
 G_DEFINE_TYPE (HosSpectrumTestCube, hos_spectrum_test_cube, HOS_TYPE_SPECTRUM)
 
@@ -14,8 +16,8 @@ hos_spectrum_test_cube_class_init(HosSpectrumTestCubeClass *klass)
 {
   HosSpectrumClass* spectrum_class = HOS_SPECTRUM_CLASS(klass);
 
-  spectrum_class->tickle     = test_cube_tickle;
-  spectrum_class->accumulate = test_cube_accumulate;
+  spectrum_class->construct_iterator = test_cube_construct_iterator;
+  spectrum_class->free_iterator      = test_cube_free_iterator;
 }
 
 static void
@@ -37,16 +39,33 @@ hos_spectrum_test_cube_init(HosSpectrumTestCube *self)
   spectrum_set_dimensions(spectrum, dimensions);
 }
 
-static gdouble
-test_cube_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx)
+static struct spectrum_iterator*
+test_cube_construct_iterator(HosSpectrum *self)
 {
-  return idx[0] + 1000 * idx[1] + 1e6 * idx[2];
+  struct spectrum_iterator* result = g_new0(struct spectrum_iterator, 1);
+
+  result->tickle     = test_cube_tickle;
+  result->accumulate = test_cube_accumulate;
+
+  return result;
+}
+
+static void
+test_cube_free_iterator(struct spectrum_iterator* self)
+{
+  g_free(self);
+}
+
+static gdouble
+test_cube_accumulate (struct spectrum_iterator* self)
+{
+  return self->idx[0] + 1000 * self->idx[1] + 1e6 * self->idx[2];
 }
 
 static gboolean
-test_cube_tickle (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+test_cube_tickle     (struct spectrum_iterator* self, gdouble *dest)
 {
-  *dest = test_cube_accumulate(self, root, idx);
+  *dest = test_cube_accumulate(self);
   return TRUE;
 }
 

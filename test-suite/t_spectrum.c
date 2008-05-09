@@ -22,9 +22,6 @@ main()
     g_print("%f ", spectrum_peek(HOS_SPECTRUM(spec), i));
   g_print("...\n");
 
-  /* FIXME */
-     return 1;
-
   spectrum_traverse_blocking(HOS_SPECTRUM(cube));
   gint start;
   static const gint n = 10;

@@ -678,9 +678,9 @@ spectrum_traverse_internal(HosSpectrum* self)
 		      if (iterator_bump(iterator))
 			break;
 		    }
+		  iterator_restore(iterator);
 		}
-	      
-	      iterator_restore(iterator);
+
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
 		*accumulate_dest = iterator_accumulate(iterator);
 	      
