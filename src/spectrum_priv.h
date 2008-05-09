@@ -32,6 +32,14 @@ GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
 
 /* Iterators */
+struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
+void     iterator_free        (struct spectrum_iterator *self);
+void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
+void     iterator_save        (struct spectrum_iterator *self);
+void     iterator_restore     (struct spectrum_iterator *self);
+gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
+gdouble  iterator_accumulate  (struct spectrum_iterator *self);
+
 struct spectrum_iterator
 {
   HosSpectrum *root;

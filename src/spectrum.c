@@ -102,13 +102,6 @@ static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
 /* Iterators */
-static struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
-static void     iterator_free        (struct spectrum_iterator *self);
-static void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
-static void     iterator_save        (struct spectrum_iterator *self);
-static void     iterator_restore     (struct spectrum_iterator *self);
-static gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
-static gdouble  iterator_accumulate  (struct spectrum_iterator *self);
 static gboolean iterator_bump        (struct spectrum_iterator *self);
 static gboolean iterator_check_cache (struct spectrum_iterator *self, gdouble *dest);
 
@@ -953,7 +946,7 @@ point_cache_fetch(HosSpectrum *spec, gsize idx)
 
 /****** iterators *******/
 
-static struct spectrum_iterator*
+struct spectrum_iterator*
 spectrum_construct_iterator(HosSpectrum *self)
 {
   /* 
@@ -962,6 +955,7 @@ spectrum_construct_iterator(HosSpectrum *self)
    */
 
   HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+  g_assert(class->construct_iterator != NULL);
   struct spectrum_iterator* result = class->construct_iterator(self);
 
   result->root      = self;
@@ -990,7 +984,7 @@ spectrum_construct_iterator(HosSpectrum *self)
   return result;
 }
 
-static void
+void
 iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
 {
   self->idx[dim] += delta;
@@ -1026,7 +1020,7 @@ iterator_bump(struct spectrum_iterator *self)
     }
 }
 
-static void
+void
 iterator_save(struct spectrum_iterator *self)
 {
   self->save_idx_linear = self->idx_linear;
@@ -1037,7 +1031,7 @@ iterator_save(struct spectrum_iterator *self)
     (self->save)(self);
 }
 
-static void
+void
 iterator_restore(struct spectrum_iterator *self)
 {
   self->idx_linear = self->save_idx_linear;
@@ -1071,7 +1065,7 @@ iterator_check_cache(struct spectrum_iterator *self, gdouble *dest)
     return FALSE;
 }
 
-static gboolean
+gboolean
 iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
 {
   gboolean is_instantiated = iterator_check_cache(self, dest);
@@ -1085,7 +1079,7 @@ iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
   return is_instantiated;
 }
 
-static gdouble
+gdouble
 iterator_accumulate(struct spectrum_iterator *self)
 {
   gdouble result;
@@ -1098,7 +1092,7 @@ iterator_accumulate(struct spectrum_iterator *self)
   return result;
 }
 
-static void
+void
 iterator_free(struct spectrum_iterator *self)
 {
   HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self->root);
