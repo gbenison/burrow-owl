@@ -75,8 +75,8 @@
 static void find_permutation (const int A[3], const int B[3], int result[3]);
 static void permute          (float array[3], int permutation[3]);
 
-static void nih_idx2segment  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
-static void nih_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf);
+static void nih_idx2segment  (gpointer env, guint *idx, gint *segid, gint *pt);
+static void nih_read_segment (gpointer env, guint segid, gdouble *buf);
 
 static HosSpectrum* spectrum_clip_futile_dimensions(HosSpectrum *self);
 
@@ -123,8 +123,8 @@ hos_spectrum_nih_init(HosSpectrumNih *self)
   spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
   NIH_PRIVATE(self, buffer) = g_new(float, segment_size);
   NIH_PRIVATE(self, fd) = -1;
+  HOS_SPECTRUM_SEGMENTED(self)->traversal_env = NIH_GET_PRIVATE(self);
 }
-
 
 /*
  * fill 'result' with a permutation that transforms 'A' into 'B'.
@@ -172,9 +172,9 @@ permute(float array[3], int permutation[3])
 }
 
 static void
-nih_idx2segment  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt)
+nih_idx2segment(gpointer env, guint *idx, gint *segid, gint *pt)
 {
-  HosSpectrumNihPrivate *priv = NIH_GET_PRIVATE(self);
+  HosSpectrumNihPrivate *priv = (HosSpectrumNihPrivate*)env;
 
   gsize point_idx =
     idx[0] * priv->stride[0] +
@@ -188,22 +188,12 @@ nih_idx2segment  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt)
 }
 
 static void
-nih_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf)
+nih_read_segment (gpointer env, guint segid, gdouble *buf)
 {
-  HosSpectrumNihPrivate *priv = NIH_GET_PRIVATE(self);
+  HosSpectrumNihPrivate *priv = (HosSpectrumNihPrivate*)env;
 
-  if (priv->fd < 0)
-    {
-      g_assert(HOS_SPECTRUM_NIH(self)->fname != NULL);
-      priv->fd = open(HOS_SPECTRUM_NIH(self)->fname, O_RDONLY);
-
-      /* FIXME  better error handling */  
-      g_assert(priv->fd > 0);
-
-      struct stat statbuf;
-      g_assert (fstat(priv->fd, &statbuf) == 0);
-      priv->file_size = statbuf.st_size;
-    }
+  /* FIXME  better error handling */  
+  g_assert(priv->fd > 0);
 
   off_t offset = priv->segment_size * segid * sizeof(float);
   g_assert (lseek(priv->fd, offset, SEEK_SET) == offset);
@@ -248,6 +238,11 @@ spectrum_nih_from_file(gchar* fname)
 
   if (channel == NULL)
     return NULL;
+
+  priv->fd = open(fname, O_RDONLY);
+  struct stat statbuf;
+  g_assert (fstat(priv->fd, &statbuf) == 0);
+  priv->file_size = statbuf.st_size;
 
   g_io_channel_set_encoding(channel, NULL, &file_error);
 

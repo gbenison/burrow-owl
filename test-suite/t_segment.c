@@ -16,7 +16,9 @@ main()
   HosSpectrum* spec_sim = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
 
   g_print("Forced segment load test...\n");
+  g_print("Disabled.\n");
 
+#ifdef UNDEF
   for (i = 0; i < 100; ++i)
     {
       gint segid = g_random_int_range(0, (segment_sim_np / segment_sim_segment_size) - 1);
@@ -34,6 +36,7 @@ main()
 	}
       g_printf("\n");
     }
+#endif
 
   g_printf("Segment cache contents:\n");
   spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));

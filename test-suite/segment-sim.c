@@ -4,8 +4,8 @@
 #include "spectrum_segmented.h"
 #include "spectrum_priv.h"
 
-static void sim_idx2segment  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
-static void sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf);
+static void sim_idx2segment  (gpointer env, guint *idx, gint *segid, gint *pt);
+static void sim_read_segment (gpointer env, guint segid, gdouble *buf);
 
 G_DEFINE_TYPE (HosSpectrumSegmentSim, hos_spectrum_segment_sim, HOS_TYPE_SPECTRUM_SEGMENTED)
 
@@ -57,7 +57,7 @@ hos_spectrum_segment_sim_init(HosSpectrumSegmentSim *self)
 }
 
 static void
-sim_idx2segment(HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt)
+sim_idx2segment(gpointer env, guint *idx, gint *segid, gint *pt)
 {
   *pt    = idx[0] % segment_sim_segment_size;
   *segid = block2segment[idx[0] / segment_sim_segment_size];
@@ -73,7 +73,7 @@ segment_sim_predict(HosSpectrumSegmentSim* self, guint idx)
  * Fill 'buf' (which must be big enough) with points of segment 'segid'
  */
 static void
-sim_read_segment (HosSpectrumSegmented *self, guint segid, gdouble *buf)
+sim_read_segment (gpointer env, guint segid, gdouble *buf)
 {
   gint delay = g_random_int_range(0, 10);
   g_usleep(delay * 1e4);
