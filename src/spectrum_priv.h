@@ -40,6 +40,7 @@ struct spectrum_iterator
   guint       *idx;
   guint       *save_idx;
   gsize       *stride;
+  gsize       *np;
   gsize        idx_linear;
   gsize        save_idx_linear;
   gboolean     can_cache;

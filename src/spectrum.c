@@ -103,11 +103,14 @@ G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
 /* Iterators */
 static struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
+static void     iterator_free        (struct spectrum_iterator *self);
 static void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
 static void     iterator_save        (struct spectrum_iterator *self);
 static void     iterator_restore     (struct spectrum_iterator *self);
 static gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
 static gdouble  iterator_accumulate  (struct spectrum_iterator *self);
+static gboolean iterator_bump        (struct spectrum_iterator *self);
+static gboolean iterator_check_cache (struct spectrum_iterator *self, gdouble *dest);
 
 gsize
 spectrum_ndim(HosSpectrum *spec)
@@ -640,25 +643,21 @@ spectrum_traverse_internal(HosSpectrum* self)
     {
       g_mutex_lock(priv->traversal_lock);
      
-      if (priv->status == LATENT)
+      gint status = g_atomic_int_get(&priv->status);
+      if (status == LATENT)
 	{
-	  priv->status = TRAVERSING;
+	  g_atomic_int_set(&priv->status, TRAVERSING);
 
-	  /* create a destination buffer for the spectral data. */
 	  g_assert(self->buf == NULL);
 	  int total_np = spectrum_np_total(self);
 	  gdouble *buf = g_new(gdouble, total_np);
-	  /* 	  self->buf = g_new(gdouble, total_np); */
 
 	  int i;
 	  for (i = 0; i < total_np; ++i)
 	    buf[i] = DATUM_UNKNOWN_VALUE;
 	  
-	  gint accumulate_idx[spectrum_ndim(self)];
-	  memset(accumulate_idx, 0, spectrum_ndim(self) * sizeof(gint));
+	  struct spectrum_iterator *iterator = spectrum_construct_iterator(self);
 	  gdouble* accumulate_dest = buf;
-	  
-	  gint tickle_idx[spectrum_ndim(self)];
 	  
 #define ALREADY_INSTANTIATED(x) DATUM_IS_KNOWN(x)
 	  
@@ -668,31 +667,35 @@ spectrum_traverse_internal(HosSpectrum* self)
 	      /* inner loop -- tickle remaining points */
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
 		{
+		  iterator_save(iterator);
 
-		  memcpy(tickle_idx, accumulate_idx, spectrum_ndim(self) * sizeof(gint));
 		  gdouble* tickle_dest = accumulate_dest;
 		  while (1)
 		    {
 		      if (!ALREADY_INSTANTIATED(*tickle_dest))
-			spectrum_tickle(self, self, tickle_idx, tickle_dest);
+			iterator_tickle(iterator, tickle_dest);
 		      ++tickle_dest;
-		      if (spectrum_bump_idx(self, tickle_idx))
+		      if (iterator_bump(iterator))
 			break;
 		    }
 		}
 	      
+	      iterator_restore(iterator);
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
-		*accumulate_dest = spectrum_accumulate(self, self, accumulate_idx);
+		*accumulate_dest = iterator_accumulate(iterator);
 	      
 	      ++accumulate_dest;
-	      if (spectrum_bump_idx(self, accumulate_idx))
+	      if (iterator_bump(iterator))
 		break;
 	      
 	    }
 
 	  g_atomic_pointer_set(&self->buf, buf);
 	  priv->status = COMPLETE;
+	  /* FIXME can I just emit a signal from this thread? */
 	  queue_ready_push(self);
+
+	  iterator_free(iterator);
 	}
       g_mutex_unlock(priv->traversal_lock);
     }
@@ -868,6 +871,7 @@ spectrum_traverse(HosSpectrum *spec)
     {
       ensure_traversal_setup();
       g_object_ref(spec);
+      /* FIXME change to LIFO order */
       g_thread_pool_push(traversal_pool, spec, NULL);
       return NULL;
     }
@@ -952,6 +956,11 @@ point_cache_fetch(HosSpectrum *spec, gsize idx)
 static struct spectrum_iterator*
 spectrum_construct_iterator(HosSpectrum *self)
 {
+  /* 
+   * FIXME if 'self' is already instantiated,
+   * generate a 'buffered' interator
+   */
+
   HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
   struct spectrum_iterator* result = class->construct_iterator(self);
 
@@ -960,6 +969,7 @@ spectrum_construct_iterator(HosSpectrum *self)
   result->ndim      = spectrum_ndim(self);
   result->idx       = g_new0(guint, spectrum_ndim(self));
   result->save_idx  = g_new0(guint, spectrum_ndim(self));
+  result->np        = g_new0(gsize, spectrum_ndim(self));
   result->stride    = g_new0(gsize, spectrum_ndim(self));
   result->can_cache = TRUE;  /* innocent until proven guilty */
 
@@ -974,6 +984,9 @@ spectrum_construct_iterator(HosSpectrum *self)
       result->stride[i] = last * np;
     }
 
+  for (i = 0; i < spectrum_ndim(self); ++i)
+    result->np[i] = spectrum_np(self, i);
+
   return result;
 }
 
@@ -983,7 +996,34 @@ iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
   self->idx[dim] += delta;
   if (self->can_cache == TRUE)
     self->idx_linear += delta * self->stride[dim];
-  (self->increment)(self, dim, delta);
+  if (self->increment)
+    (self->increment)(self, dim, delta);
+}
+
+/*
+ * Increment 'self' in 'traversal order'.
+ * Returns: TRUE:  traversal is complete
+ *          FALSE: points remain to traverse
+ */
+static gboolean
+iterator_bump(struct spectrum_iterator *self)
+{
+  gint dim = 0;
+  while (1)
+    {
+      if (dim >= self->ndim)
+	return TRUE;
+      if (self->idx[dim] < self->np[dim] - 1)
+	{
+	  iterator_increment(self, dim, 1);
+	  return FALSE;
+	}
+      else
+	{
+	  iterator_increment(self, dim, -self->idx[dim]);
+	  ++dim;
+	}
+    }
 }
 
 static void
@@ -993,7 +1033,8 @@ iterator_save(struct spectrum_iterator *self)
   gint i;
   for (i = 0; i < self->ndim; ++i)
     self->save_idx[i] = self->idx[i];
-  (self->save)(self);
+  if (self->save)
+    (self->save)(self);
 }
 
 static void
@@ -1003,7 +1044,8 @@ iterator_restore(struct spectrum_iterator *self)
   gint i;
   for (i = 0; i < self->ndim; ++i)
     self->idx[i] = self->save_idx[i];
-  (self->restore)(self);
+  if (self->restore)
+    (self->restore)(self);
 }
 
 static gboolean
@@ -1018,18 +1060,29 @@ iterator_check_cache(struct spectrum_iterator *self, gdouble *dest)
 	}
       else
 	{
-	  /* FIXME check point cache */
+	  gdouble cached_value = point_cache_fetch(self->root, self->idx_linear);
+	  if (DATUM_IS_KNOWN(cached_value))
+	    {
+	      *dest = cached_value;
+	      return TRUE;
+	    }
 	}
     }
-  else
     return FALSE;
 }
 
 static gboolean
 iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
 {
-  if (iterator_check_cache(self, dest) == FALSE)
-    return (self->tickle)(self, dest);
+  gboolean is_instantiated = iterator_check_cache(self, dest);
+  if (is_instantiated == FALSE)
+    {
+      is_instantiated = (self->tickle)(self, dest);
+      if (is_instantiated && self->can_cache)
+	point_cache_store(self->root, self->idx_linear, *dest);
+    }
+
+  return is_instantiated;
 }
 
 static gdouble
@@ -1037,8 +1090,26 @@ iterator_accumulate(struct spectrum_iterator *self)
 {
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
-    result = (self->accumulate)(self);
+    {
+      result = (self->accumulate)(self);
+      if (self->can_cache)
+	point_cache_store(self->root, self->idx_linear, result);
+    }
   return result;
+}
+
+static void
+iterator_free(struct spectrum_iterator *self)
+{
+  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self->root);
+
+  g_free(self->idx);
+  g_free(self->save_idx);
+  g_free(self->np);
+  g_free(self->stride);
+
+  class->free_iterator(self);
+
 }
 
 
