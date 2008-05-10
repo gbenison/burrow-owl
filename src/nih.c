@@ -202,7 +202,7 @@ nih_read_segment (gpointer env, guint segid, gdouble *buf)
   size_t n_remaining = priv->segment_size * sizeof(float);
   if ((n_remaining + offset) > priv->file_size)
     n_remaining = priv->file_size - offset;
-  float* dest = priv->buffer;
+  char* dest = (char*)(priv->buffer);
   while (n_remaining > 0)
     {
       size_t n_read = read(priv->fd, dest, n_remaining);

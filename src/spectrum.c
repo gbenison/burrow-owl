@@ -971,7 +971,7 @@ spectrum_construct_iterator(HosSpectrum *self)
   result->stride[0] = 1;
   for (i = 1; i < spectrum_ndim(self); ++i)
     {
-      gsize np   = spectrum_np(self, i);
+      gsize np   = spectrum_np(self, i - 1);
       gsize last = result->stride[i - 1];
       if ((G_MAXSIZE / last) <= np)
 	result->can_cache = FALSE;
