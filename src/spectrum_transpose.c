@@ -40,12 +40,25 @@ struct _HosSpectrumTransposedPrivate
   guint  *map;
 };
 
-static gdouble  spectrum_transposed_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_transposed_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+struct transposed_iterator
+{
+  struct spectrum_iterator parent;
+
+  struct spectrum_iterator     *base;
+  HosSpectrumTransposedPrivate *priv;
+};
+
+static gdouble  spectrum_transposed_accumulate (struct spectrum_iterator* self);
+static gboolean spectrum_transposed_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_transposed_increment  (struct spectrum_iterator* self, guint dim, gint delta);
+static void     spectrum_transposed_save       (struct spectrum_iterator* self);
+static void     spectrum_transposed_restore    (struct spectrum_iterator* self);
+
+static struct spectrum_iterator* spectrum_transposed_construct_iterator (HosSpectrum *self);
+static void                      spectrum_transposed_free_iterator      (struct spectrum_iterator* self);
 
 static void   spectrum_transposed_dispose  (GObject *object);
 static void   spectrum_transposed_finalize (GObject *object);
-
 
 G_DEFINE_TYPE (HosSpectrumTransposed, hos_spectrum_transposed, HOS_TYPE_SPECTRUM)
 
@@ -58,8 +71,8 @@ hos_spectrum_transposed_class_init(HosSpectrumTransposedClass *klass)
   gobject_class->dispose     = spectrum_transposed_dispose;
   gobject_class->finalize    = spectrum_transposed_finalize;
 
-  spectrum_class->accumulate = spectrum_transposed_accumulate;
-  spectrum_class->tickle     = spectrum_transposed_tickle;
+  spectrum_class->construct_iterator = spectrum_transposed_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_transposed_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumTransposedPrivate));
 }
@@ -69,32 +82,6 @@ hos_spectrum_transposed_init(HosSpectrumTransposed* self)
 {
   /* FIXME */
   /* anything? */
-}
-
-static gdouble
-spectrum_transposed_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
-{
-  HosSpectrumTransposedPrivate *priv = SPECTRUM_TRANSPOSED_GET_PRIVATE(self);
-
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[priv->map[i]] = idx[i];
-
-  return spectrum_accumulate(priv->base, root, new_idx);
-}
-
-static gboolean
-spectrum_transposed_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
-{
-  HosSpectrumTransposedPrivate *priv = SPECTRUM_TRANSPOSED_GET_PRIVATE(self);
-
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[priv->map[i]] = idx[i];
-
-  return spectrum_tickle(priv->base, root, new_idx, dest);
 }
 
 static void
@@ -161,4 +148,67 @@ spectrum_transpose(HosSpectrum *self, guint idx)
 
   return result;
 
+}
+
+static gdouble
+spectrum_transposed_accumulate(struct spectrum_iterator* self)
+{
+  return iterator_accumulate(((struct transposed_iterator*)self)->base);
+}
+
+static gboolean
+spectrum_transposed_tickle(struct spectrum_iterator* self, gdouble* dest)
+{
+  return iterator_tickle(((struct transposed_iterator*)self)->base, dest);
+}
+
+static void
+spectrum_transposed_increment(struct spectrum_iterator* self, guint dim, gint delta)
+{
+  guint target_dim;
+
+  target_dim = ((struct transposed_iterator*)self)->priv->map[dim];
+  iterator_increment(((struct transposed_iterator*)self)->base,
+		     target_dim,
+		     delta);
+}
+
+static void
+spectrum_transposed_save(struct spectrum_iterator* self)
+{
+  iterator_save(((struct transposed_iterator*)self)->base);
+}
+
+static void
+spectrum_transposed_restore(struct spectrum_iterator* self)
+{
+  iterator_restore(((struct transposed_iterator*)self)->base);
+}
+
+static struct spectrum_iterator*
+spectrum_transposed_construct_iterator (HosSpectrum *self)
+{
+
+  struct transposed_iterator *result            = g_new0(struct transposed_iterator, 1);
+  struct spectrum_iterator   *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_TRANSPOSED_GET_PRIVATE(self);
+  result->base = spectrum_construct_iterator(result->priv->base);
+
+  spectrum_iterator->tickle     = spectrum_transposed_tickle;
+  spectrum_iterator->accumulate = spectrum_transposed_accumulate;
+  spectrum_iterator->increment  = spectrum_transposed_increment;
+  spectrum_iterator->save       = spectrum_transposed_save;
+  spectrum_iterator->restore    = spectrum_transposed_restore;
+
+  return spectrum_iterator;
+
+
+}
+
+static void
+spectrum_transposed_free_iterator(struct spectrum_iterator* self)
+{
+  iterator_free(((struct transposed_iterator*)self)->base);
+  g_free(self);
 }
