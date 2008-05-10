@@ -88,8 +88,6 @@ static gdouble
 spectrum_projected_accumulate(struct spectrum_iterator* self)
 {
   return iterator_accumulate(((struct projected_iterator*)self)->base);
-
-
 }
 
 static gboolean
