@@ -281,7 +281,26 @@ skip_list_lookup(skip_list_t* list, gint key)
 {
   if (list == NULL)
     return NULL;
-  return lookup_inner(list->nodes, key);
+  //  return lookup_inner(list->nodes, key);
+
+  skip_node_t* node = list->nodes;
+  skip_node_t *next, *down;
+
+  while (1)
+    {
+      next = node->next;
+      
+      if ((next != NULL) && (next->key <= key))
+	node = next;
+      else
+	{
+	  down = node->down;
+	  if (down != NULL)
+	    node = down;
+	  else
+	    return (node->key == key) ? node->data : NULL;
+	}
+    }
 }
 
 static gpointer

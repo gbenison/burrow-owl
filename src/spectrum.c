@@ -661,6 +661,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
 		{
 		  iterator_save(iterator);
+		  gint n = 0;
 
 		  gdouble* tickle_dest = accumulate_dest;
 		  while (1)
@@ -670,6 +671,8 @@ spectrum_traverse_internal(HosSpectrum* self)
 		      ++tickle_dest;
 		      if (iterator_bump(iterator))
 			break;
+		      ++n;
+		      if (n > 204800) break;  /* FIXME tickle limits */
 		    }
 		  iterator_restore(iterator);
 		}
