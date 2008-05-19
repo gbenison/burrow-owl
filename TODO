@@ -1,3 +1,5 @@
 
+- change traversal queue into a LIFO
+- traversal objects should _weakly reference_ spectra
 - throw exceptions when bmrb files fail to read
 

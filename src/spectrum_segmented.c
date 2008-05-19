@@ -332,14 +332,15 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  cache_slot_t* slot = segment_cache_obtain_slot(self);
 	  g_assert(slot != NULL);
 	  g_assert(slot->buf != NULL);
+	  g_mutex_unlock(priv->segment_lock);
 	  class->read_segment(self->traversal_env, segid, slot->buf);
 	  g_atomic_int_set(&slot->segid, segid);
+	  g_mutex_lock(priv->segment_lock);
 	  skip_list_insert(priv->segment_cache, segid, slot);
 	  priv->segment_ptr = segid + 1;
 	  segment_cache_bless_slot(slot);
+	  g_cond_broadcast(priv->segment_ready_cond);
 	}
-
-      g_cond_broadcast(priv->segment_ready_cond);
       g_mutex_unlock(priv->segment_lock);
     }
 }

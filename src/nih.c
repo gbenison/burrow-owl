@@ -118,7 +118,7 @@ hos_spectrum_nih_init(HosSpectrumNih *self)
    * rather than hard-coded, the segment size could be determined
    * from stat() at object creation time to match the filesystem's IO block size.
    */
-  gsize segment_size = 1024;
+  gsize segment_size = 1024 * 4;
   NIH_PRIVATE(self, segment_size) = segment_size;
   spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
   NIH_PRIVATE(self, buffer) = g_new(float, segment_size);
