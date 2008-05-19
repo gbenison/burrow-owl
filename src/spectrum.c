@@ -524,7 +524,7 @@ ensure_traversal_setup()
   if (traversal_pool == NULL)
     {
       gpointer user_data = NULL;
-      gint max_threads   = 8;    /* FIXME this should be adjustable */
+      gint max_threads   = 1;    /* FIXME this should be adjustable */
       gboolean exclusive = TRUE;
       GError*  error     = NULL;
       traversal_pool = g_thread_pool_new ((GFunc)spectrum_traverse_internal,
@@ -658,7 +658,9 @@ spectrum_traverse_internal(HosSpectrum* self)
 	  while (1)
 	    {
 	      /* inner loop -- tickle remaining points */
-	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
+	      /* FIXME set tickle_enable to TRUE to enable lookahead */
+	      static const gboolean tickle_enable = FALSE;
+	      if (!ALREADY_INSTANTIATED(*accumulate_dest) && tickle_enable)
 		{
 		  iterator_save(iterator);
 		  gint n = 0;

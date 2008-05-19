@@ -121,6 +121,7 @@ hos_spectrum_nih_init(HosSpectrumNih *self)
   gsize segment_size = 1024 * 4;
   NIH_PRIVATE(self, segment_size) = segment_size;
   spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
+  spectrum_segmented_set_cache_size(HOS_SPECTRUM_SEGMENTED(self), 64);
   NIH_PRIVATE(self, buffer) = g_new(float, segment_size);
   NIH_PRIVATE(self, fd) = -1;
   HOS_SPECTRUM_SEGMENTED(self)->traversal_env = NIH_GET_PRIVATE(self);

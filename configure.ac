@@ -72,6 +72,7 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/Makefile
                  wrapper/burrow
+		 benchmarks/Makefile
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
 		 test-suite/Makefile])
