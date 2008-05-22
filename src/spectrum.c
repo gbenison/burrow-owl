@@ -674,7 +674,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 		      if (iterator_bump(iterator))
 			break;
 		      ++n;
-		      if (n > 204800) break;  /* FIXME tickle limits */
+		      if (iterator->blocked == FALSE) break;
 		    }
 		  iterator_restore(iterator);
 		}
@@ -971,6 +971,13 @@ spectrum_construct_iterator(HosSpectrum *self)
   result->np        = g_new0(gsize, spectrum_ndim(self));
   result->stride    = g_new0(gsize, spectrum_ndim(self));
   result->can_cache = TRUE;  /* innocent until proven guilty */
+
+  /*
+   * FIXME
+   * It is up to classes to set 'blocked' to FALSE to indicate that
+   * the accumulate point is now ready, causing lookahead to cease.
+   */
+  result->blocked   = TRUE;
 
   gint i;
   result->stride[0] = 1;

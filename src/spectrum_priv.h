@@ -52,6 +52,7 @@ struct spectrum_iterator
   gsize        idx_linear;
   gsize        save_idx_linear;
   gboolean     can_cache;
+  gboolean     blocked;
 
   gboolean (*tickle)      (struct spectrum_iterator* self, gdouble *dest);
   gdouble  (*accumulate)  (struct spectrum_iterator* self);

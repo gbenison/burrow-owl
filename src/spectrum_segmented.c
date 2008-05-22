@@ -52,9 +52,16 @@ struct segmented_iterator
   HosSpectrumSegmentedPrivate *priv;
   HosSpectrumSegmentedClass   *class;
   gpointer                     traversal_env;
+
+  gint         segid_saved;
+
+  skip_list_t *request_queue;
+  GMutex      *request_queue_lock;
+
 };
 
 static gdouble  spectrum_segmented_accumulate (struct spectrum_iterator* self);
+static void     spectrum_segmented_save       (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_tickle     (struct spectrum_iterator* self, gdouble* dest);
 
 static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpectrum *self);
@@ -109,6 +116,12 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->segment_cache          = skip_list_new(20, 0.7);
 
   spectrum_segmented_set_cache_size(self, 32);
+}
+
+static void
+spectrum_segmented_save(struct spectrum_iterator* self)
+{
+  /* FIXME save the current requested segid in pending_accumulate_segment */
 }
 
 static gdouble
@@ -340,6 +353,13 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  priv->segment_ptr = segid + 1;
 	  segment_cache_bless_slot(slot);
 	  g_cond_broadcast(priv->segment_ready_cond);
+
+	  /*
+	   * FIXME
+	   * Look through the iterators list, and if the new segment corresponds to any
+	   * that an 'accumulate' request is waiting for, set the iterator's 'blocked' field
+	   * to false.
+	   */
 	}
       g_mutex_unlock(priv->segment_lock);
     }
@@ -428,6 +448,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
 
   struct spectrum_iterator* spectrum_iterator = (struct spectrum_iterator*)result;
   spectrum_iterator->tickle     = spectrum_segmented_tickle;
+  spectrum_iterator->save       = spectrum_segmented_save;
   spectrum_iterator->accumulate = spectrum_segmented_accumulate;
 
   return (struct spectrum_iterator*)result;
