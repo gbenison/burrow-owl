@@ -31,14 +31,23 @@ gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, 
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
 
-/* Iterators */
+/*
+ *  --- Iterators ---
+ *
+ *  Operations supported by spectrum iterators:
+ *
+ *  increment -- change the position of the pointer
+ *  tickle    -- peek at the position of the pointer, returns TRUE if value is available
+ *  mark      -- save the position of the pointer (see 'wait' operation)
+ *  wait      -- block until the value at the position saved by 'mark' is available
+ *
+ */
 struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
 void     iterator_free        (struct spectrum_iterator *self);
 void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
-void     iterator_save        (struct spectrum_iterator *self);
-void     iterator_restore     (struct spectrum_iterator *self);
 gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
-gdouble  iterator_accumulate  (struct spectrum_iterator *self);
+void     iterator_mark        (struct spectrum_iterator *self);
+gdouble  iterator_wait        (struct spectrum_iterator *self);
 
 struct spectrum_iterator
 {
@@ -54,11 +63,10 @@ struct spectrum_iterator
   gboolean     can_cache;
   gboolean     blocked;
 
-  gboolean (*tickle)      (struct spectrum_iterator* self, gdouble *dest);
-  gdouble  (*accumulate)  (struct spectrum_iterator* self);
-  void     (*increment)   (struct spectrum_iterator* self, guint dim, gint delta);
-  void     (*save)        (struct spectrum_iterator* self);
-  void     (*restore)     (struct spectrum_iterator* self);
+  gboolean (*tickle)      (struct spectrum_iterator *self, gdouble *dest);
+  void     (*mark)        (struct spectrum_iterator *self);
+  gdouble  (*wait)        (struct spectrum_iterator *self);
+  void     (*increment)   (struct spectrum_iterator *self, guint dim, gint delta);
 };
 
 

@@ -650,42 +650,41 @@ spectrum_traverse_internal(HosSpectrum* self)
 	    buf[i] = DATUM_UNKNOWN_VALUE;
 	  
 	  struct spectrum_iterator *iterator = spectrum_construct_iterator(self);
-	  gdouble* accumulate_dest = buf;
+	  gdouble* outer_dest = buf;
 	  
 #define ALREADY_INSTANTIATED(x) DATUM_IS_KNOWN(x)
 	  
-	  /* outer loop -- 'accumulate' */
+	  /* outer loop through all spectrum points */
 	  while (1)
 	    {
 	      /* inner loop -- tickle remaining points */
-	      /* FIXME set tickle_enable to TRUE to enable lookahead */
-	      static const gboolean tickle_enable = TRUE;
-	      if (!ALREADY_INSTANTIATED(*accumulate_dest) && tickle_enable)
+	      static const gboolean lookahead_enable = TRUE;
+	      if (!ALREADY_INSTANTIATED(*outer_dest))
 		{
-		  iterator_save(iterator);
-		  gint n = 0;
-
-		  gdouble* tickle_dest = accumulate_dest;
-		  while (1)
+		  if (iterator_tickle(iterator, outer_dest) == FALSE)
 		    {
-		      if (!ALREADY_INSTANTIATED(*tickle_dest))
-			iterator_tickle(iterator, tickle_dest);
-		      ++tickle_dest;
-		      if (iterator_bump(iterator))
-			break;
-		      ++n;
-		      if (iterator->blocked == FALSE) break;
+		      iterator_mark(iterator);
+		      gint n = 0;
+		      
+		      gdouble* inner_dest = outer_dest;
+		      while (iterator_bump(iterator) == FALSE)
+			{
+			  ++inner_dest;
+			  if (!ALREADY_INSTANTIATED(*inner_dest))
+			    iterator_tickle(iterator, inner_dest);
+			  ++n;
+			  if (iterator->blocked == FALSE) break;
+			}
+		      iterator_restore(iterator);
 		    }
-		  iterator_restore(iterator);
-		}
 
-	      if (!ALREADY_INSTANTIATED(*accumulate_dest))
-		*accumulate_dest = iterator_accumulate(iterator);
+		  if (!ALREADY_INSTANTIATED(*outer_dest))
+		    *outer_dest = iterator_wait(iterator);
+		}
 	      
-	      ++accumulate_dest;
+	      ++outer_dest;
 	      if (iterator_bump(iterator))
 		break;
-	      
 	    }
 
 	  g_atomic_pointer_set(&self->buf, buf);
@@ -1033,25 +1032,14 @@ iterator_bump(struct spectrum_iterator *self)
 }
 
 void
-iterator_save(struct spectrum_iterator *self)
+iterator_mark(struct spectrum_iterator *self)
 {
   self->save_idx_linear = self->idx_linear;
   gint i;
   for (i = 0; i < self->ndim; ++i)
     self->save_idx[i] = self->idx[i];
-  if (self->save)
-    (self->save)(self);
-}
-
-void
-iterator_restore(struct spectrum_iterator *self)
-{
-  self->idx_linear = self->save_idx_linear;
-  gint i;
-  for (i = 0; i < self->ndim; ++i)
-    self->idx[i] = self->save_idx[i];
-  if (self->restore)
-    (self->restore)(self);
+  if (self->mark)
+    (self->mark)(self);
 }
 
 static gboolean
@@ -1092,12 +1080,19 @@ iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
 }
 
 gdouble
-iterator_accumulate(struct spectrum_iterator *self)
+iterator_wait(struct spectrum_iterator *self)
 {
+
+  /* restore pointer location */
+  self->idx_linear = self->save_idx_linear;
+  gint i;
+  for (i = 0; i < self->ndim; ++i)
+    self->idx[i] = self->save_idx[i];
+
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
     {
-      result = (self->accumulate)(self);
+      result = (self->wait)(self);
       if (self->can_cache)
 	point_cache_store(self->root, self->idx_linear, result);
     }
