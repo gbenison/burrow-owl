@@ -45,11 +45,10 @@ struct extracted_iterator
   HosSpectrumExtractedPrivate *priv;
 };
 
-static gdouble  spectrum_extracted_accumulate (struct spectrum_iterator* self);
+static gdouble  spectrum_extracted_wait       (struct spectrum_iterator* self);
 static gboolean spectrum_extracted_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_extracted_increment  (struct spectrum_iterator* self, guint dim, gint delta);
-static void     spectrum_extracted_save       (struct spectrum_iterator* self);
-static void     spectrum_extracted_restore    (struct spectrum_iterator* self);
+static void     spectrum_extracted_mark       (struct spectrum_iterator* self);
 
 static struct spectrum_iterator* spectrum_extracted_construct_iterator (HosSpectrum *self);
 static void                      spectrum_extracted_free_iterator      (struct spectrum_iterator* self);
@@ -84,14 +83,15 @@ hos_spectrum_extracted_init(HosSpectrumExtracted* self)
 }
 
 static gdouble
-spectrum_extracted_accumulate(struct spectrum_iterator* self)
+spectrum_extracted_wait(struct spectrum_iterator* self)
 {
-  return iterator_accumulate(((struct extracted_iterator*)self)->base);
+  return iterator_wait(((struct extracted_iterator*)self)->base);
 }
 
 static gboolean
 spectrum_extracted_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
+  self->blocked = ((struct extracted_iterator*)self)->base->blocked;
   return iterator_tickle(((struct extracted_iterator*)self)->base, dest);
 }
 
@@ -102,15 +102,9 @@ spectrum_extracted_increment(struct spectrum_iterator* self, guint dim, gint del
 }
 
 static void
-spectrum_extracted_save(struct spectrum_iterator* self)
+spectrum_extracted_mark(struct spectrum_iterator* self)
 {
-  iterator_save(((struct extracted_iterator*)self)->base);
-}
-
-static void
-spectrum_extracted_restore(struct spectrum_iterator* self)
-{
-  iterator_restore(((struct extracted_iterator*)self)->base);
+  iterator_mark(((struct extracted_iterator*)self)->base);
 }
 
 static struct spectrum_iterator*
@@ -125,10 +119,9 @@ spectrum_extracted_construct_iterator (HosSpectrum *self)
   iterator_increment(result->base, 0, result->priv->offset);
 
   spectrum_iterator->tickle     = spectrum_extracted_tickle;
-  spectrum_iterator->accumulate = spectrum_extracted_accumulate;
+  spectrum_iterator->mark       = spectrum_extracted_mark;
+  spectrum_iterator->wait       = spectrum_extracted_wait;
   spectrum_iterator->increment  = spectrum_extracted_increment;
-  spectrum_iterator->save       = spectrum_extracted_save;
-  spectrum_iterator->restore    = spectrum_extracted_restore;
 
   return spectrum_iterator;
 }
@@ -139,7 +132,6 @@ spectrum_extracted_free_iterator(struct spectrum_iterator* self)
   iterator_free(((struct extracted_iterator*)self)->base);
   g_free(self);
 }
-
 
 static void
 spectrum_extracted_dispose(GObject *object)

@@ -28,7 +28,8 @@ typedef struct _HosSpectrumSegmentedPrivate HosSpectrumSegmentedPrivate;
 struct _HosSpectrumSegmentedPrivate
 {
   GThread *io_thread;
-  GCond   *segment_requested_cond;
+  GMutex  *segment_request_lock;
+  GCond   *segment_request_cond;
 
   GList   *iterators;
   GMutex  *iterators_lock;
@@ -110,7 +111,8 @@ static void
 hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
-  priv->segment_requested_cond = g_cond_new();
+  priv->segment_request_cond = g_cond_new();
+  priv->segment_request_lock           = g_mutex_new();
   priv->request_queue          = skip_list_new(16, 0.5);
   priv->segment_cache          = skip_list_new(20, 0.7);
   priv->iterators_lock         = g_mutex_new();
@@ -121,6 +123,8 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 static void
 spectrum_segmented_mark(struct spectrum_iterator* self)
 {
+  self->blocked = TRUE;
+
   struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
   segmented_iterator->segid_saved = segmented_iterator->segid;
   segmented_iterator->pt_saved    = segmented_iterator->pt;
@@ -137,15 +141,21 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
   gint segid = segmented_iterator->segid_saved;
   gint pt    = segmented_iterator->pt_saved;
 
-  g_mutex_lock(segmented_iterator->wait_lock);
-  while (1)
+  if (!segmented_fetch_point(priv, segid, pt, &result))
     {
-      if (segmented_fetch_point(priv, segid, pt, &result))
-	break;
-      g_cond_signal(priv->segment_requested_cond);
-      g_cond_wait(segmented_iterator->segment_ready_cond, segmented_iterator->wait_lock);
+      g_mutex_lock(segmented_iterator->wait_lock);
+      while (!segmented_fetch_point(priv, segid, pt, &result))
+	{
+	  g_mutex_lock(priv->segment_request_lock);
+	  g_mutex_lock(segmented_iterator->request_queue_lock);
+	  skip_list_insert(segmented_iterator->request_queue, segid, NULL);
+	  g_mutex_unlock(segmented_iterator->request_queue_lock);
+	  g_cond_signal(priv->segment_request_cond);
+	  g_mutex_unlock(priv->segment_request_lock);
+	  g_cond_wait(segmented_iterator->segment_ready_cond, segmented_iterator->wait_lock);
+	}
+      g_mutex_unlock(segmented_iterator->wait_lock);
     }
-  g_mutex_unlock(segmented_iterator->wait_lock);
 
   return result;
 }
@@ -280,16 +290,18 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
   while (1)
     {
       gint segid;
+
+      g_mutex_lock(priv->segment_request_lock);
       while (1)
 	{
 	  /* FIXME merge segment requests */
 	  segid = determine_next_segment(priv);
 	  if (segid >= 0)
 	    break;
-	  g_mutex_lock(priv->iterators_lock);
-	  g_cond_wait(priv->segment_requested_cond, priv->iterators_lock);
-	  g_mutex_unlock(priv->iterators_lock);
+	  g_cond_wait(priv->segment_request_cond, priv->segment_request_lock);
 	}
+      g_mutex_unlock(priv->segment_request_lock);
+
       /* load segment */
       if (!skip_list_lookup(priv->segment_cache, segid))
 	{
@@ -300,34 +312,34 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_atomic_int_set(&slot->segid, segid);
 	  skip_list_insert(priv->segment_cache, segid, slot);
 	  segment_cache_bless_slot(slot);
+	}
 
-	  /*
-	   * FIXME
-	   * Look through the iterators list, and if the new segment corresponds to any
-	   * that an 'accumulate' request is waiting for, set the iterator's 'blocked' field
-	   * to false.
-	   */
-
-	  g_mutex_lock(priv->iterators_lock);
-	  GList *iterators = priv->iterators;
-	  for (iterators = priv->iterators; iterators != NULL; iterators = iterators->next)
+      /*
+       * FIXME
+       * Look through the iterators list, and if the new segment corresponds to any
+       * that an 'accumulate' request is waiting for, set the iterator's 'blocked' field
+       * to false.
+       */
+      
+      g_mutex_lock(priv->iterators_lock);
+      GList *iterators = priv->iterators;
+      for (iterators = priv->iterators; iterators != NULL; iterators = iterators->next)
+	{
+	  struct segmented_iterator *segmented_iterator = (struct segmented_iterator*)(iterators->data);
+	  struct spectrum_iterator  *iterator           = (struct spectrum_iterator*)(iterators->data);
+	  if (segid == segmented_iterator->segid_saved)
 	    {
-	      struct segmented_iterator *segmented_iterator = (struct segmented_iterator*)(iterators->data);
-	      struct spectrum_iterator  *iterator           = (struct spectrum_iterator*)(iterators->data);
+	      g_mutex_lock(segmented_iterator->wait_lock);
 	      if (segid == segmented_iterator->segid_saved)
 		{
-		  g_mutex_lock(segmented_iterator->wait_lock);
-		  if (segid == segmented_iterator->segid_saved)
-		    {
-		      iterator->blocked = FALSE;
-		      g_cond_signal(segmented_iterator->segment_ready_cond);
-		    }
-		  g_mutex_unlock(segmented_iterator->wait_lock);
+		  iterator->blocked = FALSE;
+		  g_cond_signal(segmented_iterator->segment_ready_cond);
 		}
+	      g_mutex_unlock(segmented_iterator->wait_lock);
 	    }
-	  g_mutex_unlock(priv->iterators_lock);
-
 	}
+      g_mutex_unlock(priv->iterators_lock);
+      
     }
 }
 

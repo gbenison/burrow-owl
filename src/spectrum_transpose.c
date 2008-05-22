@@ -48,11 +48,10 @@ struct transposed_iterator
   HosSpectrumTransposedPrivate *priv;
 };
 
-static gdouble  spectrum_transposed_accumulate (struct spectrum_iterator* self);
 static gboolean spectrum_transposed_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_transposed_mark       (struct spectrum_iterator* self);
+static gdouble  spectrum_transposed_wait       (struct spectrum_iterator* self);
 static void     spectrum_transposed_increment  (struct spectrum_iterator* self, guint dim, gint delta);
-static void     spectrum_transposed_save       (struct spectrum_iterator* self);
-static void     spectrum_transposed_restore    (struct spectrum_iterator* self);
 
 static struct spectrum_iterator* spectrum_transposed_construct_iterator (HosSpectrum *self);
 static void                      spectrum_transposed_free_iterator      (struct spectrum_iterator* self);
@@ -151,14 +150,15 @@ spectrum_transpose(HosSpectrum *self, guint idx)
 }
 
 static gdouble
-spectrum_transposed_accumulate(struct spectrum_iterator* self)
+spectrum_transposed_wait(struct spectrum_iterator* self)
 {
-  return iterator_accumulate(((struct transposed_iterator*)self)->base);
+  return iterator_wait(((struct transposed_iterator*)self)->base);
 }
 
 static gboolean
 spectrum_transposed_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
+  self->blocked = ((struct transposed_iterator*)self)->base->blocked;
   return iterator_tickle(((struct transposed_iterator*)self)->base, dest);
 }
 
@@ -174,15 +174,9 @@ spectrum_transposed_increment(struct spectrum_iterator* self, guint dim, gint de
 }
 
 static void
-spectrum_transposed_save(struct spectrum_iterator* self)
+spectrum_transposed_mark(struct spectrum_iterator* self)
 {
-  iterator_save(((struct transposed_iterator*)self)->base);
-}
-
-static void
-spectrum_transposed_restore(struct spectrum_iterator* self)
-{
-  iterator_restore(((struct transposed_iterator*)self)->base);
+  iterator_mark(((struct transposed_iterator*)self)->base);
 }
 
 static struct spectrum_iterator*
@@ -196,13 +190,11 @@ spectrum_transposed_construct_iterator (HosSpectrum *self)
   result->base = spectrum_construct_iterator(result->priv->base);
 
   spectrum_iterator->tickle     = spectrum_transposed_tickle;
-  spectrum_iterator->accumulate = spectrum_transposed_accumulate;
+  spectrum_iterator->mark       = spectrum_transposed_mark;
+  spectrum_iterator->wait       = spectrum_transposed_wait;
   spectrum_iterator->increment  = spectrum_transposed_increment;
-  spectrum_iterator->save       = spectrum_transposed_save;
-  spectrum_iterator->restore    = spectrum_transposed_restore;
 
   return spectrum_iterator;
-
 
 }
 

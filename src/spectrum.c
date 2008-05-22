@@ -59,6 +59,7 @@ typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 
 struct _HosSpectrumPrivate
 {
+  GCond    *complete_cond;
   GMutex   *traversal_lock;
   GList    *dimensions;
 
@@ -114,8 +115,15 @@ spectrum_ndim(HosSpectrum *spec)
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  g_object_ref(spec);
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(spec);
+  g_object_ref(spec); /* ??? FIXME */
   spectrum_traverse_internal(spec);
+  g_mutex_lock(priv->traversal_lock);
+  if (priv->status != COMPLETE)
+    g_cond_wait(priv->complete_cond, priv->traversal_lock);
+  g_mutex_unlock(priv->traversal_lock);
+
+  g_assert(spec->buf != NULL);
   return spec->buf;
 }
 
@@ -217,7 +225,7 @@ spectrum_stddev(HosSpectrum *spec)
 gdouble
 spectrum_peek(HosSpectrum *spec, guint idx)
 {
-  gdouble* buf = spectrum_traverse_blocking(spec);
+  gdouble* buf  = spectrum_traverse_blocking(spec);
   int spec_size = spectrum_np_total(spec);
 
   g_return_if_fail(idx < spec_size);
@@ -413,7 +421,8 @@ hos_spectrum_finalize(GObject *object)
 {
   HosSpectrum *spectrum = HOS_SPECTRUM(object);
 
-  spectrum_invalidate_cache(spectrum);
+  /* FIXME is this appropriate? clearly the spectrum's buffer must be freed... */
+  //  spectrum_invalidate_cache(spectrum);
 
   G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
@@ -461,6 +470,7 @@ hos_spectrum_init(HosSpectrum  *spectrum)
 {
   SPECTRUM_PRIVATE(spectrum, status) = LATENT;
   SPECTRUM_PRIVATE(spectrum, traversal_lock) = g_mutex_new();
+  SPECTRUM_PRIVATE(spectrum, complete_cond)  = g_cond_new();
 }
 
 static void
@@ -632,71 +642,78 @@ spectrum_traverse_internal(HosSpectrum* self)
 {
   g_return_if_fail(HOS_IS_SPECTRUM(self));
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  if (priv->status != COMPLETE)
+  gboolean proceed = FALSE;
+
+  g_mutex_lock(priv->traversal_lock);
+  if (priv->status == LATENT)
     {
-      g_mutex_lock(priv->traversal_lock);
+      priv->status = TRAVERSING;
+      proceed = TRUE;
+    }
+  g_mutex_unlock(priv->traversal_lock);
+
+  if (proceed)
+    {
      
-      gint status = g_atomic_int_get(&priv->status);
-      if (status == LATENT)
-	{
-	  g_atomic_int_set(&priv->status, TRAVERSING);
-
-	  g_assert(self->buf == NULL);
-	  int total_np = spectrum_np_total(self);
-	  gdouble *buf = g_new(gdouble, total_np);
-
-	  int i;
-	  for (i = 0; i < total_np; ++i)
-	    buf[i] = DATUM_UNKNOWN_VALUE;
+      g_assert(self->buf == NULL);
+      int total_np = spectrum_np_total(self);
+      gdouble *buf = g_new(gdouble, total_np);
+      
+      int i;
+      for (i = 0; i < total_np; ++i)
+	buf[i] = DATUM_UNKNOWN_VALUE;
 	  
-	  struct spectrum_iterator *iterator = spectrum_construct_iterator(self);
-	  gdouble* outer_dest = buf;
-	  
+      struct spectrum_iterator *iterator = spectrum_construct_iterator(self);
+      gdouble* outer_dest = buf;
+      
 #define ALREADY_INSTANTIATED(x) DATUM_IS_KNOWN(x)
-	  
-	  /* outer loop through all spectrum points */
-	  while (1)
+      
+      /* outer loop through all spectrum points */
+      while (1)
+	{
+	  /* inner loop -- tickle remaining points */
+	  static const gboolean lookahead_enable = TRUE;
+	  if (!ALREADY_INSTANTIATED(*outer_dest))
 	    {
-	      /* inner loop -- tickle remaining points */
-	      static const gboolean lookahead_enable = TRUE;
-	      if (!ALREADY_INSTANTIATED(*outer_dest))
+	      if (iterator_tickle(iterator, outer_dest) == FALSE)
 		{
-		  if (iterator_tickle(iterator, outer_dest) == FALSE)
+		  iterator_mark(iterator);
+		  gint n = 0;
+		  
+		  gdouble* inner_dest = outer_dest;
+		  while (iterator_bump(iterator) == FALSE)
 		    {
-		      iterator_mark(iterator);
-		      gint n = 0;
-		      
-		      gdouble* inner_dest = outer_dest;
-		      while (iterator_bump(iterator) == FALSE)
-			{
-			  ++inner_dest;
-			  if (!ALREADY_INSTANTIATED(*inner_dest))
-			    iterator_tickle(iterator, inner_dest);
-			  ++n;
-			  if (iterator->blocked == FALSE) break;
-			}
-		      iterator_restore(iterator);
+		      ++inner_dest;
+		      if (!ALREADY_INSTANTIATED(*inner_dest))
+			iterator_tickle(iterator, inner_dest);
+		      ++n;
+		      if (iterator->blocked == FALSE) break;
 		    }
-
+		  
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
 		    *outer_dest = iterator_wait(iterator);
 		}
-	      
-	      ++outer_dest;
-	      if (iterator_bump(iterator))
-		break;
 	    }
-
-	  g_atomic_pointer_set(&self->buf, buf);
-	  priv->status = COMPLETE;
-	  /* FIXME can I just emit a signal from this thread? */
-	  queue_ready_push(self);
-
-	  iterator_free(iterator);
+	  
+	  ++outer_dest;
+	  if (iterator_bump(iterator))
+	    break;
 	}
+      
+      g_atomic_pointer_set(&self->buf, buf);
+      
+      /* FIXME can I just emit a signal from this thread? */
+      queue_ready_push(self);
+      iterator_free(iterator);
+
+      g_mutex_lock(priv->traversal_lock);
+      priv->status = COMPLETE;
+      g_cond_signal(priv->complete_cond);
       g_mutex_unlock(priv->traversal_lock);
+
     }
 }
+
 
 static void
 spectrum_determine_instantiable(HosSpectrum* self, HosSpectrumPrivate *priv)
@@ -862,16 +879,20 @@ spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 gdouble*
 spectrum_traverse(HosSpectrum *spec)
 {
+  gdouble* result = NULL;
+  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
   if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
-    return spec->buf;
-  else
+    result = spec->buf;
+  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
+
+  if (result == NULL)
     {
       ensure_traversal_setup();
       g_object_ref(spec);
       /* FIXME change to LIFO order */
       g_thread_pool_push(traversal_pool, spec, NULL);
-      return NULL;
     }
+  return result;
 }
 
 /*********** The point cache ****************/

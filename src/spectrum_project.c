@@ -47,11 +47,10 @@ struct projected_iterator
   HosSpectrumProjectedPrivate *priv;
 };
 
-static gdouble  spectrum_projected_accumulate (struct spectrum_iterator* self);
 static gboolean spectrum_projected_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_projected_mark       (struct spectrum_iterator* self);
+static gdouble  spectrum_projected_wait       (struct spectrum_iterator* self);
 static void     spectrum_projected_increment  (struct spectrum_iterator* self, guint dim, gint delta);
-static void     spectrum_projected_save       (struct spectrum_iterator* self);
-static void     spectrum_projected_restore    (struct spectrum_iterator* self);
 
 static struct spectrum_iterator* spectrum_projected_construct_iterator (HosSpectrum *self);
 static void                      spectrum_projected_free_iterator      (struct spectrum_iterator* self);
@@ -85,14 +84,15 @@ hos_spectrum_projected_init(HosSpectrumProjected* self)
 }
 
 static gdouble
-spectrum_projected_accumulate(struct spectrum_iterator* self)
+spectrum_projected_wait(struct spectrum_iterator* self)
 {
-  return iterator_accumulate(((struct projected_iterator*)self)->base);
+  return iterator_wait(((struct projected_iterator*)self)->base);
 }
 
 static gboolean
 spectrum_projected_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
+  self->blocked = ((struct projected_iterator*)self)->base->blocked;
   return iterator_tickle(((struct projected_iterator*)self)->base, dest);
 }
 
@@ -106,15 +106,9 @@ spectrum_projected_increment(struct spectrum_iterator* self, guint dim, gint del
 }
 
 static void
-spectrum_projected_save(struct spectrum_iterator* self)
+spectrum_projected_mark(struct spectrum_iterator* self)
 {
-  iterator_save(((struct projected_iterator*)self)->base);
-}
-
-static void
-spectrum_projected_restore(struct spectrum_iterator* self)
-{
-  iterator_restore(((struct projected_iterator*)self)->base);
+  iterator_mark(((struct projected_iterator*)self)->base);
 }
 
 static void
@@ -170,10 +164,9 @@ spectrum_projected_construct_iterator(HosSpectrum *self)
   iterator_increment(result->base, 0, result->priv->offset);
 
   spectrum_iterator->tickle     = spectrum_projected_tickle;
-  spectrum_iterator->accumulate = spectrum_projected_accumulate;
+  spectrum_iterator->wait       = spectrum_projected_wait;
   spectrum_iterator->increment  = spectrum_projected_increment;
-  spectrum_iterator->save       = spectrum_projected_save;
-  spectrum_iterator->restore    = spectrum_projected_restore;
+  spectrum_iterator->mark       = spectrum_projected_mark;
 
   return spectrum_iterator;
 }
