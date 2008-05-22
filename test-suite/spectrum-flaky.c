@@ -20,7 +20,7 @@
 #include "spectrum_priv.h"
 #include "spectrum-flaky.h"
 
-static gdouble   spectrum_flaky_accumulate (struct spectrum_iterator* self);
+static gdouble   spectrum_flaky_wait (struct spectrum_iterator* self);
 static gboolean  spectrum_flaky_tickle     (struct spectrum_iterator* self, gdouble *dest);
 
 static struct spectrum_iterator* spectrum_flaky_construct_iterator (HosSpectrum *self);
@@ -51,9 +51,9 @@ hos_spectrum_flaky_init(HosSpectrumFlaky *self)
 }
 
 static gdouble
-spectrum_flaky_accumulate (struct spectrum_iterator* self)
+spectrum_flaky_wait (struct spectrum_iterator* self)
 {
-  return iterator_accumulate(((struct flaky_iterator*)self)->flakand);
+  return iterator_wait(((struct flaky_iterator*)self)->flakand);
 }
 
 static gboolean
@@ -72,15 +72,9 @@ spectrum_flaky_increment(struct spectrum_iterator* self, guint dim, gint delta)
 }
 
 static void
-spectrum_flaky_save(struct spectrum_iterator* self)
+spectrum_flaky_mark(struct spectrum_iterator* self)
 {
-  iterator_save(((struct flaky_iterator*)self)->flakand);
-}
-
-static void
-spectrum_flaky_restore(struct spectrum_iterator* self)
-{
-  iterator_restore(((struct flaky_iterator*)self)->flakand);
+  iterator_mark(((struct flaky_iterator*)self)->flakand);
 }
 
 /*
@@ -110,10 +104,9 @@ spectrum_flaky_construct_iterator(HosSpectrum *self)
   struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
 
   spectrum_iterator->tickle     = spectrum_flaky_tickle;
-  spectrum_iterator->accumulate = spectrum_flaky_accumulate;
+  spectrum_iterator->wait = spectrum_flaky_wait;
   spectrum_iterator->increment  = spectrum_flaky_increment;
-  spectrum_iterator->save       = spectrum_flaky_save;
-  spectrum_iterator->restore    = spectrum_flaky_restore;
+  spectrum_iterator->mark       = spectrum_flaky_mark;
 
   result->flake_factor  = HOS_SPECTRUM_FLAKY(self)->flake_factor;
   result->flakand       = spectrum_construct_iterator(HOS_SPECTRUM_FLAKY(self)->flakand);

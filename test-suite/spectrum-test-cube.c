@@ -4,7 +4,7 @@
 
 static struct spectrum_iterator* test_cube_construct_iterator (HosSpectrum *self);
 static void                      test_cube_free_iterator      (struct spectrum_iterator* self);
-static gdouble   test_cube_accumulate (struct spectrum_iterator* self);
+static gdouble   test_cube_wait (struct spectrum_iterator* self);
 static gboolean  test_cube_tickle     (struct spectrum_iterator* self, gdouble *dest);
 
 G_DEFINE_TYPE (HosSpectrumTestCube, hos_spectrum_test_cube, HOS_TYPE_SPECTRUM)
@@ -45,7 +45,7 @@ test_cube_construct_iterator(HosSpectrum *self)
   struct spectrum_iterator* result = g_new0(struct spectrum_iterator, 1);
 
   result->tickle     = test_cube_tickle;
-  result->accumulate = test_cube_accumulate;
+  result->wait = test_cube_wait;
 
   return result;
 }
@@ -57,7 +57,7 @@ test_cube_free_iterator(struct spectrum_iterator* self)
 }
 
 static gdouble
-test_cube_accumulate (struct spectrum_iterator* self)
+test_cube_wait (struct spectrum_iterator* self)
 {
   return self->idx[0] + 1000 * self->idx[1] + 1e6 * self->idx[2];
 }
@@ -65,7 +65,7 @@ test_cube_accumulate (struct spectrum_iterator* self)
 static gboolean
 test_cube_tickle     (struct spectrum_iterator* self, gdouble *dest)
 {
-  *dest = test_cube_accumulate(self);
+  *dest = test_cube_wait(self);
   return TRUE;
 }
 

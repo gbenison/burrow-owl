@@ -47,7 +47,6 @@ main()
     {
       g_usleep(1000000);
       spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
-      spectrum_segmented_report_request_status(HOS_SPECTRUM_SEGMENTED(spec_sim));
       if (spec_sim->buf != NULL)
 	break;
     }
