@@ -65,6 +65,8 @@ struct _HosSpectrumPrivate
 
   guint     status;
 
+  gint      schedule_id;
+
   gboolean  instantiable;
   gboolean  instantiable_known;
 };
@@ -526,6 +528,14 @@ static GList*   spectra_ready          = NULL;
 static GMutex*  spectrum_queue_lock    = NULL;
 static GThreadPool* traversal_pool     = NULL;
 
+static gint
+compare_spectrum_priority(HosSpectrum *a, HosSpectrum *b)
+{
+  return
+    SPECTRUM_PRIVATE(b, schedule_id) -
+    SPECTRUM_PRIVATE(a, schedule_id);
+}
+
 static void
 ensure_traversal_setup()
 {
@@ -542,6 +552,9 @@ ensure_traversal_setup()
 					  max_threads,
 					  exclusive,
 					  &error);
+
+      g_thread_pool_set_sort_function(traversal_pool, (GCompareDataFunc)compare_spectrum_priority, NULL);
+
       g_assert(error == NULL);
     }
 
@@ -880,6 +893,9 @@ gdouble*
 spectrum_traverse(HosSpectrum *spec)
 {
   gdouble* result = NULL;
+
+  static gint schedule_id = 1;
+
   g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
   if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
     result = spec->buf;
@@ -889,7 +905,8 @@ spectrum_traverse(HosSpectrum *spec)
     {
       ensure_traversal_setup();
       g_object_ref(spec);
-      /* FIXME change to LIFO order */
+      SPECTRUM_PRIVATE(spec, schedule_id) = schedule_id;
+      ++schedule_id;
       g_thread_pool_push(traversal_pool, spec, NULL);
     }
   return result;
