@@ -4,8 +4,8 @@
 
 static struct spectrum_iterator* test_cube_construct_iterator (HosSpectrum *self);
 static void                      test_cube_free_iterator      (struct spectrum_iterator* self);
-static gdouble   test_cube_wait (struct spectrum_iterator* self);
-static gboolean  test_cube_tickle     (struct spectrum_iterator* self, gdouble *dest);
+static gdouble   test_cube_wait    (struct spectrum_iterator* self);
+static gboolean  test_cube_tickle  (struct spectrum_iterator* self, gdouble *dest);
 
 G_DEFINE_TYPE (HosSpectrumTestCube, hos_spectrum_test_cube, HOS_TYPE_SPECTRUM)
 
@@ -44,8 +44,8 @@ test_cube_construct_iterator(HosSpectrum *self)
 {
   struct spectrum_iterator* result = g_new0(struct spectrum_iterator, 1);
 
-  result->tickle     = test_cube_tickle;
-  result->wait = test_cube_wait;
+  result->tickle = test_cube_tickle;
+  result->wait   = test_cube_wait;
 
   return result;
 }

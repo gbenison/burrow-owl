@@ -20,8 +20,8 @@
 #include "spectrum_priv.h"
 #include "spectrum-flaky.h"
 
-static gdouble   spectrum_flaky_wait (struct spectrum_iterator* self);
-static gboolean  spectrum_flaky_tickle     (struct spectrum_iterator* self, gdouble *dest);
+static gdouble   spectrum_flaky_wait   (struct spectrum_iterator* self);
+static gboolean  spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest);
 
 static struct spectrum_iterator* spectrum_flaky_construct_iterator (HosSpectrum *self);
 static void                      spectrum_flaky_free_iterator      (struct spectrum_iterator* self);
@@ -53,7 +53,8 @@ hos_spectrum_flaky_init(HosSpectrumFlaky *self)
 static gdouble
 spectrum_flaky_wait (struct spectrum_iterator* self)
 {
-  return iterator_wait(((struct flaky_iterator*)self)->flakand);
+  gdouble result = iterator_wait(((struct flaky_iterator*)self)->flakand);
+  return result;
 }
 
 static gboolean
@@ -68,7 +69,9 @@ spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest)
 static void
 spectrum_flaky_increment(struct spectrum_iterator* self, guint dim, gint delta)
 {
-  iterator_increment(((struct flaky_iterator*)self)->flakand, dim, delta);
+  struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
+  iterator_increment(flaky_iterator->flakand, dim, delta);
+  g_assert(self->idx[dim] == flaky_iterator->flakand->idx[dim]);
 }
 
 static void
@@ -104,7 +107,7 @@ spectrum_flaky_construct_iterator(HosSpectrum *self)
   struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
 
   spectrum_iterator->tickle     = spectrum_flaky_tickle;
-  spectrum_iterator->wait = spectrum_flaky_wait;
+  spectrum_iterator->wait       = spectrum_flaky_wait;
   spectrum_iterator->increment  = spectrum_flaky_increment;
   spectrum_iterator->mark       = spectrum_flaky_mark;
 

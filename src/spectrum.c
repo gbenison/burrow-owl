@@ -692,15 +692,18 @@ spectrum_traverse_internal(HosSpectrum* self)
 		{
 		  iterator_mark(iterator);
 		  gint n = 0;
-		  
-		  gdouble* inner_dest = outer_dest;
-		  while (iterator_bump(iterator) == FALSE)
+		
+		  if (lookahead_enable)
 		    {
-		      ++inner_dest;
-		      if (!ALREADY_INSTANTIATED(*inner_dest))
-			iterator_tickle(iterator, inner_dest);
-		      ++n;
-		      if (iterator->blocked == FALSE) break;
+		      gdouble* inner_dest = outer_dest;
+		      while (iterator_bump(iterator) == FALSE)
+			{
+			  ++inner_dest;
+			  if (!ALREADY_INSTANTIATED(*inner_dest))
+			    iterator_tickle(iterator, inner_dest);
+			  ++n;
+			  if (iterator->blocked == FALSE) break;
+			}
 		    }
 		  
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
@@ -1047,6 +1050,7 @@ void
 iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
 {
   self->idx[dim] += delta;
+
   if (self->can_cache == TRUE)
     self->idx_linear += delta * self->stride[dim];
   if (self->increment)

@@ -1,7 +1,7 @@
 
 check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_skiplist t_segment_simple t_segment   \
-               t_segment_accumulate t_segment_async t_project     \
+               t_segment_async t_project     \
                t_diagonal_project t_extract t_transpose t_unfold  \
                t_cache \
                t_collision

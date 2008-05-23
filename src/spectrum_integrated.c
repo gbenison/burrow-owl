@@ -28,11 +28,6 @@ typedef struct _HosSpectrumIntegratedPrivate HosSpectrumIntegratedPrivate;
 struct _HosSpectrumIntegratedPrivate
 {
   HosSpectrum *integrand;
-  gdouble     *accumulator;  /* cache for spectrum_integrate_accumulate */
-  guint       integrand_np;  /* vector length of 'accumulator' */
-
-  guint       *integrand_idx;
-  guint       integrand_ndim;
 };
 
 struct integrated_iterator
@@ -89,8 +84,6 @@ spectrum_integrated_finalize(GObject *object)
 {
   HosSpectrumIntegrated *spectrum_integrated = HOS_SPECTRUM_INTEGRATED(object);
   HosSpectrumIntegratedPrivate *priv  = SPECTRUM_INTEGRATED_GET_PRIVATE(object);
-  /* FIXME free the accumulation buffer? */
-  g_free(priv->integrand_idx);
 
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->finalize (object);
 }
@@ -116,10 +109,6 @@ spectrum_integrate (HosSpectrum* self)
   /* set up accumulation buffer */
   HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(result);
   priv->integrand      = self;
-  priv->integrand_np   = spectrum_np(self, 0);
-  priv->integrand_ndim = integrand_ndim;
-  priv->accumulator    = g_new0(gdouble, priv->integrand_np);
-  priv->integrand_idx  = g_new(guint, integrand_ndim);
 
   return result;
 }
@@ -139,18 +128,24 @@ spectrum_integrated_tickle(struct spectrum_iterator *self, gdouble *dest)
   gdouble sum = 0;
   gboolean result = TRUE;
   gint i;
-  for (i = 0; i < integrated_iterator->integrand->np[0]; ++i)
+  for (i = 0; ; ++i)
     {
+      g_assert(integrated_iterator->integrand->idx[0] == i);
+
       gdouble value = 0;
       gboolean hit = iterator_tickle(integrated_iterator->integrand, &value);
       if (hit == TRUE)
 	sum += value;
       else
 	result = FALSE;
+
+      if (i >= integrated_iterator->integrand->np[0] - 1)
+	break;
+
       iterator_increment(integrated_iterator->integrand, 0, 1);
     }
 
-  iterator_increment(integrated_iterator->integrand, 0, -integrated_iterator->integrand->np[0]);
+  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0] - 1));
 
   if (result == TRUE)
     *dest = sum;
@@ -162,15 +157,36 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
 
+  /* synchronize the iterators */
+  gint d;
+  for (d = 0; d < self->ndim; ++d)
+    {
+      gint delta = (self->idx[d] - integrated_iterator->integrand->idx[d + 1]);
+      if (delta != 0)
+	iterator_increment(integrated_iterator->integrand, d + 1, delta);
+    }
+  if (integrated_iterator->integrand->idx[0] != 0)
+    iterator_increment(integrated_iterator->integrand, 0, -integrated_iterator->integrand->idx[0]);
+
+  iterator_mark(integrated_iterator->integrand);
+
   gdouble sum = 0;
   gint i;
-  for (i = 0; i < integrated_iterator->integrand->np[0]; ++i)
+  for (i = 0; ; ++i)
     {
-      sum += iterator_wait(integrated_iterator->integrand);
+      gdouble delta = iterator_wait(integrated_iterator->integrand);
+      sum += delta;
+      g_assert(integrated_iterator->integrand->idx[0] == i);
+
+      if (i >= integrated_iterator->integrand->np[0] - 1)
+	break;
+
       iterator_increment(integrated_iterator->integrand, 0, 1);
+      iterator_mark(integrated_iterator->integrand);
     }
 
-  iterator_increment(integrated_iterator->integrand, 0, -integrated_iterator->integrand->np[0]);
+  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0] - 1));
+  iterator_mark(integrated_iterator->integrand);
 
   return sum;
 }
@@ -191,7 +207,6 @@ spectrum_integrated_construct_iterator(HosSpectrum *self)
   result->priv      = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
   result->integrand = spectrum_construct_iterator(result->priv->integrand);
 
-  /* FIXME */
   spectrum_iterator->tickle     = spectrum_integrated_tickle;
   spectrum_iterator->wait       = spectrum_integrated_wait;
   spectrum_iterator->increment  = spectrum_integrated_increment;
