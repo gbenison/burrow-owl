@@ -48,8 +48,8 @@ struct _HosSpectrumClass
 
   void       (*ready)      (HosSpectrum *spec);
 
-  gboolean   (*tickle)     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
-  gdouble    (*accumulate) (HosSpectrum* self, HosSpectrum* root, guint* idx);
+  //  gboolean   (*tickle)     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+  //  gdouble    (*accumulate) (HosSpectrum* self, HosSpectrum* root, guint* idx);
 
   struct spectrum_iterator* (*construct_iterator) (HosSpectrum* self);
   void                      (*free_iterator)      (struct spectrum_iterator* self);

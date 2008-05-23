@@ -826,9 +826,11 @@ spectrum_push_cached(HosSpectrum *self, guint *idx, gdouble value)
  *   TRUE  - point was available, '*dest' now contains value of point 'idx'; 
  *   FALSE - point not available yet; '*dest' is unchanged.
  */
+/***** DEPRECATED *****/
 gboolean
 spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 {
+#ifdef UNDEF
   gboolean cached = spectrum_grab_cached(self, idx, dest);
   if (cached == TRUE)
     return TRUE;
@@ -850,6 +852,7 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
 	}
       return result;
     }
+#endif
 }
 
 /*
@@ -861,9 +864,11 @@ spectrum_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
  *   FALSE - point not available yet; '*dest' is unchanged.
  *
  */
+/**** DEPRECATED ****/
 gdouble
 spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
 {
+#ifdef UNDEF
   gdouble result;
   if (spectrum_grab_cached(self, idx, &result))
     return result;
@@ -881,6 +886,7 @@ spectrum_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
       spectrum_push_cached(self, idx, result);
       return result;
     }
+#endif
 }
 
 /*
@@ -1017,14 +1023,18 @@ spectrum_construct_iterator(HosSpectrum *self)
   result->blocked   = TRUE;
 
   gint i;
-  result->stride[0] = 1;
-  for (i = 1; i < spectrum_ndim(self); ++i)
+
+  if (spectrum_ndim(self) > 0)
     {
-      gsize np   = spectrum_np(self, i - 1);
-      gsize last = result->stride[i - 1];
-      if ((G_MAXSIZE / last) <= np)
-	result->can_cache = FALSE;
-      result->stride[i] = last * np;
+      result->stride[0] = 1;
+      for (i = 1; i < spectrum_ndim(self); ++i)
+	{
+	  gsize np   = spectrum_np(self, i - 1);
+	  gsize last = result->stride[i - 1];
+	  if ((G_MAXSIZE / last) <= np)
+	    result->can_cache = FALSE;
+	  result->stride[i] = last * np;
+	}
     }
 
   for (i = 0; i < spectrum_ndim(self); ++i)

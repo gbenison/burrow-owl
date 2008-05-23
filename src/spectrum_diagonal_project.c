@@ -202,7 +202,7 @@ static struct spectrum_iterator*
 spectrum_diagonal_construct_iterator (HosSpectrum *self)
 {
   struct diagonal_iterator *result           = g_new0(struct diagonal_iterator, 1);
-  struct spectrum_iterator  *spectrum_iterator = (struct spectrum_iterator*)result;
+  struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
 
   result->priv = SPECTRUM_DIAGONAL_GET_PRIVATE(self);
   result->base = spectrum_construct_iterator(result->priv->base);

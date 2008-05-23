@@ -62,8 +62,8 @@ hos_spectrum_unfolded_class_init(HosSpectrumUnfoldedClass *klass)
   gobject_class->dispose     = spectrum_unfolded_dispose;
   gobject_class->finalize    = spectrum_unfolded_finalize;
 
-  spectrum_class->accumulate = spectrum_unfolded_accumulate;
-  spectrum_class->tickle     = spectrum_unfolded_tickle;
+  //  spectrum_class->accumulate = spectrum_unfolded_accumulate;
+  //  spectrum_class->tickle     = spectrum_unfolded_tickle;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumUnfoldedPrivate));
 }
