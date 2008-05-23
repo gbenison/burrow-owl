@@ -509,22 +509,6 @@ access_timer()
   g_atomic_int_set(&clicks, _clicks);
 }
 
-/*
- * Look up point 'idx' in 'self' without triggering traversal; store result
- * in *dest if found.
- *
- * Returns:
- * TRUE:  value found
- * FALSE: point not instantiated; *dest unchanged
- */
-gboolean
-spectrum_segmented_test_peek(HosSpectrumSegmented *self, gint *idx, gdouble *dest)
-{
-  return spectrum_tickle(HOS_SPECTRUM(self),
-			 HOS_SPECTRUM(self),
-			 idx, dest);
-}
-
 void
 spectrum_segmented_test_print_cache  (HosSpectrumSegmented *self)
 {
