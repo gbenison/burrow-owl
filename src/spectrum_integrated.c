@@ -17,7 +17,6 @@
  *
  */
 
-#include <string.h>
 #include "spectrum_integrated.h"
 #include "spectrum_priv.h"
 #include "utils.h"
@@ -53,8 +52,6 @@ static void                      spectrum_integrated_free_iterator      (struct 
 
 static void   spectrum_integrated_dispose  (GObject *object);
 static void   spectrum_integrated_finalize (GObject *object);
-static void   initialize_integrand_idx     (HosSpectrumIntegratedPrivate *priv, guint* idx);
-
 
 G_DEFINE_TYPE (HosSpectrumIntegrated, hos_spectrum_integrated, HOS_TYPE_SPECTRUM)
 
@@ -99,87 +96,6 @@ spectrum_integrated_finalize(GObject *object)
 }
 
 /*
- * Fill 'dest' with the value of integrated spectrum 'self' at location
- * 'idx', if possible.
- *
- * Unlike 'spectrum_integrate_accumulate', not guaranteed to eventually
- * succeed upon multiple calls.
- *
- * Returns:
- *   TRUE  - point was available; 
- *   FALSE - point not available yet; '*dest' is unchanged.
- */
-static gboolean
-spectrum_integrated_tickle_depr(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
-{
-  HosSpectrumIntegrated *spectrum_integrated = HOS_SPECTRUM_INTEGRATED(self);
-  HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
-
-  initialize_integrand_idx(priv, idx);
-
-  gboolean success = TRUE;
-  gint i;
-  for (i = 0; i < priv->integrand_np; ++i)
-    {
-      priv->integrand_idx[0] = i;
-      gboolean pt_found =
-	spectrum_tickle(priv->integrand, root, priv->integrand_idx, &priv->accumulator[i]);
-      success = success && pt_found;
-    }
-
-  if (success)
-    {
-      gdouble result = 0;
-      for (i = 0; i < priv->integrand_np; ++i)
-	result += priv->accumulator[i];
-      *dest = result;
-    }
-
-  return success;
-
-}
-
-
-/*
- * Returns point 'idx' in spectrum 'self', possibly blocking.
- */
-static gdouble
-spectrum_integrated_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
-{
-  HosSpectrumIntegratedPrivate *priv = SPECTRUM_INTEGRATED_GET_PRIVATE(self);
-  initialize_integrand_idx(priv, idx);
-
-  gint i;
-  for (i = 0; i < priv->integrand_np; ++i) priv->accumulator[i] = DATUM_UNKNOWN_VALUE;
-
-  for (i = 0; i < priv->integrand_np; ++i)
-    {
-      if (!DATUM_IS_KNOWN(priv->accumulator[i]))
-	{
-	  gint j;
-	  for (j = i + 1; j < priv->integrand_np; ++j)
-	    {
-	      if (!DATUM_IS_KNOWN(priv->accumulator[j]))
-		{
-		  priv->integrand_idx[0] = j;
-		  gboolean found = spectrum_tickle(priv->integrand, root, priv->integrand_idx, &priv->accumulator[j]);
-		  if (found)
-		    DATUM_ENSURE_KNOWN(priv->accumulator[j]);
-		}
-	    }
-	  priv->integrand_idx[0] = i;
-	  gdouble next = spectrum_accumulate(priv->integrand, root, priv->integrand_idx);
-	  priv->accumulator[i] = next;
-	}
-    }
-
-  gdouble result = 0;
-  for (i = 0; i < priv->integrand_np; ++i)
-    result += priv->accumulator[i];
-  return result;
-}
-
-/*
  * Returns:
  *  S' where S'(j, k) = Sum_i(self(i, j, k))
  */
@@ -206,12 +122,6 @@ spectrum_integrate (HosSpectrum* self)
   priv->integrand_idx  = g_new(guint, integrand_ndim);
 
   return result;
-}
-
-static void
-initialize_integrand_idx(HosSpectrumIntegratedPrivate *priv, guint* idx)
-{
-  //  memcpy(priv->integrand_idx + 1, idx, (priv->integrand_ndim - 1) * sizeof(guint));
 }
 
 static void
