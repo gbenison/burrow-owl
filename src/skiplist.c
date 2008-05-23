@@ -62,7 +62,6 @@ static skip_node_t* insert_inner  (skip_list_t* list, skip_node_t* node, gint ke
 static skip_node_t* link_new_node (skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down);
 static void         print_inner   (skip_node_t* node);
 static gpointer     pop_inner     (skip_list_t* list, skip_node_t* node, gint key);
-static gpointer     lookup_inner  (skip_node_t* node, gint key);
 
 static skip_node_t*
 link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
@@ -281,7 +280,6 @@ skip_list_lookup(skip_list_t* list, gint key)
 {
   if (list == NULL)
     return NULL;
-  //  return lookup_inner(list->nodes, key);
 
   skip_node_t* node = list->nodes;
   skip_node_t *next, *down;
@@ -301,19 +299,6 @@ skip_list_lookup(skip_list_t* list, gint key)
 	    return (node->key == key) ? node->data : NULL;
 	}
     }
-}
-
-static gpointer
-lookup_inner(skip_node_t* node, gint key)
-{
-  skip_node_t* down = node->down;
-  skip_node_t* next = node->next;
-
-  if ((next != NULL) && (next->key <= key))
-    return lookup_inner(next, key);
-  else if (down != NULL)
-    return lookup_inner(down, key);
-  else return (node->key == key) ? node->data : NULL;
 }
 
 gboolean

@@ -312,7 +312,6 @@ spectrum_nih_from_file(gchar* fname)
   permute(sf,   permutation);
   permute(sw,   permutation);
   permute(orig, permutation);
-  permute(np,   permutation);
 
   /* set up dimensions */
   GList *dimensions = NULL;

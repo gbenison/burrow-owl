@@ -32,20 +32,17 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
+  HosSpectrum *s1 = spectrum_nih_from_file("cbcaconh.DAT");
+  HosSpectrum *s2 = spectrum_nih_from_file("hncacb.DAT");
+
   HosSpectrum *spec_1[N_STRIP];
   HosSpectrum *spec_2[N_STRIP];
 
   int i;
   for (i = 0; i < N_STRIP; ++i)
     {
-      spec_1[i] =
-	extract_2d(spectrum_nih_from_file("cbcaconh.DAT"),
-		   strip_x[i],
-		   strip_y[i]);
-      spec_2[i] =
-	extract_2d(spectrum_nih_from_file("hncacb.DAT"),
-		   strip_x[i],
-		   strip_y[i]);
+      spec_1[i] = extract_2d(s1, strip_x[i], strip_y[i]);
+      spec_2[i] = extract_2d(s2, strip_x[i], strip_y[i]);
 
       spectrum_traverse(spec_1[i]);
       spectrum_traverse(spec_2[i]);

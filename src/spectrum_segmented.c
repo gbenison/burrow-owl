@@ -25,6 +25,23 @@
 #define SEGMENTED_PRIVATE(o, field) ((SEGMENTED_GET_PRIVATE(o))->field)
 typedef struct _HosSpectrumSegmentedPrivate HosSpectrumSegmentedPrivate;
 
+typedef struct _cache_slot cache_slot_t;
+struct _cache_slot
+{
+  guint     id;
+  gboolean  valid;
+  gint      segid;
+  guint     last_access_time;
+  gdouble  *buf;
+};
+
+static cache_slot_t* segment_cache_obtain_slot     (HosSpectrumSegmented *self);
+static void          segment_cache_bless_slot      (cache_slot_t* slot);
+static void          find_least_used_slot          (cache_slot_t* slot, cache_slot_t** result);
+static cache_slot_t* cache_slot_new                (guint segment_size);
+static guint         access_timer                  (void);
+
+
 struct _HosSpectrumSegmentedPrivate
 {
   GThread *io_thread;
@@ -62,6 +79,8 @@ struct segmented_iterator
   GCond       *segment_ready_cond;
   GMutex      *wait_lock;
 
+  cache_slot_t *last_slot;
+
 };
 
 static gdouble  spectrum_segmented_wait       (struct spectrum_iterator* self);
@@ -75,23 +94,8 @@ static void     segmented_ensure_io_thread    (HosSpectrumSegmented *self);
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
 static gint     determine_next_segment        (HosSpectrumSegmentedPrivate *priv);
 static void     request_segment_accumulate    (HosSpectrumSegmentedPrivate *priv, gint segid);
-static gboolean segmented_fetch_point         (HosSpectrumSegmentedPrivate *priv, gint segid, gint pt_idx, gdouble *dest);
+static gboolean segmented_fetch_point         (struct segmented_iterator *iterator, gint segid, gint pt_idx, gdouble *dest);
 
-typedef struct _cache_slot cache_slot_t;
-struct _cache_slot
-{
-  guint     id;
-  gboolean  valid;
-  gint      segid;
-  guint     last_access_time;
-  gdouble  *buf;
-};
-
-static cache_slot_t* segment_cache_obtain_slot     (HosSpectrumSegmented *self);
-static void          segment_cache_bless_slot      (cache_slot_t* slot);
-static void          find_least_used_slot          (cache_slot_t* slot, cache_slot_t** result);
-static cache_slot_t* cache_slot_new                (guint segment_size);
-static guint         access_timer                  (void);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrumSegmented, hos_spectrum_segmented, HOS_TYPE_SPECTRUM)
 
@@ -111,10 +115,10 @@ static void
 hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
-  priv->segment_request_cond = g_cond_new();
-  priv->segment_request_lock           = g_mutex_new();
+  priv->segment_request_cond   = g_cond_new();
+  priv->segment_request_lock   = g_mutex_new();
   priv->request_queue          = skip_list_new(16, 0.5);
-  priv->segment_cache          = skip_list_new(20, 0.7);
+  priv->segment_cache          = skip_list_new(16, 0.7);
   priv->iterators_lock         = g_mutex_new();
 
   spectrum_segmented_set_cache_size(self, 32);
@@ -141,10 +145,10 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
   gint segid = segmented_iterator->segid_saved;
   gint pt    = segmented_iterator->pt_saved;
 
-  if (!segmented_fetch_point(priv, segid, pt, &result))
+  if (!segmented_fetch_point(segmented_iterator, segid, pt, &result))
     {
       g_mutex_lock(segmented_iterator->wait_lock);
-      while (!segmented_fetch_point(priv, segid, pt, &result))
+      while (!segmented_fetch_point(segmented_iterator, segid, pt, &result))
 	{
 	  g_mutex_lock(priv->segment_request_lock);
 	  g_mutex_lock(segmented_iterator->request_queue_lock);
@@ -169,13 +173,21 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
  *  FALSE - not available; '*dest' unchanged
  */
 static gboolean
-segmented_fetch_point(HosSpectrumSegmentedPrivate *priv, gint segid, gint pt_idx, gdouble *dest)
+segmented_fetch_point(struct segmented_iterator *iterator, gint segid, gint pt_idx, gdouble *dest)
 {
+  HosSpectrumSegmentedPrivate *priv = iterator->priv;
+  cache_slot_t* slot;
+
   /* Find slot corresponding to 'segid' */
-  cache_slot_t* slot = skip_list_lookup(priv->segment_cache, segid);
+  if ((iterator->last_slot != NULL) && (iterator->last_slot->segid == segid))
+    slot = iterator->last_slot;
+  else
+    slot = skip_list_lookup(priv->segment_cache, segid);
 
   if (slot == NULL)
     return FALSE;
+
+  iterator->last_slot = slot;
 
   guint    slot_id_before    = g_atomic_int_get(&slot->id);
   gboolean slot_valid_before = g_atomic_int_get(&slot->valid);
@@ -211,7 +223,7 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
   class->idx2segment(segmented_iterator->traversal_env, self->idx, &segid, &pt);
   segmented_iterator->segid = segid;
   segmented_iterator->pt    = pt;
-  gboolean result = segmented_fetch_point (priv, segid, pt, dest);
+  gboolean result = segmented_fetch_point (segmented_iterator, segid, pt, dest);
 
   if (result == FALSE)
     {
@@ -291,16 +303,20 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
     {
       gint segid;
 
-      g_mutex_lock(priv->segment_request_lock);
-      while (1)
+      segid = determine_next_segment(priv);
+      if (segid < 0)
 	{
-	  /* FIXME merge segment requests */
-	  segid = determine_next_segment(priv);
-	  if (segid >= 0)
-	    break;
-	  g_cond_wait(priv->segment_request_cond, priv->segment_request_lock);
+	  g_mutex_lock(priv->segment_request_lock);
+	  while (1)
+	    {
+	      /* FIXME merge segment requests */
+	      segid = determine_next_segment(priv);
+	      if (segid >= 0)
+		break;
+	      g_cond_wait(priv->segment_request_cond, priv->segment_request_lock);
+	    }
+	  g_mutex_unlock(priv->segment_request_lock);
 	}
-      g_mutex_unlock(priv->segment_request_lock);
 
       /* load segment */
       if (!skip_list_lookup(priv->segment_cache, segid))
