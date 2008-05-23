@@ -32,8 +32,22 @@ struct _HosSpectrumConvolutedPrivate
   guint A_ndim;
 };
 
-static gdouble  spectrum_convoluted_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_convoluted_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble *dest);
+struct convoluted_iterator
+{
+  struct spectrum_iterator parent;
+
+  struct spectrum_iterator     *A;
+  struct spectrum_iterator     *B;
+  HosSpectrumConvolutedPrivate *priv;
+};
+
+static void     spectrum_convoluted_increment (struct spectrum_iterator *self, guint dim, gint delta);
+static gboolean spectrum_convoluted_tickle    (struct spectrum_iterator *self, gdouble *dest);
+static gdouble  spectrum_convoluted_wait      (struct spectrum_iterator *self);
+static void     spectrum_convoluted_mark      (struct spectrum_iterator *self);
+
+static struct spectrum_iterator* spectrum_convoluted_construct_iterator (HosSpectrum *self);
+static void                      spectrum_convoluted_free_iterator      (struct spectrum_iterator *self);
 
 static void   spectrum_convoluted_dispose  (GObject *object);
 static void   spectrum_convoluted_finalize (GObject *object);
@@ -49,8 +63,8 @@ hos_spectrum_convoluted_class_init(HosSpectrumConvolutedClass *klass)
   gobject_class->dispose     = spectrum_convoluted_dispose;
   gobject_class->finalize    = spectrum_convoluted_finalize;
 
-  spectrum_class->accumulate = spectrum_convoluted_accumulate;
-  spectrum_class->tickle     = spectrum_convoluted_tickle;
+  spectrum_class->construct_iterator = spectrum_convoluted_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_convoluted_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumConvolutedPrivate));
 }
@@ -71,45 +85,6 @@ spectrum_convoluted_dispose(GObject *object)
 static void
 spectrum_convoluted_finalize(GObject *object)
 {
-}
-
-static gdouble
-spectrum_convoluted_accumulate(HosSpectrum* self, HosSpectrum *root, guint* idx)
-{
-  gdouble A, B;
-  guint* idx_A = idx;
-  guint* idx_B = idx + SPECTRUM_CONVOLUTED_PRIVATE(self, A_ndim);
-
-  gboolean result_A = spectrum_tickle(SPECTRUM_CONVOLUTED_PRIVATE(self, A), root, idx_A, &A);
-  gboolean result_B = spectrum_tickle(SPECTRUM_CONVOLUTED_PRIVATE(self, B), root, idx_B, &B);
-
-  if (!result_A)
-    A = spectrum_accumulate(SPECTRUM_CONVOLUTED_PRIVATE(self, A), root, idx_A);
-
-  if (!result_B)
-    B = spectrum_accumulate(SPECTRUM_CONVOLUTED_PRIVATE(self, B), root, idx_B);
-
-  return A * B;
-
-}
-
-static gboolean
-spectrum_convoluted_tickle(HosSpectrum *self, HosSpectrum *root, guint *idx, gdouble *dest)
-{
-  gdouble A, B;
-  guint* idx_A = idx;
-  guint* idx_B = idx + SPECTRUM_CONVOLUTED_PRIVATE(self, A_ndim);
-
-  gboolean result_A = spectrum_tickle(SPECTRUM_CONVOLUTED_PRIVATE(self, A), root, idx_A, &A);
-  gboolean result_B = spectrum_tickle(SPECTRUM_CONVOLUTED_PRIVATE(self, B), root, idx_B, &B);
-
-  if (result_A && result_B)
-    {
-      *dest = A * B;
-      return TRUE;
-    }
-  else
-    return FALSE;
 }
 
 /*
@@ -137,3 +112,83 @@ spectrum_convolute (HosSpectrum *A, HosSpectrum *B)
 
   return result;
 }
+
+static void
+spectrum_convoluted_increment(struct spectrum_iterator *self, guint dim, gint delta)
+{
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+
+  if (dim < convoluted_iterator->priv->A_ndim)
+    iterator_increment(convoluted_iterator->A, dim, delta);
+  else
+    iterator_increment(convoluted_iterator->B, dim - convoluted_iterator->priv->A_ndim, delta);
+}
+
+static gboolean
+spectrum_convoluted_tickle(struct spectrum_iterator *self, gdouble *dest)
+{
+
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+
+  self->blocked = convoluted_iterator->A->blocked || convoluted_iterator->B->blocked;
+
+  gdouble A, B;
+
+  gboolean result_A = iterator_tickle(convoluted_iterator->A, &A);
+  gboolean result_B = iterator_tickle(convoluted_iterator->B, &B);
+
+  if (result_A && result_B)
+    {
+      *dest = A * B;
+      return TRUE;
+    }
+  else
+    return FALSE;
+
+}
+
+static gdouble
+spectrum_convoluted_wait(struct spectrum_iterator *self)
+{
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+  return iterator_wait(convoluted_iterator->A) * iterator_wait(convoluted_iterator->B);
+}
+
+static void
+spectrum_convoluted_mark(struct spectrum_iterator *self)
+{
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+
+  iterator_mark(convoluted_iterator->A);
+  iterator_mark(convoluted_iterator->B);
+}
+
+static struct spectrum_iterator*
+spectrum_convoluted_construct_iterator(HosSpectrum *self)
+{
+  struct convoluted_iterator *result           = g_new0(struct convoluted_iterator, 1);
+  struct spectrum_iterator  *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_CONVOLUTED_GET_PRIVATE(self);
+  result->A    = spectrum_construct_iterator(result->priv->A);
+  result->B    = spectrum_construct_iterator(result->priv->A);
+
+  spectrum_iterator->tickle     = spectrum_convoluted_tickle;
+  spectrum_iterator->wait       = spectrum_convoluted_wait;
+  spectrum_iterator->increment  = spectrum_convoluted_increment;
+  spectrum_iterator->mark       = spectrum_convoluted_mark;
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_convoluted_free_iterator(struct spectrum_iterator *self)
+{
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+  iterator_free(convoluted_iterator->A);
+  iterator_free(convoluted_iterator->B);
+  g_free(self);
+}
+
+
+
