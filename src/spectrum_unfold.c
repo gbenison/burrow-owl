@@ -89,54 +89,6 @@ hos_spectrum_unfolded_init(HosSpectrumUnfolded* self)
   /* anything? */
 }
 
-static gdouble
-spectrum_unfolded_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
-{
-  HosSpectrumUnfoldedPrivate *priv = SPECTRUM_UNFOLDED_GET_PRIVATE(self);
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[i] = idx[i];
-
-  gboolean negated = FALSE;
-  if (priv->negate_on_fold)
-    {
-      gboolean is_even_segment = (((idx[priv->base_idx] / priv->base_np) % 2) == 0);
-      if (is_even_segment && priv->negate_first)   negated = TRUE;
-      if (!is_even_segment && !priv->negate_first) negated = TRUE;
-    }
-
-  new_idx[priv->base_idx] %= priv->base_np;
-
-  gdouble result = spectrum_accumulate(priv->base, root, new_idx);
-  if (negated) result = -result;
-  return result;
-}
-
-static gboolean
-spectrum_unfolded_tickle_depr(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
-{
-  HosSpectrumUnfoldedPrivate *priv = SPECTRUM_UNFOLDED_GET_PRIVATE(self);
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[i] = idx[i];
-
-  gboolean negated = FALSE;
-  if (priv->negate_on_fold)
-    {
-      gboolean is_even_segment = (((idx[priv->base_idx] / priv->base_np) % 2) == 0);
-      if (is_even_segment && priv->negate_first)   negated = TRUE;
-      if (!is_even_segment && !priv->negate_first) negated = TRUE;
-    }
-
-  new_idx[priv->base_idx] %= priv->base_np;
-
-  gboolean result = spectrum_tickle(priv->base, root, new_idx, dest);
-  if (result && negated) { *dest = -*dest; }
-  return result;
-}
-
 static void
 spectrum_unfolded_dispose(GObject *object)
 {

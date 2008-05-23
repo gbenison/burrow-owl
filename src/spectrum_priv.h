@@ -25,9 +25,6 @@ struct _dimension
   gdouble sw;
 };
 
-gdouble  spectrum_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
-
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
 
