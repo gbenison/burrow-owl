@@ -167,7 +167,7 @@ static struct spectrum_iterator*
 spectrum_convoluted_construct_iterator(HosSpectrum *self)
 {
   struct convoluted_iterator *result           = g_new0(struct convoluted_iterator, 1);
-  struct spectrum_iterator  *spectrum_iterator = (struct spectrum_iterator*)result;
+  struct spectrum_iterator   *spectrum_iterator = (struct spectrum_iterator*)result;
 
   result->priv = SPECTRUM_CONVOLUTED_GET_PRIVATE(self);
   result->A    = spectrum_construct_iterator(result->priv->A);
