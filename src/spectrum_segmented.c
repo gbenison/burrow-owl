@@ -85,7 +85,6 @@ static void                      spectrum_segmented_free_iterator      (struct s
 
 static void     segmented_ensure_io_thread    (HosSpectrumSegmented *self);
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
-static void     request_segment_accumulate    (HosSpectrumSegmentedPrivate *priv, gint segid);
 static gboolean segmented_fetch_point         (struct segmented_iterator *iterator, gint segid, gint pt_idx, gdouble *dest);
 
 
@@ -283,9 +282,9 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  struct segmented_iterator *segmented_iterator = (struct segmented_iterator*)(iterators->data);
 	  struct spectrum_iterator  *iterator           = (struct spectrum_iterator*)(iterators->data);
 
-	  g_message("IO: considering iterator %x", iterator);
-
+	  g_message("IO: acquiring request_queue_lock of 0x%x", iterator);
 	  g_mutex_lock(segmented_iterator->request_queue_lock);
+	  g_message("IO: acquired lock");
 
 	  if (segmented_iterator->valid)
 	    {
@@ -310,15 +309,20 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	      if (next < 0)
 		{
 		  /* catch a signal when this segment either has a new request, or is done */
+		  g_message("IO: waiting for segment request from iterator 0x%x", segmented_iterator);
 		  g_cond_wait(segmented_iterator->request_cond, segmented_iterator->request_queue_lock);
+		  g_message("IO: passed wait(request_cond)");
 		  next = skip_list_peek_first(segmented_iterator->request_queue);
 		}
 	      if (next >= 0)
 		skip_list_insert(priv->request_queue, next, NULL);
-	      g_mutex_unlock(segmented_iterator->request_queue_lock);
 	    }
+	  g_message("IO: releasing request_queue_lock of iterator 0x%x", segmented_iterator);
+	  g_mutex_unlock(segmented_iterator->request_queue_lock);
+	  g_message("IO: released iterator 0x%x", segmented_iterator);
 	}
       g_mutex_unlock(priv->iterators_lock);
+
 
       gint segid = skip_list_pop_first(priv->request_queue);
 
@@ -412,15 +416,18 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
    * In case the IO thread is waiting on this iterator,
    * inform it that there will be no more requests coming.
    */
+  g_message("Tr: about to mark iterator 0x%x as invalid", self);
   g_mutex_lock(segmented_iterator->request_queue_lock);
   g_cond_signal(segmented_iterator->request_cond);
   segmented_iterator->valid = FALSE;
   g_mutex_unlock(segmented_iterator->request_queue_lock);
 
+  g_message("Tr: removing iterator 0x%x from iterator list", self);
   g_mutex_lock(priv->iterators_lock);
   priv->iterators = g_list_remove(priv->iterators, self);
   g_mutex_unlock(priv->iterators_lock);
 
+  g_message("Tr: about to destroy iterator 0x%x", self);
   g_free(self);
 }
 
