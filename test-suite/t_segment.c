@@ -15,8 +15,6 @@ main()
   g_print("Making simulated segmented spectrum...\n");
   HosSpectrum* spec_sim = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
 
-  g_print("Forced segment load test...\n");
-  g_print("Disabled.\n");
   g_printf("Segment cache contents:\n");
   spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
 
