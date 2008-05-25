@@ -66,7 +66,6 @@ struct segmented_iterator
   skip_list_t *request_queue;
   skip_list_t *segment_cache;
   GMutex      *request_queue_lock;
-  GCond       *request_cond;
 
   GCond       *segment_ready_cond;
 
@@ -181,7 +180,6 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
 	{
 	  g_assert(segid >= 0);
 	  skip_list_insert(segmented_iterator->request_queue, segid, NULL);
-	  g_cond_signal(segmented_iterator->request_cond);
 	  g_cond_wait(segmented_iterator->segment_ready_cond, segmented_iterator->request_queue_lock);
 	}
     }
@@ -322,14 +320,6 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	      
 	      /* get the next pending request */
 	      gint next = skip_list_peek_first(segmented_iterator->request_queue);
-	      if (next < 0)
-		{
-		  /* catch a signal when this segment either has a new request, or is done */
-		  g_debug("IO (0x%x, thread 0x%x): waiting for segment request from iterator 0x%x", self, g_thread_self(), segmented_iterator);
-		  g_cond_wait(segmented_iterator->request_cond, segmented_iterator->request_queue_lock);
-		  g_debug("IO (0x%x, thread 0x%x): passed wait(request_cond)", self, g_thread_self());
-		  next = skip_list_peek_first(segmented_iterator->request_queue);
-		}
 	      if (next >= 0)
 		skip_list_insert(priv->request_queue, next, NULL);
 	    }
@@ -367,7 +357,10 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_debug("IO (0x%x, thread 0x%x): active slot is 0x%x with segid %d", self, g_thread_self(), active_slot, active_slot->segid);
 	}
       else
-	g_debug("IO (0x%x, thread 0x%x): no segments pending", self, g_thread_self());
+	{
+	  g_debug("IO (0x%x, thread 0x%x): sleep because no segments are pending", self, g_thread_self());
+	  g_usleep(5000);
+	}
     }
 }
 
@@ -404,7 +397,6 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   result->request_queue      = skip_list_new(16, 0.5);
   result->segment_cache      = skip_list_new(16, 0.5);
   result->request_queue_lock = g_mutex_new();
-  result->request_cond       = g_cond_new();
   result->segment_ready_cond = g_cond_new();
   
   result->valid              = TRUE;
@@ -438,7 +430,6 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
    */
   g_debug("Tr: about to mark iterator 0x%x as invalid", self);
   g_mutex_lock(segmented_iterator->request_queue_lock);
-  g_cond_signal(segmented_iterator->request_cond);
   segmented_iterator->valid = FALSE;
   g_mutex_unlock(segmented_iterator->request_queue_lock);
 
