@@ -122,6 +122,7 @@ insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
 {
   if (node == NULL) return NULL;
 
+  g_assert(key >= 0);
   g_assert(node->key < key);
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
@@ -198,6 +199,29 @@ skip_list_pop_first(skip_list_t* list)
   skip_list_pop(list, result);
 
   ASSERT_CONSISTENT(list);
+
+  return result;
+}
+
+/*
+ * Returns: the key of the second column in 'list', or -1 if
+ * 'list' has only one column (e.g. is empty).
+ * The second column of 'list' is deleted.
+ */
+gint
+skip_list_peek_first(skip_list_t* list)
+{
+  skip_node_t* node = list->nodes;
+  g_assert(node->key == -1);
+
+  /* Find bottom row */
+  while (node->down != NULL)
+    node = node->down;
+
+  if (node->next == NULL)
+    return -1;
+
+  gint result = node->next->key;
 
   return result;
 }
@@ -297,6 +321,35 @@ skip_list_lookup(skip_list_t* list, gint key)
 	    node = down;
 	  else
 	    return (node->key == key) ? node->data : NULL;
+	}
+    }
+}
+
+/*
+ * Does 'list' contain 'key'?
+ */
+gboolean
+skip_list_has_key(skip_list_t* list, gint key)
+{
+  if (list == NULL)
+    return FALSE;
+
+  skip_node_t* node = list->nodes;
+  skip_node_t *next, *down;
+
+  while (1)
+    {
+      next = node->next;
+      
+      if ((next != NULL) && (next->key <= key))
+	node = next;
+      else
+	{
+	  down = node->down;
+	  if (down != NULL)
+	    node = down;
+	  else
+	    return (node->key == key) ? TRUE : FALSE;
 	}
     }
 }
