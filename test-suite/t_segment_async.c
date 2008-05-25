@@ -29,7 +29,6 @@ main()
       for (i = 0; i < n_readers; ++i)
 	if (readers[i]->buf != NULL) --n_remaining;
       g_printf("(%d) ", n_remaining);
-      spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
       if (n_remaining == 0)
 	break;
     }

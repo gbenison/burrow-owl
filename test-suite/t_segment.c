@@ -15,15 +15,12 @@ main()
   g_print("Making simulated segmented spectrum...\n");
   HosSpectrum* spec_sim = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
 
-  g_printf("Segment cache contents:\n");
-  spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
-
   g_print("Traversing...\n");
   spectrum_traverse(HOS_SPECTRUM(spec_sim));
   while (1)
     {
       g_usleep(1000000);
-      spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
+      g_print(".");
       if (spec_sim->buf != NULL)
 	break;
     }
