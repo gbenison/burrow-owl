@@ -173,6 +173,7 @@ spectrum_projected_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_projected_wait;
   spectrum_iterator->increment  = spectrum_projected_increment;
   spectrum_iterator->mark       = spectrum_projected_mark;
+  spectrum_iterator->probe      = spectrum_projected_probe;
 
   return spectrum_iterator;
 }
