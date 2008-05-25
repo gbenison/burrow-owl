@@ -277,6 +277,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
     {
       /* maintainance on all active iterators */
       g_debug("IO (0x%x, thread 0x%x): lock iterators (0x%x)", self, g_thread_self(), priv->iterators_lock);
+      g_debug("IO (0x%x, thread 0x%x): acquired lock", self, g_thread_self());
       g_mutex_lock(priv->iterators_lock);
       while (g_list_length(priv->iterators) == 0)
 	{
@@ -410,6 +411,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
 
   g_debug("Tr (0x%x): construct: lock iterators (0x%x)", result, priv->iterators_lock);
   g_mutex_lock(priv->iterators_lock);
+  g_debug("Tr (0x%x): acquired lock", result);
   priv->iterators = g_list_append(priv->iterators, result);
   g_cond_signal(priv->iterators_pending_cond);
   g_debug("Tr (0x%x): construct: unlock iterators (0x%x)", result, priv->iterators_lock);
