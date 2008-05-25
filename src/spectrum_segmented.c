@@ -77,6 +77,7 @@ struct segmented_iterator
 
 static gdouble  spectrum_segmented_wait       (struct spectrum_iterator* self);
 static void     spectrum_segmented_mark       (struct spectrum_iterator* self);
+static gboolean spectrum_segmented_probe      (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_tickle     (struct spectrum_iterator* self, gdouble* dest);
 
 static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpectrum *self);
@@ -141,11 +142,33 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 static void
 spectrum_segmented_mark(struct spectrum_iterator* self)
 {
-  self->blocked = TRUE;
-
   struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
   segmented_iterator->segid_saved = segmented_iterator->segid;
   segmented_iterator->pt_saved    = segmented_iterator->pt;
+
+  g_debug("Tr (0x%x): set segid_saved to %d", segmented_iterator, segmented_iterator->segid_saved);
+}
+
+static gboolean
+spectrum_segmented_probe(struct spectrum_iterator *self)
+{
+  struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
+  gboolean result = FALSE;
+
+  gint segid = segmented_iterator->segid_saved;
+
+  g_mutex_lock(segmented_iterator->request_queue_lock);
+  cache_slot_t *slot = skip_list_lookup(segmented_iterator->segment_cache, segid);
+  if (slot != NULL)
+    {
+      g_mutex_lock(slot->lock);
+      if (slot->segid == segid)
+	result = TRUE;
+      g_mutex_unlock(slot->lock);
+    }
+  g_mutex_unlock(segmented_iterator->request_queue_lock);
+
+  return result;
 }
 
 static gdouble
@@ -180,7 +203,9 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
 	{
 	  g_assert(segid >= 0);
 	  skip_list_insert(segmented_iterator->request_queue, segid, NULL);
+	  g_debug("Tr (0x%x): waiting for segid %d", segmented_iterator, segid);
 	  g_cond_wait(segmented_iterator->segment_ready_cond, segmented_iterator->request_queue_lock);
+	  g_debug("Tr (0x%x): wake", segmented_iterator);
 	}
     }
   g_mutex_unlock(segmented_iterator->request_queue_lock);
@@ -257,7 +282,11 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
     {
       g_mutex_lock(segmented_iterator->request_queue_lock);
       g_assert(segid >= 0);
-      skip_list_insert(segmented_iterator->request_queue, segid, NULL);
+      if (!skip_list_has_key(segmented_iterator->request_queue, segid))
+	{
+	  g_debug("Tr (0x%x): tickled segment %d", segmented_iterator, segid);
+	  skip_list_insert(segmented_iterator->request_queue, segid, NULL);
+	}
       g_mutex_unlock(segmented_iterator->request_queue_lock);
     }
   return result;
@@ -299,7 +328,6 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	      /* inform the iterator of the last segment read, if appropriate */
 	      if (active_slot != NULL)
 		{
-
 		  if (active_slot->segid < 0)
 		    g_debug("IO (0x%x, thread 0x%x): PROBLEM: active slot 0x%x has segid %d", self, g_thread_self(), active_slot, active_slot->segid);
 
@@ -312,10 +340,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 		      skip_list_insert(segmented_iterator->segment_cache, active_slot->segid, active_slot);
 		    }
 		  if (active_slot->segid == segmented_iterator->segid_saved)
-		    {
-		      iterator->blocked = FALSE;
-		      g_cond_signal(segmented_iterator->segment_ready_cond);
-		    }
+		    g_cond_signal(segmented_iterator->segment_ready_cond);
 		}
 	      
 	      /* get the next pending request */
@@ -359,6 +384,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
       else
 	{
 	  g_debug("IO (0x%x, thread 0x%x): sleep because no segments are pending", self, g_thread_self());
+	  active_slot = NULL;
 	  g_usleep(5000);
 	}
     }
@@ -413,6 +439,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   spectrum_iterator->tickle     = spectrum_segmented_tickle;
   spectrum_iterator->mark       = spectrum_segmented_mark;
   spectrum_iterator->wait       = spectrum_segmented_wait;
+  spectrum_iterator->probe      = spectrum_segmented_probe;
 
   return (struct spectrum_iterator*)result;
 }

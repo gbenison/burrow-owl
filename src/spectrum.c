@@ -430,10 +430,28 @@ hos_spectrum_finalize(GObject *object)
 
 }
 
+#ifdef G_LOG_DOMAIN
+#undef G_LOG_DOMAIN
+#endif
+#define G_LOG_DOMAIN "spectrum.c"
+
+static void
+null_log_handler(const gchar *log_domain,
+		 GLogLevelFlags log_level,
+		 const gchar *message,
+		 gpointer user_data)
+{
+  /* do nothing, i.e. suppress debugging output */
+}
+
+
 static void
 hos_spectrum_class_init (HosSpectrumClass *klass)
 {
   GObjectClass *gobject_class;
+
+  if (g_getenv("DEBUG") == NULL)
+    g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG | G_LOG_LEVEL_MESSAGE, null_log_handler, NULL);
 
   g_assert(DATUM_UNKNOWN_VALUE != DATUM_UNKNOWN_VALUE_SUBSTITUTE);
 
@@ -686,6 +704,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 	{
 	  /* inner loop -- tickle remaining points */
 	  static const gboolean lookahead_enable = TRUE;
+	  static const guint lookahead_probe_interval = 128;
 	  if (!ALREADY_INSTANTIATED(*outer_dest))
 	    {
 	      if (iterator_tickle(iterator, outer_dest) == FALSE)
@@ -702,8 +721,14 @@ spectrum_traverse_internal(HosSpectrum* self)
 			  if (!ALREADY_INSTANTIATED(*inner_dest))
 			    iterator_tickle(iterator, inner_dest);
 			  ++n;
-			  if (iterator->blocked == FALSE) break;
+			  if ((n % lookahead_probe_interval) == 0)
+			    if (iterator_probe(iterator))
+			      {
+				g_debug("Iterator 0x%x has become unblocked, stopping tickles", iterator);
+				break;
+			      }
 			}
+		      g_debug("Iterator 0x%x has reached the end of its tickles", iterator);
 		    }
 		  
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
@@ -950,13 +975,6 @@ spectrum_construct_iterator(HosSpectrum *self)
   result->stride    = g_new0(gsize, spectrum_ndim(self));
   result->can_cache = TRUE;  /* innocent until proven guilty */
 
-  /*
-   * FIXME
-   * It is up to classes to set 'blocked' to FALSE to indicate that
-   * the accumulate point is now ready, causing lookahead to cease.
-   */
-  result->blocked   = TRUE;
-
   gint i;
 
   if (spectrum_ndim(self) > 0)
@@ -1024,6 +1042,17 @@ iterator_mark(struct spectrum_iterator *self)
     self->save_idx[i] = self->idx[i];
   if (self->mark)
     (self->mark)(self);
+}
+
+/*
+ * Returns:
+ * TRUE:  iterator_wait() will not block
+ * FALSE: iterator_wait() will block
+ */
+gboolean
+iterator_probe(struct spectrum_iterator *self)
+{
+  return (self->probe) ? (self->probe)(self) : FALSE;
 }
 
 static gboolean

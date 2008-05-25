@@ -42,6 +42,8 @@ static gboolean spectrum_integrated_tickle    (struct spectrum_iterator *self, g
 static gdouble  spectrum_integrated_wait      (struct spectrum_iterator *self);
 static void     spectrum_integrated_mark      (struct spectrum_iterator *self);
 
+/* FIXME needs a 'probe' implementation */
+
 static struct spectrum_iterator* spectrum_integrated_construct_iterator (HosSpectrum *self);
 static void                      spectrum_integrated_free_iterator      (struct spectrum_iterator *self);
 
@@ -124,7 +126,6 @@ static gboolean
 spectrum_integrated_tickle(struct spectrum_iterator *self, gdouble *dest)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
-  /* FIXME how to deal with the 'blocked' issue? */
   gdouble sum = 0;
   gboolean result = TRUE;
   gint i;

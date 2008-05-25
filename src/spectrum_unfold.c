@@ -57,6 +57,7 @@ struct unfolded_iterator
 static gboolean spectrum_unfolded_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_unfolded_mark       (struct spectrum_iterator* self);
 static gdouble  spectrum_unfolded_wait       (struct spectrum_iterator* self);
+static gboolean spectrum_unfolded_probe      (struct spectrum_iterator* self);
 static void     spectrum_unfolded_increment  (struct spectrum_iterator* self, guint dim, gint delta);
 
 static struct spectrum_iterator* spectrum_unfolded_construct_iterator (HosSpectrum *self);
@@ -141,10 +142,17 @@ spectrum_unfold(HosSpectrum* self,
 }
 
 static gboolean
+spectrum_unfolded_probe(struct spectrum_iterator *self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+  return iterator_probe(unfolded_iterator->base);
+}
+
+static gboolean
 spectrum_unfolded_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
   struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
-  self->blocked = unfolded_iterator->base->blocked;
+
   gboolean result = iterator_tickle(unfolded_iterator->base, dest);
 
   if (result && unfolded_iterator->negated)
@@ -217,6 +225,7 @@ spectrum_unfolded_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_unfolded_wait;
   spectrum_iterator->increment  = spectrum_unfolded_increment;
   spectrum_iterator->mark       = spectrum_unfolded_mark;
+  spectrum_iterator->probe      = spectrum_unfolded_probe;
 
   return spectrum_iterator;
 }

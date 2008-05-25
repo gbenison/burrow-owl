@@ -52,6 +52,7 @@ static void      spectrum_diagonal_increment (struct spectrum_iterator *self, gu
 static gboolean  spectrum_diagonal_tickle    (struct spectrum_iterator *self, gdouble *dest);
 static gdouble   spectrum_diagonal_wait      (struct spectrum_iterator *self);
 static void      spectrum_diagonal_mark      (struct spectrum_iterator *self);
+static gboolean  spectrum_diagonal_probe     (struct spectrum_iterator *self);
 
 static struct spectrum_iterator* spectrum_diagonal_construct_iterator (HosSpectrum *self);
 static void                      spectrum_diagonal_free_iterator      (struct spectrum_iterator *self);
@@ -177,10 +178,16 @@ spectrum_diagonal_increment(struct spectrum_iterator *self, guint dim, gint delt
 }
 
 static gboolean
+spectrum_diagonal_probe(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  return iterator_probe(diagonal_iterator->base);
+}
+
+static gboolean
 spectrum_diagonal_tickle(struct spectrum_iterator *self, gdouble *dest)
 {
   struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
-  self->blocked = diagonal_iterator->base->blocked;
   return iterator_tickle(diagonal_iterator->base, dest);
 }
 
@@ -214,6 +221,7 @@ spectrum_diagonal_construct_iterator (HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_diagonal_wait;
   spectrum_iterator->increment  = spectrum_diagonal_increment;
   spectrum_iterator->mark       = spectrum_diagonal_mark;
+  spectrum_iterator->probe      = spectrum_diagonal_probe;
 
   return spectrum_iterator;
 }

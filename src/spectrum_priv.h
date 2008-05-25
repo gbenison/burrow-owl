@@ -45,6 +45,7 @@ void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint d
 gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
 void     iterator_mark        (struct spectrum_iterator *self);
 gdouble  iterator_wait        (struct spectrum_iterator *self);
+gboolean iterator_probe       (struct spectrum_iterator *self);
 
 struct spectrum_iterator
 {
@@ -58,11 +59,11 @@ struct spectrum_iterator
   gsize        idx_linear;
   gsize        save_idx_linear;
   gboolean     can_cache;
-  gboolean     blocked;
 
   gboolean (*tickle)      (struct spectrum_iterator *self, gdouble *dest);
   void     (*mark)        (struct spectrum_iterator *self);
   gdouble  (*wait)        (struct spectrum_iterator *self);
+  gboolean (*probe)       (struct spectrum_iterator *self);
   void     (*increment)   (struct spectrum_iterator *self, guint dim, gint delta);
 };
 
