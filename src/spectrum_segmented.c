@@ -154,14 +154,10 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
 	}
       if (done != TRUE)
 	{
+	  g_assert(segid >= 0);
 	  skip_list_insert(segmented_iterator->request_queue, segid, NULL);
 	  g_cond_signal(segmented_iterator->request_cond);
 	  g_cond_wait(segmented_iterator->segment_ready_cond, segmented_iterator->request_queue_lock);
-
-	  /*
-	   * FIXME
-	   * is the case possible, and handled, where the iterator has died by now?
-	   */
 	}
     }
   g_mutex_unlock(segmented_iterator->request_queue_lock);
@@ -237,6 +233,7 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
   if (result == FALSE)
     {
       g_mutex_lock(segmented_iterator->request_queue_lock);
+      g_assert(segid >= 0);
       skip_list_insert(segmented_iterator->request_queue, segid, NULL);
       g_mutex_unlock(segmented_iterator->request_queue_lock);
     }
@@ -272,7 +269,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
       g_mutex_lock(priv->iterators_lock);
       while (g_list_length(priv->iterators) == 0)
 	{
-	  g_message("IO: no iterators pending");
+	  g_message("IO (0x%x, thread 0x%x): no iterators pending", self, g_thread_self());
 	  g_cond_wait(priv->iterators_pending_cond, priv->iterators_lock);
 	}
 
@@ -282,16 +279,23 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  struct segmented_iterator *segmented_iterator = (struct segmented_iterator*)(iterators->data);
 	  struct spectrum_iterator  *iterator           = (struct spectrum_iterator*)(iterators->data);
 
-	  g_message("IO: acquiring request_queue_lock of 0x%x", iterator);
+	  g_message("IO (0x%x, thread 0x%x): acquiring request_queue_lock of 0x%x", self, g_thread_self(), iterator);
 	  g_mutex_lock(segmented_iterator->request_queue_lock);
-	  g_message("IO: acquired lock");
+	  g_message("IO (0x%x, thread 0x%x): acquired lock", self, g_thread_self());
 
 	  if (segmented_iterator->valid)
 	    {
+	      g_message("IO (0x%x, thread 0x%x): segment is valid", self, g_thread_self());
 	      /* inform the iterator of the last segment read, if appropriate */
 	      if (active_slot != NULL)
 		{
-		  /* put in cache */
+
+		  if (active_slot->segid < 0)
+		    g_message("IO (0x%x, thread 0x%x): PROBLEM: active slot 0x%x has segid %d", self, g_thread_self(), active_slot, active_slot->segid);
+
+		  g_assert(active_slot->segid >= 0);
+
+		  /* put a link to active_slot into segment_iterator's segment cache */
 		  if (skip_list_has_key(segmented_iterator->request_queue, active_slot->segid))
 		    {
 		      skip_list_pop(segmented_iterator->request_queue, active_slot->segid);
@@ -309,26 +313,25 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	      if (next < 0)
 		{
 		  /* catch a signal when this segment either has a new request, or is done */
-		  g_message("IO: waiting for segment request from iterator 0x%x", segmented_iterator);
+		  g_message("IO (0x%x, thread 0x%x): waiting for segment request from iterator 0x%x", self, g_thread_self(), segmented_iterator);
 		  g_cond_wait(segmented_iterator->request_cond, segmented_iterator->request_queue_lock);
-		  g_message("IO: passed wait(request_cond)");
+		  g_message("IO (0x%x, thread 0x%x): passed wait(request_cond)", self, g_thread_self());
 		  next = skip_list_peek_first(segmented_iterator->request_queue);
 		}
 	      if (next >= 0)
 		skip_list_insert(priv->request_queue, next, NULL);
 	    }
-	  g_message("IO: releasing request_queue_lock of iterator 0x%x", segmented_iterator);
+	  g_message("IO (0x%x, thread 0x%x): releasing request_queue_lock of iterator 0x%x", self, g_thread_self(), segmented_iterator);
 	  g_mutex_unlock(segmented_iterator->request_queue_lock);
-	  g_message("IO: released iterator 0x%x", segmented_iterator);
+	  g_message("IO (0x%x, thread 0x%x): released iterator 0x%x", self, g_thread_self(), segmented_iterator);
 	}
       g_mutex_unlock(priv->iterators_lock);
-
 
       gint segid = skip_list_pop_first(priv->request_queue);
 
       if (segid >= 0)
 	{
-	  g_message("IO: Loading segment %d", segid);
+	  g_message("IO (0x%x, thread 0x%x): Loading segment %d", self, g_thread_self(), segid);
 	  /*
 	   * Free a slot.
 	   * In this implementation, a victim is chosen at random,
@@ -348,9 +351,10 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_mutex_lock(active_slot->lock);
 	  active_slot->segid=segid;
 	  g_mutex_unlock(active_slot->lock);
+	  g_message("IO (0x%x, thread 0x%x): active slot is 0x%x with segid %d", self, g_thread_self(), active_slot, active_slot->segid);
 	}
       else
-	g_message("IO: no segments pending");
+	g_message("IO (0x%x, thread 0x%x): no segments pending", self, g_thread_self());
     }
 }
 
@@ -376,7 +380,7 @@ set_segment_size(cache_slot_t* slot, guint size)
 static struct spectrum_iterator*
 spectrum_segmented_construct_iterator(HosSpectrum *self)
 {
-  segmented_ensure_io_thread(HOS_SPECTRUM_SEGMENTED(self));
+
   struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
 
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
@@ -393,6 +397,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   result->valid              = TRUE;
 
   g_mutex_lock(priv->iterators_lock);
+  segmented_ensure_io_thread(HOS_SPECTRUM_SEGMENTED(self));
   priv->iterators = g_list_append(priv->iterators, result);
   g_cond_signal(priv->iterators_pending_cond);
   g_mutex_unlock(priv->iterators_lock);

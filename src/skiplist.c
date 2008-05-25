@@ -122,6 +122,7 @@ insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
 {
   if (node == NULL) return NULL;
 
+  g_assert(key >= 0);
   g_assert(node->key < key);
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
