@@ -77,7 +77,7 @@ link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
   result->key  = key;
   result->down = down;
 
-  g_atomic_pointer_set(&base->next, result);
+  base->next = result;
 
   return result;
 }
@@ -403,19 +403,19 @@ pop_inner(skip_list_t* list, skip_node_t* node, gint key)
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
 
-  skip_node_t* down = g_atomic_pointer_get(&node->down);
+  skip_node_t* down = node->down;
   gpointer result = NULL;
 
   if ((node->next != NULL) && (node->next->key == key))
     {
       result = node->next->data;
       skip_node_t* dead = node->next;
-      g_atomic_pointer_set(&node->next,
-			   g_atomic_pointer_get(&node->next->next));
-      g_atomic_pointer_set(&dead->next, NULL);
-      g_atomic_pointer_set(&dead->down, NULL);
-      g_atomic_pointer_set(&dead->data, NULL);
-      g_atomic_int_set(&dead->key, -1);
+
+      node->next = node->next->next;
+      dead->next = NULL;
+      dead->down = NULL;
+      dead->data = NULL;
+      dead->key = -1;
       g_ptr_array_add(list->free_list, dead);
     }
 
