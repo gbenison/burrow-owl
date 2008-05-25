@@ -83,7 +83,6 @@ static gboolean spectrum_segmented_tickle     (struct spectrum_iterator* self, g
 static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpectrum *self);
 static void                      spectrum_segmented_free_iterator      (struct spectrum_iterator* self);
 
-static void     segmented_ensure_io_thread    (HosSpectrumSegmented *self);
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
 static gboolean segmented_fetch_point         (struct segmented_iterator *iterator, gint segid, gint pt_idx, gdouble *dest);
 
@@ -128,6 +127,14 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->segment_cache          = g_ptr_array_new();
   priv->iterators_lock         = g_mutex_new();
   priv->iterators_pending_cond = g_cond_new();
+
+  GError  *error  = NULL;
+  GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
+				    self,
+				    FALSE,
+				    &error);
+  g_assert(error == NULL);
+  priv->io_thread = thread;
 
   spectrum_segmented_set_cache_size(self, 32);
 }
@@ -259,21 +266,6 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
 }
 
 static void
-segmented_ensure_io_thread(HosSpectrumSegmented *self)
-{
-  if (SEGMENTED_PRIVATE(self, io_thread) == NULL)
-    {
-      GError  *error  = NULL;
-      GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
-					self,
-					FALSE,
-					&error);
-      g_assert(error == NULL);
-      SEGMENTED_PRIVATE(self, io_thread) = thread;
-    }
-}
-
-static void
 spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
@@ -284,6 +276,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
   while (1)
     {
       /* maintainance on all active iterators */
+      g_debug("IO (0x%x, thread 0x%x): lock iterators (0x%x)", self, g_thread_self(), priv->iterators_lock);
       g_mutex_lock(priv->iterators_lock);
       while (g_list_length(priv->iterators) == 0)
 	{
@@ -343,6 +336,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_mutex_unlock(segmented_iterator->request_queue_lock);
 	  g_debug("IO (0x%x, thread 0x%x): released iterator 0x%x", self, g_thread_self(), segmented_iterator);
 	}
+      g_debug("IO (0x%x, thread 0x%x): unlock iterators (0x%x)", self, g_thread_self(), priv->iterators_lock);
       g_mutex_unlock(priv->iterators_lock);
 
       gint segid = skip_list_pop_first(priv->request_queue);
@@ -414,10 +408,11 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   
   result->valid              = TRUE;
 
+  g_debug("Tr (0x%x): construct: lock iterators (0x%x)", result, priv->iterators_lock);
   g_mutex_lock(priv->iterators_lock);
-  segmented_ensure_io_thread(HOS_SPECTRUM_SEGMENTED(self));
   priv->iterators = g_list_append(priv->iterators, result);
   g_cond_signal(priv->iterators_pending_cond);
+  g_debug("Tr (0x%x): construct: unlock iterators (0x%x)", result, priv->iterators_lock);
   g_mutex_unlock(priv->iterators_lock);
 
   struct spectrum_iterator* spectrum_iterator = (struct spectrum_iterator*)result;
@@ -446,8 +441,10 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
   g_mutex_unlock(segmented_iterator->request_queue_lock);
 
   g_debug("Tr: removing iterator 0x%x from iterator list", self);
+  g_debug("Tr (0x%x): free: lock iterators (0x%x)", segmented_iterator, priv->iterators_lock);
   g_mutex_lock(priv->iterators_lock);
   priv->iterators = g_list_remove(priv->iterators, self);
+  g_debug("Tr (0x%x): free: unlock iterators (0x%x)", segmented_iterator, priv->iterators_lock);
   g_mutex_unlock(priv->iterators_lock);
 
   g_debug("Tr: about to destroy iterator 0x%x", self);
