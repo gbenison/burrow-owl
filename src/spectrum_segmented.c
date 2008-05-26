@@ -319,27 +319,40 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
       if (segid >= 0)
 	{
-
-	  /* FIXME use try_lock... i.e. find a slot that 'nobody is using'! */
-
 	  g_debug("IO (0x%x, thread 0x%x): Loading segment %d", self, g_thread_self(), segid);
+
 	  /*
 	   * Free a slot.
 	   * In this implementation, a victim is chosen at random,
 	   * on the theory that this may outperform any least-recently-used algorithm that would
 	   * require lots of sorting.
 	   */
-	  gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
-	  active_slot = g_ptr_array_index(priv->segment_cache, idx);
-	  g_static_rw_lock_writer_lock(&active_slot->lock);
-	  active_slot->segid=-1;
-	  g_static_rw_lock_writer_unlock(&active_slot->lock);
+	  static guint max_tries = 5;
+	  gint i;
+	  /* try to find an idle slot... */
+	  for (i = 0; i < max_tries; ++i)
+	    {
+	      gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
+	      active_slot = g_ptr_array_index(priv->segment_cache, idx);
+
+	      if (g_static_rw_lock_writer_trylock(&active_slot->lock))
+		break;
+	      else
+		active_slot = NULL;
+
+	      g_debug("IO (0x%x, thread 0x%x): collision with slot %d", self, g_thread_self(), idx);
+	    }
+	  /* finally pick one and block */
+	  if (active_slot == NULL)
+	    {
+	      gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
+	      active_slot = g_ptr_array_index(priv->segment_cache, idx);
+	      g_static_rw_lock_writer_lock(&active_slot->lock);
+	    }
 	  
 	  g_assert(active_slot != NULL);
 	  g_assert(active_slot->buf != NULL);
 	  class->read_segment(self->traversal_env, segid, active_slot->buf);
-
-	  g_static_rw_lock_writer_lock(&active_slot->lock);
 	  active_slot->segid=segid;
 	  g_static_rw_lock_writer_unlock(&active_slot->lock);
 	  g_debug("IO (0x%x, thread 0x%x): active slot is 0x%x with segid %d", self, g_thread_self(), active_slot, active_slot->segid);
