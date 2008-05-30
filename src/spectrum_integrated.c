@@ -173,20 +173,16 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
 
   gdouble sum = 0;
   gint i;
-  for (i = 0; ; ++i)
+  for (i = 0; i < integrated_iterator->integrand->np[0]; ++i)
     {
+      g_assert(integrated_iterator->integrand->idx[0] == i);
       gdouble delta = iterator_wait(integrated_iterator->integrand);
       sum += delta;
-      g_assert(integrated_iterator->integrand->idx[0] == i);
-
-      if (i >= integrated_iterator->integrand->np[0] - 1)
-	break;
-
       iterator_increment(integrated_iterator->integrand, 0, 1);
       iterator_mark(integrated_iterator->integrand);
     }
 
-  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0] - 1));
+  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0]));
   iterator_mark(integrated_iterator->integrand);
 
   return sum;

@@ -79,6 +79,7 @@ static gdouble  spectrum_segmented_wait       (struct spectrum_iterator* self);
 static void     spectrum_segmented_mark       (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_probe      (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_segmented_increment  (struct spectrum_iterator* self, guint dim, gint delta);
 
 static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpectrum *self);
 static void                      spectrum_segmented_free_iterator      (struct spectrum_iterator* self);
@@ -223,8 +224,8 @@ segmented_acquire_slot(struct segmented_iterator *iterator, gint segid, gboolean
   g_assert_not_reached();
 }
 
-static gboolean
-spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
+static void
+spectrum_segmented_increment(struct spectrum_iterator* self, guint dim, gint delta)
 {
   struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
   HosSpectrumSegmentedPrivate *priv               = segmented_iterator->priv;
@@ -234,6 +235,18 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
   class->idx2segment(segmented_iterator->traversal_env, self->idx, &segid, &pt);
   segmented_iterator->segid = segid;
   segmented_iterator->pt    = pt;
+}
+
+static gboolean
+spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
+{
+  struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
+  HosSpectrumSegmentedPrivate *priv               = segmented_iterator->priv;
+  HosSpectrumSegmentedClass   *class              = segmented_iterator->class;
+
+  gint segid = segmented_iterator->segid;
+  gint pt    = segmented_iterator->pt;
+
   gboolean result = segmented_acquire_slot (segmented_iterator, segid, FALSE);
 
   if (result == FALSE)
@@ -416,6 +429,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   spectrum_iterator->mark       = spectrum_segmented_mark;
   spectrum_iterator->wait       = spectrum_segmented_wait;
   spectrum_iterator->probe      = spectrum_segmented_probe;
+  spectrum_iterator->increment  = spectrum_segmented_increment;
 
   return (struct spectrum_iterator*)result;
 }
