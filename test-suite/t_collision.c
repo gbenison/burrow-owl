@@ -39,7 +39,9 @@ main()
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_ramp_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 0.9);
 
-  gint n = log(desired_size) / log(spectrum_np(S2, 0)) + 1;
+  /* FIXME enable following line to automatically adjust spectrum size */
+  /* gint n = log(desired_size) / log(spectrum_np(S2, 0)) + 1; */
+  gint n = 3;
 
   HosSpectrum *S3 = spectrum_make_huge(S2, n);
   for (i = 0; i < n_spectra; ++i)

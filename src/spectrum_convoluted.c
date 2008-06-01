@@ -189,7 +189,7 @@ spectrum_convoluted_construct_iterator(HosSpectrum *self)
 
   result->priv = SPECTRUM_CONVOLUTED_GET_PRIVATE(self);
   result->A    = spectrum_construct_iterator(result->priv->A);
-  result->B    = spectrum_construct_iterator(result->priv->A);
+  result->B    = spectrum_construct_iterator(result->priv->B);
 
   spectrum_iterator->tickle     = spectrum_convoluted_tickle;
   spectrum_iterator->wait       = spectrum_convoluted_wait;

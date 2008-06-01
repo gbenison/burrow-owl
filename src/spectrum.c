@@ -34,6 +34,9 @@
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
 
+/* for debugging purposes; make value available */
+static const gdouble datum_unknown_value_substitute=DATUM_UNKNOWN_VALUE_SUBSTITUTE;
+
 /* spectrum status */
 enum
 {
@@ -886,7 +889,9 @@ spectrum_traverse(HosSpectrum *spec)
 
 /*********** The point cache ****************/
 
-static gsize point_cache_size = 1024 * 1024 * 8;  /* FIXME should be tunable */
+static gsize default_point_cache_size = 1024 * 1024 * 8;
+static gsize point_cache_size = 0;
+static gboolean point_cache_enable = TRUE;
 
 static guint point_cache_hit_count       = 0;
 static guint point_cache_miss_count      = 0;
@@ -909,23 +914,47 @@ static struct _point_cache_slot *point_cache = NULL;
 static gsize
 point_cache_hash(HosSpectrum *spec, gsize idx)
 {
-  return ((gsize)spec + idx) % point_cache_size;
+  if (point_cache_size > 0)
+    return ((gsize)spec + idx) % point_cache_size;
+  else
+    return 0;
 }
 
 static void
 point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
 {
-  if (point_cache == NULL)
-    point_cache = g_new0(struct _point_cache_slot, point_cache_size);
-  
-  struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
+  if (point_cache_enable)
+    {
+      if (point_cache == NULL)
+	{
+	  const gchar *point_cache_str = g_getenv("POINT_CACHE_SIZE");
+	  gchar *err = NULL;
+	  point_cache_size = default_point_cache_size;
+	  if (point_cache_str != NULL)
+	    {
+	      point_cache_size = (gint)(g_ascii_strtod(point_cache_str, &err)) * 1024 * 1024;
+	      if (*err != '\0')
+		point_cache_size = default_point_cache_size;
+	    }
+	  
+	  if (point_cache_size > 0)
+	    point_cache = g_new0(struct _point_cache_slot, point_cache_size);
+	  else
+	    point_cache_enable = FALSE;
+	}
+    }
 
-  gint old_version = g_atomic_pointer_get(&(slot->version));
-  slot->spec = NULL;
-  g_atomic_int_set(&(slot->version), old_version + 1);
-  slot->idx   = idx;
-  slot->value = value;
-  g_atomic_pointer_set(&(slot->spec), spec);
+  if (point_cache_enable)
+    {
+      struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
+      
+      gint old_version = g_atomic_pointer_get(&(slot->version));
+      slot->spec = NULL;
+      g_atomic_int_set(&(slot->version), old_version + 1);
+      slot->idx   = idx;
+      slot->value = value;
+      g_atomic_pointer_set(&(slot->spec), spec);
+    }
 }
 
 /*
@@ -934,7 +963,7 @@ point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
 static gdouble
 point_cache_fetch(HosSpectrum *spec, gsize idx)
 {
-  if (point_cache != NULL)
+  if ((point_cache != NULL) && (point_cache_enable))
     {
        struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
 
