@@ -129,7 +129,7 @@ static gboolean
 spectrum_convoluted_probe(struct spectrum_iterator *self)
 {
   struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
-  iterator_probe(convoluted_iterator->A) && iterator_probe(convoluted_iterator->B);
+  return iterator_probe(convoluted_iterator->A) && iterator_probe(convoluted_iterator->B);
 }
 
 static gboolean
@@ -156,7 +156,20 @@ static gdouble
 spectrum_convoluted_wait(struct spectrum_iterator *self)
 {
   struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
-  return iterator_wait(convoluted_iterator->A) * iterator_wait(convoluted_iterator->B);
+  gdouble result = iterator_wait(convoluted_iterator->A) * iterator_wait(convoluted_iterator->B);
+
+  /* FIXME verify indices */
+  gint i;
+  guint A_ndim = convoluted_iterator->priv->A_ndim;
+  for (i = 0; i < self->ndim; ++i)
+    {
+      if (i < A_ndim)
+	g_assert(self->idx[i] == convoluted_iterator->A->idx[i]);
+      else
+	g_assert(self->idx[i] == convoluted_iterator->B->idx[i - A_ndim]);
+    }
+
+  return result;
 }
 
 static void

@@ -702,6 +702,8 @@ spectrum_traverse_internal(HosSpectrum* self)
       /* outer loop through all spectrum points */
       while (1)
 	{
+	  g_debug("Iterator 0x%x, considering point %d", iterator, (int)(outer_dest - buf));
+
 	  /* inner loop -- tickle remaining points */
 	  static const gboolean lookahead_enable = TRUE;
 	  static const guint lookahead_probe_interval = 128;
@@ -731,8 +733,12 @@ spectrum_traverse_internal(HosSpectrum* self)
 		      g_debug("Iterator 0x%x has reached the end of its tickles", iterator);
 		    }
 		  
+		  g_debug("Iterator 0x%x, forcing point %d", iterator, (int)(outer_dest - buf));
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
-		    *outer_dest = iterator_wait(iterator);
+		    {
+		      g_debug("(Waiting)");
+		      *outer_dest = iterator_wait(iterator);
+		    }
 		}
 	    }
 	  
@@ -999,6 +1005,8 @@ spectrum_construct_iterator(HosSpectrum *self)
 void
 iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
 {
+  g_debug("Iterator 0x%x: incrementing dim %d by %d (linear_idx = %d)", self, dim, delta, self->idx_linear);
+
   self->idx[dim] += delta;
 
   if (self->can_cache == TRUE)
@@ -1042,6 +1050,7 @@ iterator_mark(struct spectrum_iterator *self)
     self->save_idx[i] = self->idx[i];
   if (self->mark)
     (self->mark)(self);
+  g_debug("Iterator 0x%x: marked at linear_idx %d", self, self->idx_linear);
 }
 
 /*
@@ -1095,7 +1104,6 @@ iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
 gdouble
 iterator_wait(struct spectrum_iterator *self)
 {
-
   /* restore pointer location */
   self->idx_linear = self->save_idx_linear;
   gint i;
@@ -1109,6 +1117,7 @@ iterator_wait(struct spectrum_iterator *self)
       if (self->can_cache)
 	point_cache_store(self->root, self->idx_linear, result);
     }
+  g_debug("Iterator 0x%x: waited at linear_idx %d", self, self->idx_linear);
   return result;
 }
 
