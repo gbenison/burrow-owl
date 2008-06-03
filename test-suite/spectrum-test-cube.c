@@ -10,6 +10,7 @@ static gboolean  test_cube_tickle  (struct spectrum_iterator* self, gdouble *des
 G_DEFINE_TYPE (HosSpectrumTestCube, hos_spectrum_test_cube, HOS_TYPE_SPECTRUM)
 
 static const int default_np = 100;
+static gint np;
 
 static void
 hos_spectrum_test_cube_class_init(HosSpectrumTestCubeClass *klass)
@@ -26,10 +27,16 @@ hos_spectrum_test_cube_init(HosSpectrumTestCube *self)
   HosSpectrum* spectrum = HOS_SPECTRUM(self);
   GList* dimensions = NULL;
   gint i;
+
+  np = default_np;
+  const gchar *np_str = g_getenv("CUBE_NP");
+  if (np_str != NULL)
+    np = (gint)(g_ascii_strtod(np_str, NULL));
+
   for (i = 0; i < 3; ++i)
     {
       dimension_t* dimen = g_new0(dimension_t, 1);
-      dimen->np   = default_np;
+      dimen->np   = np;
       dimen->sw   = 5000 * (i + 1);
       dimen->sf   = 1000;
       dimen->orig = 10000 + i * 200;
@@ -83,11 +90,11 @@ gdouble
 test_cube_predict (guint idx)
 {
   gdouble result = 0;
-  result += idx % default_np;
-  idx /= default_np;
-  result += (idx % default_np) * 1000;
-  idx /= default_np;
-  result += (idx % default_np) * 1e6;
+  result += idx % np;
+  idx /= np;
+  result += (idx % np) * 1000;
+  idx /= np;
+  result += (idx % np) * 1e6;
 
   return result;
 }
@@ -99,11 +106,11 @@ test_cube_predict (guint idx)
 gdouble
 test_cube_I_predict (guint idx)
 {
-  gdouble start_value = (idx % default_np) * 1000;
-  idx /= default_np;
-  start_value += (idx % default_np) * 1e6;
+  gdouble start_value = (idx % np) * 1000;
+  idx /= np;
+  start_value += (idx % np) * 1e6;
   
-  return (default_np / 2) * (start_value + start_value + default_np - 1);
+  return (np / 2) * (start_value + start_value + np - 1);
 }
 
 /*
@@ -113,8 +120,8 @@ test_cube_I_predict (guint idx)
 gdouble
 test_cube_II_predict (guint idx)
 {
-  gdouble start = test_cube_I_predict(idx * default_np);
-  gdouble stop  = test_cube_I_predict(idx * default_np + default_np - 1);
+  gdouble start = test_cube_I_predict(idx * np);
+  gdouble stop  = test_cube_I_predict(idx * np + np - 1);
 
-  return (start + stop) * (default_np / 2);
+  return (start + stop) * (np / 2);
 }

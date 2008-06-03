@@ -42,6 +42,7 @@ static gboolean spectrum_integrated_tickle    (struct spectrum_iterator *self, g
 static gdouble  spectrum_integrated_wait      (struct spectrum_iterator *self);
 static void     spectrum_integrated_mark      (struct spectrum_iterator *self);
 static void     spectrum_integrated_restore   (struct spectrum_iterator *self);
+static void     spectrum_integrated_sync      (struct spectrum_iterator *self);
 
 /* FIXME needs a 'probe' implementation */
 
@@ -127,10 +128,13 @@ static gboolean
 spectrum_integrated_tickle(struct spectrum_iterator *self, gdouble *dest)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
+
+  iterator_mark(integrated_iterator->integrand);
+
   gdouble sum = 0;
   gboolean result = TRUE;
   gint i;
-  for (i = 0; ; ++i)
+  for (i = 0; i < integrated_iterator->integrand->np[0]; ++i)
     {
       g_assert(integrated_iterator->integrand->idx[0] == i);
 
@@ -141,13 +145,10 @@ spectrum_integrated_tickle(struct spectrum_iterator *self, gdouble *dest)
       else
 	result = FALSE;
 
-      if (i >= integrated_iterator->integrand->np[0] - 1)
-	break;
-
       iterator_increment(integrated_iterator->integrand, 0, 1);
     }
 
-  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0] - 1));
+  iterator_restore(integrated_iterator->integrand);
 
   if (result == TRUE)
     *dest = sum;
@@ -159,16 +160,7 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
 
-  /* synchronize the iterators */
-  gint d;
-  for (d = 0; d < self->ndim; ++d)
-    {
-      gint delta = (self->idx[d] - integrated_iterator->integrand->idx[d + 1]);
-      if (delta != 0)
-	iterator_increment(integrated_iterator->integrand, d + 1, delta);
-    }
-  if (integrated_iterator->integrand->idx[0] != 0)
-    iterator_increment(integrated_iterator->integrand, 0, -integrated_iterator->integrand->idx[0]);
+  spectrum_integrated_sync(self);
 
   iterator_mark(integrated_iterator->integrand);
 
@@ -188,18 +180,26 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
 }
 
 static void
-spectrum_integrated_mark(struct spectrum_iterator *self)
+spectrum_integrated_sync(struct spectrum_iterator *self)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
-  iterator_mark(integrated_iterator->integrand);
+
+  /* synchronize the iterators */
+  gint d;
+  for (d = 0; d < self->ndim; ++d)
+    {
+      gint delta = (self->idx[d] - integrated_iterator->integrand->idx[d + 1]);
+      if (delta != 0)
+	iterator_increment(integrated_iterator->integrand, d + 1, delta);
+    }
+  if (integrated_iterator->integrand->idx[0] != 0)
+    iterator_increment(integrated_iterator->integrand, 0, -integrated_iterator->integrand->idx[0]);
 }
 
 static void
 spectrum_integrated_restore(struct spectrum_iterator *self)
 {
-  struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
-  iterator_restore(integrated_iterator->integrand);
-  g_assert(integrated_iterator->integrand->idx[0] == 0);
+  spectrum_integrated_sync(self);
 }
 
 static struct spectrum_iterator*
@@ -214,7 +214,6 @@ spectrum_integrated_construct_iterator(HosSpectrum *self)
   spectrum_iterator->tickle     = spectrum_integrated_tickle;
   spectrum_iterator->wait       = spectrum_integrated_wait;
   spectrum_iterator->increment  = spectrum_integrated_increment;
-  spectrum_iterator->mark       = spectrum_integrated_mark;
   spectrum_iterator->restore    = spectrum_integrated_restore;
 
   return spectrum_iterator;
