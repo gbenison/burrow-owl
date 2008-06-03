@@ -45,6 +45,7 @@ static void     spectrum_convoluted_increment (struct spectrum_iterator *self, g
 static gboolean spectrum_convoluted_tickle    (struct spectrum_iterator *self, gdouble *dest);
 static gdouble  spectrum_convoluted_wait      (struct spectrum_iterator *self);
 static void     spectrum_convoluted_mark      (struct spectrum_iterator *self);
+static void     spectrum_convoluted_restore   (struct spectrum_iterator *self);
 static gboolean spectrum_convoluted_probe     (struct spectrum_iterator *self);
 
 static struct spectrum_iterator* spectrum_convoluted_construct_iterator (HosSpectrum *self);
@@ -181,6 +182,15 @@ spectrum_convoluted_mark(struct spectrum_iterator *self)
   iterator_mark(convoluted_iterator->B);
 }
 
+static void
+spectrum_convoluted_restore(struct spectrum_iterator *self)
+{
+  struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
+
+  iterator_restore(convoluted_iterator->A);
+  iterator_restore(convoluted_iterator->B);
+}
+
 static struct spectrum_iterator*
 spectrum_convoluted_construct_iterator(HosSpectrum *self)
 {
@@ -195,6 +205,7 @@ spectrum_convoluted_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_convoluted_wait;
   spectrum_iterator->increment  = spectrum_convoluted_increment;
   spectrum_iterator->mark       = spectrum_convoluted_mark;
+  spectrum_iterator->restore    = spectrum_convoluted_restore;
   spectrum_iterator->probe      = spectrum_convoluted_probe;
 
   return spectrum_iterator;

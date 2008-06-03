@@ -106,6 +106,12 @@ spectrum_flaky_mark(struct spectrum_iterator* self)
   iterator_mark(((struct flaky_iterator*)self)->flakand);
 }
 
+static void
+spectrum_flaky_restore(struct spectrum_iterator* self)
+{
+  iterator_restore(((struct flaky_iterator*)self)->flakand);
+}
+
 /*
  * Return a version of 'self' that tickles unreliably.
  * i.e. tickle(spectrum_flakify(self)) only succeeds 1/(flake_factor) of the time
@@ -136,6 +142,7 @@ spectrum_flaky_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_flaky_wait;
   spectrum_iterator->increment  = spectrum_flaky_increment;
   spectrum_iterator->mark       = spectrum_flaky_mark;
+  spectrum_iterator->restore    = spectrum_flaky_restore;
 
   result->flake_factor  = HOS_SPECTRUM_FLAKY(self)->flake_factor;
   result->flakand       = spectrum_construct_iterator(HOS_SPECTRUM_FLAKY(self)->flakand);

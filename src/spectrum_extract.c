@@ -49,6 +49,7 @@ static gdouble  spectrum_extracted_wait       (struct spectrum_iterator* self);
 static gboolean spectrum_extracted_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_extracted_increment  (struct spectrum_iterator* self, guint dim, gint delta);
 static void     spectrum_extracted_mark       (struct spectrum_iterator* self);
+static void     spectrum_extracted_restore    (struct spectrum_iterator* self);
 static gboolean spectrum_extracted_probe      (struct spectrum_iterator* self);
 
 static struct spectrum_iterator* spectrum_extracted_construct_iterator (HosSpectrum *self);
@@ -108,6 +109,13 @@ spectrum_extracted_mark(struct spectrum_iterator* self)
   iterator_mark(extracted_iterator->base);
 }
 
+static void
+spectrum_extracted_restore(struct spectrum_iterator* self)
+{
+  struct extracted_iterator* extracted_iterator = (struct extracted_iterator*)self;
+  iterator_restore(extracted_iterator->base);
+}
+
 static gboolean
 spectrum_extracted_probe(struct spectrum_iterator* self)
 {
@@ -128,6 +136,7 @@ spectrum_extracted_construct_iterator (HosSpectrum *self)
 
   spectrum_iterator->tickle     = spectrum_extracted_tickle;
   spectrum_iterator->mark       = spectrum_extracted_mark;
+  spectrum_iterator->restore    = spectrum_extracted_restore;
   spectrum_iterator->wait       = spectrum_extracted_wait;
   spectrum_iterator->probe      = spectrum_extracted_probe;
   spectrum_iterator->increment  = spectrum_extracted_increment;

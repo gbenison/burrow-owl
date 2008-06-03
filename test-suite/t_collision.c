@@ -61,9 +61,10 @@ main()
     }
 
   /* validate */
-  gdouble predicted = pow((spectrum_np(S2, 0) * (spectrum_np(S2, 0) - 1) / 2), n);
-  g_assert((spectrum_peek(S3, 0) / predicted) > 0.9999);
-  g_assert((spectrum_peek(S3, 0) / predicted) < 1.0001);
+  gdouble predicted = pow(((gdouble)spectrum_np(S2, 0) * (spectrum_np(S2, 0) - 1.0) / 2), n);
+  gdouble actual    = spectrum_peek(S3, 0);
+  g_assert((actual / predicted) > 0.9999);
+  g_assert((actual / predicted) < 1.0001);
 
   g_printf("OK\n");
 

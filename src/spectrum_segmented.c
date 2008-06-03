@@ -77,6 +77,7 @@ struct segmented_iterator
 
 static gdouble  spectrum_segmented_wait       (struct spectrum_iterator* self);
 static void     spectrum_segmented_mark       (struct spectrum_iterator* self);
+static void     spectrum_segmented_restore    (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_probe      (struct spectrum_iterator* self);
 static gboolean spectrum_segmented_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_segmented_increment  (struct spectrum_iterator* self, guint dim, gint delta);
@@ -150,6 +151,14 @@ spectrum_segmented_mark(struct spectrum_iterator* self)
   g_debug("Tr (0x%x): set segid_saved to %d", segmented_iterator, segmented_iterator->segid_saved);
 }
 
+static void
+spectrum_segmented_restore(struct spectrum_iterator* self)
+{
+  struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
+  segmented_iterator->segid = segmented_iterator->segid_saved;
+  segmented_iterator->pt    = segmented_iterator->pt_saved;
+}
+
 static gboolean
 spectrum_segmented_probe(struct spectrum_iterator *self)
 {
@@ -162,8 +171,8 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
 {
   struct segmented_iterator   *segmented_iterator = (struct segmented_iterator*)self;
 
-  gint segid = segmented_iterator->segid_saved;
-  gint pt    = segmented_iterator->pt_saved;
+  gint segid = segmented_iterator->segid;
+  gint pt    = segmented_iterator->pt;
 
   g_assert(segmented_acquire_slot(segmented_iterator, segid, TRUE) == TRUE);
   return segmented_iterator->last_slot->buf[pt];
@@ -427,6 +436,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   struct spectrum_iterator* spectrum_iterator = (struct spectrum_iterator*)result;
   spectrum_iterator->tickle     = spectrum_segmented_tickle;
   spectrum_iterator->mark       = spectrum_segmented_mark;
+  spectrum_iterator->restore    = spectrum_segmented_restore;
   spectrum_iterator->wait       = spectrum_segmented_wait;
   spectrum_iterator->probe      = spectrum_segmented_probe;
   spectrum_iterator->increment  = spectrum_segmented_increment;

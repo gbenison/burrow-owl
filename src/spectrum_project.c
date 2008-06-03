@@ -49,6 +49,7 @@ struct projected_iterator
 
 static gboolean spectrum_projected_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_projected_mark       (struct spectrum_iterator* self);
+static void     spectrum_projected_restore    (struct spectrum_iterator* self);
 static gdouble  spectrum_projected_wait       (struct spectrum_iterator* self);
 static gboolean spectrum_projected_probe      (struct spectrum_iterator* self);
 static void     spectrum_projected_increment  (struct spectrum_iterator* self, guint dim, gint delta);
@@ -108,7 +109,15 @@ spectrum_projected_increment(struct spectrum_iterator* self, guint dim, gint del
 static void
 spectrum_projected_mark(struct spectrum_iterator* self)
 {
-  iterator_mark(((struct projected_iterator*)self)->base);
+  struct projected_iterator* projected_iterator = (struct projected_iterator*)self;
+  iterator_mark(projected_iterator->base);
+}
+
+static void
+spectrum_projected_restore(struct spectrum_iterator* self)
+{
+  struct projected_iterator* projected_iterator = (struct projected_iterator*)self;
+  iterator_restore(projected_iterator->base);
 }
 
 static gboolean
@@ -173,6 +182,7 @@ spectrum_projected_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_projected_wait;
   spectrum_iterator->increment  = spectrum_projected_increment;
   spectrum_iterator->mark       = spectrum_projected_mark;
+  spectrum_iterator->restore    = spectrum_projected_restore;
   spectrum_iterator->probe      = spectrum_projected_probe;
 
   return spectrum_iterator;

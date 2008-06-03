@@ -50,6 +50,7 @@ struct transposed_iterator
 
 static gboolean spectrum_transposed_tickle     (struct spectrum_iterator* self, gdouble* dest);
 static void     spectrum_transposed_mark       (struct spectrum_iterator* self);
+static void     spectrum_transposed_restore    (struct spectrum_iterator* self);
 static gdouble  spectrum_transposed_wait       (struct spectrum_iterator* self);
 static gboolean spectrum_transposed_probe      (struct spectrum_iterator* self);
 static void     spectrum_transposed_increment  (struct spectrum_iterator* self, guint dim, gint delta);
@@ -182,7 +183,15 @@ spectrum_transposed_increment(struct spectrum_iterator* self, guint dim, gint de
 static void
 spectrum_transposed_mark(struct spectrum_iterator* self)
 {
-  iterator_mark(((struct transposed_iterator*)self)->base);
+  struct transposed_iterator *transposed_iterator = (struct transposed_iterator*)self;
+  iterator_mark(transposed_iterator->base);
+}
+
+static void
+spectrum_transposed_restore(struct spectrum_iterator* self)
+{
+  struct transposed_iterator *transposed_iterator = (struct transposed_iterator*)self;
+  iterator_restore(transposed_iterator->base);
 }
 
 static struct spectrum_iterator*
@@ -197,6 +206,7 @@ spectrum_transposed_construct_iterator (HosSpectrum *self)
 
   spectrum_iterator->tickle     = spectrum_transposed_tickle;
   spectrum_iterator->mark       = spectrum_transposed_mark;
+  spectrum_iterator->restore    = spectrum_transposed_restore;
   spectrum_iterator->wait       = spectrum_transposed_wait;
   spectrum_iterator->probe      = spectrum_transposed_probe;
   spectrum_iterator->increment  = spectrum_transposed_increment;

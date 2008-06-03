@@ -41,6 +41,7 @@ static void     spectrum_integrated_increment (struct spectrum_iterator *self, g
 static gboolean spectrum_integrated_tickle    (struct spectrum_iterator *self, gdouble *dest);
 static gdouble  spectrum_integrated_wait      (struct spectrum_iterator *self);
 static void     spectrum_integrated_mark      (struct spectrum_iterator *self);
+static void     spectrum_integrated_restore   (struct spectrum_iterator *self);
 
 /* FIXME needs a 'probe' implementation */
 
@@ -179,11 +180,9 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
       gdouble delta = iterator_wait(integrated_iterator->integrand);
       sum += delta;
       iterator_increment(integrated_iterator->integrand, 0, 1);
-      iterator_mark(integrated_iterator->integrand);
     }
 
-  iterator_increment(integrated_iterator->integrand, 0, -(integrated_iterator->integrand->np[0]));
-  iterator_mark(integrated_iterator->integrand);
+  iterator_restore(integrated_iterator->integrand);
 
   return sum;
 }
@@ -193,6 +192,14 @@ spectrum_integrated_mark(struct spectrum_iterator *self)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
   iterator_mark(integrated_iterator->integrand);
+}
+
+static void
+spectrum_integrated_restore(struct spectrum_iterator *self)
+{
+  struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
+  iterator_restore(integrated_iterator->integrand);
+  g_assert(integrated_iterator->integrand->idx[0] == 0);
 }
 
 static struct spectrum_iterator*
@@ -208,6 +215,7 @@ spectrum_integrated_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_integrated_wait;
   spectrum_iterator->increment  = spectrum_integrated_increment;
   spectrum_iterator->mark       = spectrum_integrated_mark;
+  spectrum_iterator->restore    = spectrum_integrated_restore;
 
   return spectrum_iterator;
 }

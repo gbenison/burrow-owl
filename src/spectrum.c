@@ -737,6 +737,7 @@ spectrum_traverse_internal(HosSpectrum* self)
 		    }
 		  
 		  g_debug("Iterator 0x%x, forcing point %d", iterator, (int)(outer_dest - buf));
+		  iterator_restore(iterator);
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
 		    {
 		      g_debug("(Waiting)");
@@ -1130,15 +1131,23 @@ iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
   return is_instantiated;
 }
 
-gdouble
-iterator_wait(struct spectrum_iterator *self)
+/*
+ * restore pointer location to the one saved using iterator_mark()
+ */
+void
+iterator_restore(struct spectrum_iterator *self)
 {
-  /* restore pointer location */
   self->idx_linear = self->save_idx_linear;
   gint i;
   for (i = 0; i < self->ndim; ++i)
     self->idx[i] = self->save_idx[i];
 
+  if (self->restore) (self->restore)(self);
+}
+
+gdouble
+iterator_wait(struct spectrum_iterator *self)
+{
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
     {
