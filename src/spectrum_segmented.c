@@ -21,6 +21,13 @@
 #include "spectrum_priv.h"
 #include "skiplist.h"
 
+/*
+ * Maximum time a segmented iterator will wait for 'segment_ready_cond' before waking up;
+ * prevents a deadlock where the IO thread is starved for requests and all iterators are
+ * waiting for their request to be fulfilled.
+ */
+static GTimeVal segmented_wait_timeout = {0, 10000};
+
 #define SEGMENTED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_SEGMENTED, HosSpectrumSegmentedPrivate))
 #define SEGMENTED_PRIVATE(o, field) ((SEGMENTED_GET_PRIVATE(o))->field)
 typedef struct _HosSpectrumSegmentedPrivate HosSpectrumSegmentedPrivate;
@@ -222,12 +229,16 @@ segmented_acquire_slot(struct segmented_iterator *iterator, gint segid, gboolean
 	    {
 	      skip_list_insert(iterator->request_queue, segid, NULL);
 	      g_debug("Tr (0x%x): waiting for segid %d", iterator, segid);
-	      g_cond_wait(iterator->segment_ready_cond, iterator->request_queue_lock);
+	      g_cond_timed_wait(iterator->segment_ready_cond,
+				iterator->request_queue_lock,
+				&segmented_wait_timeout);
 	      repeat = TRUE;
 	    }
 	}
       g_mutex_unlock(iterator->request_queue_lock);
       if (block == TRUE) g_assert(iterator->last_slot != NULL);
+      if (iterator->last_slot != NULL)
+	g_assert(iterator->last_slot->segid == segid);
       return (iterator->last_slot == NULL) ? FALSE : TRUE;
     }
   g_assert_not_reached();
