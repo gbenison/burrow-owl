@@ -84,6 +84,8 @@ spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest)
 {
   struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
 
+  if (self->idx_linear != flaky_iterator->flakand->idx_linear)
+    g_debug("Flaky 0x%x: idx DISCREPENCY self = %d, flakand = %d", self, self->idx_linear, flaky_iterator->flakand->idx_linear);
   g_assert(self->idx[0] == flaky_iterator->flakand->idx[0]);
 
   if (g_random_double_range(0, 1.0) < flaky_iterator->flake_factor)

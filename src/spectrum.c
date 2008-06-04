@@ -1141,13 +1141,13 @@ iterator_restore(struct spectrum_iterator *self)
   gint i;
   for (i = 0; i < self->ndim; ++i)
     self->idx[i] = self->save_idx[i];
-
   if (self->restore) (self->restore)(self);
 }
 
 gdouble
 iterator_wait(struct spectrum_iterator *self)
 {
+  g_debug("Iterator 0x%x: waiting at linear_idx %d", self, self->idx_linear);
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
     {
@@ -1155,7 +1155,6 @@ iterator_wait(struct spectrum_iterator *self)
       if (self->can_cache)
 	point_cache_store(self->root, self->idx_linear, result);
     }
-  g_debug("Iterator 0x%x: waited at linear_idx %d", self, self->idx_linear);
   return result;
 }
 
