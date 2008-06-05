@@ -36,6 +36,7 @@ main()
     }
 
   /* validate readers */
+  gint segment_sim_np = spectrum_np(spec_sim, 0);
   gdouble predicted = 
     ((gdouble)segment_sim_np * (gdouble)(segment_sim_np - 1)) / 2;
   for (i = 0; i < n_readers; ++i)
