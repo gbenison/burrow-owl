@@ -23,11 +23,11 @@
 #include "debug.h"
 
 /*
- * Maximum time a segmented iterator will wait for 'segment_ready_cond' before waking up;
+ * Maximum time (usec) a segmented iterator will wait for 'segment_ready_cond' before waking up;
  * prevents a deadlock where the IO thread is starved for requests and all iterators are
  * waiting for their request to be fulfilled.
  */
-static GTimeVal segmented_wait_timeout = {0, 10000};
+static glong segmented_wait_delay = 10000;
 
 #define SEGMENTED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_SEGMENTED, HosSpectrumSegmentedPrivate))
 #define SEGMENTED_PRIVATE(o, field) ((SEGMENTED_GET_PRIVATE(o))->field)
@@ -76,6 +76,7 @@ struct segmented_iterator
   GMutex      *request_queue_lock;
 
   GCond       *segment_ready_cond;
+  GTimeVal     timeout;
 
   gboolean     valid;
 
@@ -212,9 +213,11 @@ segmented_acquire_slot(struct segmented_iterator *iterator, gint segid, gboolean
 	    {
 	      skip_list_insert(iterator->request_queue, segid, NULL);
 	      CONFESS("Tr (0x%x): waiting for segid %d", iterator, segid);
+	      g_get_current_time(&iterator->timeout);
+	      g_time_val_add(&iterator->timeout, segmented_wait_delay);
 	      g_cond_timed_wait(iterator->segment_ready_cond,
 				iterator->request_queue_lock,
-				&segmented_wait_timeout);
+				&iterator->timeout);
 	      repeat = TRUE;
 	    }
 	}
