@@ -24,6 +24,8 @@ include_HEADERS=burrow.h
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
+debug.h \
+debug.c \
 utils.h \
 boomerang.c  \
 boomerang.h  \

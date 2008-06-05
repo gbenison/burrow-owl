@@ -19,6 +19,7 @@
 
 #include "spectrum_priv.h"
 #include "spectrum-flaky.h"
+#include "debug.h"
 
 static gdouble   spectrum_flaky_wait   (struct spectrum_iterator* self);
 static gboolean  spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest);
@@ -27,21 +28,6 @@ static struct spectrum_iterator* spectrum_flaky_construct_iterator (HosSpectrum 
 static void                      spectrum_flaky_free_iterator      (struct spectrum_iterator* self);
 
 G_DEFINE_TYPE (HosSpectrumFlaky, hos_spectrum_flaky, HOS_TYPE_SPECTRUM)
-
-#ifdef G_LOG_DOMAIN
-#undef G_LOG_DOMAIN
-#endif
-#define G_LOG_DOMAIN "spectrum-flaky.c"
-
-static void
-null_log_handler(const gchar *log_domain,
-		 GLogLevelFlags log_level,
-		 const gchar *message,
-		 gpointer user_data)
-{
-  /* do nothing, i.e. suppress debugging output */
-}
-
 
 struct flaky_iterator
 {
@@ -55,9 +41,6 @@ static void
 hos_spectrum_flaky_class_init(HosSpectrumFlakyClass *klass)
 {
   HosSpectrumClass* spectrum_class = HOS_SPECTRUM_CLASS(klass);
-
-  if (g_getenv("DEBUG") == NULL)
-    g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG | G_LOG_LEVEL_MESSAGE, null_log_handler, NULL);
 
   spectrum_class->construct_iterator = spectrum_flaky_construct_iterator;
   spectrum_class->free_iterator      = spectrum_flaky_free_iterator;
@@ -85,7 +68,7 @@ spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest)
   struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
 
   if (self->idx_linear != flaky_iterator->flakand->idx_linear)
-    g_debug("Flaky 0x%x: idx DISCREPENCY self = %d, flakand = %d", self, self->idx_linear, flaky_iterator->flakand->idx_linear);
+    CONFESS("Flaky 0x%x: idx DISCREPENCY self = %d, flakand = %d", self, self->idx_linear, flaky_iterator->flakand->idx_linear);
   g_assert(self->idx[0] == flaky_iterator->flakand->idx[0]);
 
   if (g_random_double_range(0, 1.0) < flaky_iterator->flake_factor)
@@ -97,7 +80,7 @@ spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest)
 static void
 spectrum_flaky_increment(struct spectrum_iterator* self, guint dim, gint delta)
 {
-  g_debug("Flaky (0x%x) increment (%d, %d) linear idx=%d", self, dim, delta, self->idx_linear);
+  CONFESS("Flaky (0x%x) increment (%d, %d) linear idx=%d", self, dim, delta, self->idx_linear);
   struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
   iterator_increment(flaky_iterator->flakand, dim, delta);
 }

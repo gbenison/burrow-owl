@@ -33,6 +33,7 @@
 #include <glib.h>
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
+#include "debug.h"
 
 /* for debugging purposes; make value available */
 static const gdouble datum_unknown_value_substitute=DATUM_UNKNOWN_VALUE_SUBSTITUTE;
@@ -433,28 +434,10 @@ hos_spectrum_finalize(GObject *object)
 
 }
 
-#ifdef G_LOG_DOMAIN
-#undef G_LOG_DOMAIN
-#endif
-#define G_LOG_DOMAIN "spectrum.c"
-
-static void
-null_log_handler(const gchar *log_domain,
-		 GLogLevelFlags log_level,
-		 const gchar *message,
-		 gpointer user_data)
-{
-  /* do nothing, i.e. suppress debugging output */
-}
-
-
 static void
 hos_spectrum_class_init (HosSpectrumClass *klass)
 {
   GObjectClass *gobject_class;
-
-  if (g_getenv("DEBUG") == NULL)
-    g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG | G_LOG_LEVEL_MESSAGE, null_log_handler, NULL);
 
   g_assert(DATUM_UNKNOWN_VALUE != DATUM_UNKNOWN_VALUE_SUBSTITUTE);
 
@@ -464,8 +447,6 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
   gobject_class->get_property = hos_spectrum_get_property;
 
   gobject_class->finalize = hos_spectrum_finalize;
-
-/* here is where you would set klass->member etc. */
 
   spectrum_signals[READY] =
     g_signal_new ("ready",
@@ -705,7 +686,7 @@ spectrum_traverse_internal(HosSpectrum* self)
       /* outer loop through all spectrum points */
       while (1)
 	{
-	  g_debug("Iterator 0x%x, considering point %d", iterator, (int)(outer_dest - buf));
+	  CONFESS("Iterator 0x%x, considering point %d", iterator, (int)(outer_dest - buf));
 
 	  /* inner loop -- tickle remaining points */
 	  static const gboolean lookahead_enable = TRUE;
@@ -729,20 +710,17 @@ spectrum_traverse_internal(HosSpectrum* self)
 			  if ((n % lookahead_probe_interval) == 0)
 			    if (iterator_probe(iterator))
 			      {
-				g_debug("Iterator 0x%x has become unblocked, stopping tickles", iterator);
+				CONFESS("Iterator 0x%x has become unblocked, stopping tickles", iterator);
 				break;
 			      }
 			}
-		      g_debug("Iterator 0x%x has reached the end of its tickles", iterator);
+		      CONFESS("Iterator 0x%x has reached the end of its tickles", iterator);
 		    }
 		  
-		  g_debug("Iterator 0x%x, forcing point %d", iterator, (int)(outer_dest - buf));
+		  CONFESS("Iterator 0x%x, forcing point %d", iterator, (int)(outer_dest - buf));
 		  iterator_restore(iterator);
 		  if (!ALREADY_INSTANTIATED(*outer_dest))
-		    {
-		      g_debug("(Waiting)");
-		      *outer_dest = iterator_wait(iterator);
-		    }
+		    *outer_dest = iterator_wait(iterator);
 		}
 	    }
 	  
@@ -1035,7 +1013,7 @@ spectrum_construct_iterator(HosSpectrum *self)
 void
 iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
 {
-  g_debug("Iterator 0x%x: incrementing dim %d by %d (linear_idx = %d)", self, dim, delta, self->idx_linear);
+  CONFESS_FULL(2, "Iterator 0x%x: incrementing dim %d by %d (linear_idx = %d)", self, dim, delta, self->idx_linear);
 
   self->idx[dim] += delta;
 
@@ -1080,7 +1058,7 @@ iterator_mark(struct spectrum_iterator *self)
     self->save_idx[i] = self->idx[i];
   if (self->mark)
     (self->mark)(self);
-  g_debug("Iterator 0x%x: marked at linear_idx %d", self, self->idx_linear);
+  CONFESS("Iterator 0x%x: marked at linear_idx %d", self, self->idx_linear);
 }
 
 /*
@@ -1147,7 +1125,7 @@ iterator_restore(struct spectrum_iterator *self)
 gdouble
 iterator_wait(struct spectrum_iterator *self)
 {
-  g_debug("Iterator 0x%x: waiting at linear_idx %d", self, self->idx_linear);
+  CONFESS("Iterator 0x%x: waiting at linear_idx %d", self, self->idx_linear);
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
     {

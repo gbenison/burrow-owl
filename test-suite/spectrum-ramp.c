@@ -1,6 +1,7 @@
 
 #include "spectrum-ramp.h"
 #include "spectrum_priv.h"
+#include "debug.h"
 
 
 static struct spectrum_iterator* spectrum_ramp_construct_iterator (HosSpectrum *self);
@@ -10,27 +11,10 @@ static gdouble                   spectrum_ramp_wait       (struct spectrum_itera
 
 G_DEFINE_TYPE (HosSpectrumRamp, hos_spectrum_ramp, HOS_TYPE_SPECTRUM)
 
-#ifdef G_LOG_DOMAIN
-#undef G_LOG_DOMAIN
-#endif
-#define G_LOG_DOMAIN "spectrum-ramp.c"
-
-static void
-null_log_handler(const gchar *log_domain,
-		 GLogLevelFlags log_level,
-		 const gchar *message,
-		 gpointer user_data)
-{
-  /* do nothing, i.e. suppress debugging output */
-}
-
 static void
 hos_spectrum_ramp_class_init (HosSpectrumRampClass *klass)
 {
   HosSpectrumClass* spectrum_class = HOS_SPECTRUM_CLASS(klass);
-
-  if (g_getenv("DEBUG") == NULL)
-    g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG | G_LOG_LEVEL_MESSAGE, null_log_handler, NULL);
 
   spectrum_class->construct_iterator = spectrum_ramp_construct_iterator;
   spectrum_class->free_iterator      = spectrum_ramp_free_iterator;
@@ -79,7 +63,7 @@ spectrum_ramp_tickle(struct spectrum_iterator* self, gdouble *dest)
 static gdouble
 spectrum_ramp_wait(struct spectrum_iterator* self)
 {
-  g_debug("0x%x: wait idx %d", self, self->idx_linear);
+  CONFESS("0x%x: wait idx %d", self, self->idx_linear);
   return (gdouble)(*(self->idx));
 }
 
