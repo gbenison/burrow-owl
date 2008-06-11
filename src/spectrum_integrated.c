@@ -20,6 +20,7 @@
 #include "spectrum_integrated.h"
 #include "spectrum_priv.h"
 #include "utils.h"
+#include "debug.h"
 
 #define SPECTRUM_INTEGRATED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_INTEGRATED, HosSpectrumIntegratedPrivate))
 #define SPECTRUM_INTEGRATED_PRIVATE(o, field) ((SPECTRUM_INTEGRATED_GET_PRIVATE(o))->field)
@@ -170,6 +171,7 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
     {
       g_assert(integrated_iterator->integrand->idx[0] == i);
       gdouble delta = iterator_wait(integrated_iterator->integrand);
+      CONFESS("Integrated interator 0x%x waited at point %d, got value %.2f", self, i, delta);
       sum += delta;
       iterator_increment(integrated_iterator->integrand, 0, 1);
     }

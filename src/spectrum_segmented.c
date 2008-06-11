@@ -165,6 +165,10 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
   gint segid = segmented_iterator->segid;
   gint pt    = segmented_iterator->pt;
 
+  /* ensure segid and pt are sync'd */
+  if (segid < 0)
+    segmented_iterator->class->idx2segment(segmented_iterator->traversal_env, self->idx, &segid, &pt);
+
   g_assert(segmented_acquire_slot(segmented_iterator, segid, TRUE) == TRUE);
   return segmented_iterator->last_slot->buf[pt];
 }
@@ -252,6 +256,10 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
 
   gint segid = segmented_iterator->segid;
   gint pt    = segmented_iterator->pt;
+
+  /*ensure segid and pt are sync'd */
+  if (segid < 0)
+    segmented_iterator->class->idx2segment(segmented_iterator->traversal_env, self->idx, &segid, &pt);
 
   gboolean result = segmented_acquire_slot (segmented_iterator, segid, FALSE);
 
@@ -437,6 +445,10 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
   spectrum_iterator->wait       = spectrum_segmented_wait;
   spectrum_iterator->probe      = spectrum_segmented_probe;
   spectrum_iterator->increment  = spectrum_segmented_increment;
+
+  /* ensure invalid values for result->segid so that sync is triggered */
+  result->segid = -1;
+  result->pt    = -1;
 
   return (struct spectrum_iterator*)result;
 }
