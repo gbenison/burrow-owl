@@ -1,3 +1,5 @@
 
 - throw exceptions when bmrb files fail to read
+- asynchronous traversal: can 'ready' signal just be sent from another thread,
+  rather than using the 'ready queue' mechanism?
 
