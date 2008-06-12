@@ -44,12 +44,28 @@ struct _HosSpectrumUnfoldedPrivate
   gboolean negate_first;
 };
 
-static gdouble  spectrum_unfolded_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_unfolded_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+struct unfolded_iterator
+{
+  struct spectrum_iterator parent;
+
+  struct spectrum_iterator    *base;
+  HosSpectrumUnfoldedPrivate  *priv;
+
+  gboolean negated;
+};
+
+static gboolean spectrum_unfolded_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_unfolded_mark       (struct spectrum_iterator* self);
+static void     spectrum_unfolded_restore    (struct spectrum_iterator* self);
+static gdouble  spectrum_unfolded_wait       (struct spectrum_iterator* self);
+static gboolean spectrum_unfolded_probe      (struct spectrum_iterator* self);
+static void     spectrum_unfolded_increment  (struct spectrum_iterator* self, guint dim, gint delta);
+
+static struct spectrum_iterator* spectrum_unfolded_construct_iterator (HosSpectrum *self);
+static void                      spectrum_unfolded_free_iterator      (struct spectrum_iterator* self);
 
 static void   spectrum_unfolded_dispose  (GObject *object);
 static void   spectrum_unfolded_finalize (GObject *object);
-
 
 G_DEFINE_TYPE (HosSpectrumUnfolded, hos_spectrum_unfolded, HOS_TYPE_SPECTRUM)
 
@@ -62,8 +78,8 @@ hos_spectrum_unfolded_class_init(HosSpectrumUnfoldedClass *klass)
   gobject_class->dispose     = spectrum_unfolded_dispose;
   gobject_class->finalize    = spectrum_unfolded_finalize;
 
-  spectrum_class->accumulate = spectrum_unfolded_accumulate;
-  spectrum_class->tickle     = spectrum_unfolded_tickle;
+  spectrum_class->construct_iterator = spectrum_unfolded_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_unfolded_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumUnfoldedPrivate));
 }
@@ -73,54 +89,6 @@ hos_spectrum_unfolded_init(HosSpectrumUnfolded* self)
 {
   /* FIXME */
   /* anything? */
-}
-
-static gdouble
-spectrum_unfolded_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
-{
-  HosSpectrumUnfoldedPrivate *priv = SPECTRUM_UNFOLDED_GET_PRIVATE(self);
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[i] = idx[i];
-
-  gboolean negated = FALSE;
-  if (priv->negate_on_fold)
-    {
-      gboolean is_even_segment = (((idx[priv->base_idx] / priv->base_np) % 2) == 0);
-      if (is_even_segment && priv->negate_first)   negated = TRUE;
-      if (!is_even_segment && !priv->negate_first) negated = TRUE;
-    }
-
-  new_idx[priv->base_idx] %= priv->base_np;
-
-  gdouble result = spectrum_accumulate(priv->base, root, new_idx);
-  if (negated) result = -result;
-  return result;
-}
-
-static gboolean
-spectrum_unfolded_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
-{
-  HosSpectrumUnfoldedPrivate *priv = SPECTRUM_UNFOLDED_GET_PRIVATE(self);
-  guint new_idx[priv->base_ndim];
-  gint i;
-  for (i = 0; i < priv->base_ndim; ++i)
-    new_idx[i] = idx[i];
-
-  gboolean negated = FALSE;
-  if (priv->negate_on_fold)
-    {
-      gboolean is_even_segment = (((idx[priv->base_idx] / priv->base_np) % 2) == 0);
-      if (is_even_segment && priv->negate_first)   negated = TRUE;
-      if (!is_even_segment && !priv->negate_first) negated = TRUE;
-    }
-
-  new_idx[priv->base_idx] %= priv->base_np;
-
-  gboolean result = spectrum_tickle(priv->base, root, new_idx, dest);
-  if (result && negated) { *dest = -*dest; }
-  return result;
 }
 
 static void
@@ -174,5 +142,107 @@ spectrum_unfold(HosSpectrum* self,
   return result;
 }
 
+static gboolean
+spectrum_unfolded_probe(struct spectrum_iterator *self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+  return iterator_probe(unfolded_iterator->base);
+}
+
+static gboolean
+spectrum_unfolded_tickle(struct spectrum_iterator* self, gdouble* dest)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+
+  gboolean result = iterator_tickle(unfolded_iterator->base, dest);
+
+  if (result && unfolded_iterator->negated)
+    *dest = -*dest;
+
+  return result;
+}
+
+static void
+spectrum_unfolded_mark(struct spectrum_iterator* self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+  iterator_mark(unfolded_iterator->base);
+}
+
+static void
+spectrum_unfolded_restore(struct spectrum_iterator* self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+  iterator_restore(unfolded_iterator->base);
+}
+
+static gdouble
+spectrum_unfolded_wait(struct spectrum_iterator* self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+  gdouble result = iterator_wait(unfolded_iterator->base);
+  if (unfolded_iterator->negated)
+    result = -result;
+  return result;
+}
+
+static void
+spectrum_unfolded_increment(struct spectrum_iterator* self, guint dim, gint delta)
+{
+  struct unfolded_iterator   *unfolded_iterator = (struct unfolded_iterator*)self;
+  HosSpectrumUnfoldedPrivate *priv = unfolded_iterator->priv;
+  struct spectrum_iterator   *base = unfolded_iterator->base;
+
+  if (dim != priv->base_idx)
+    iterator_increment(base, dim, delta);
+  else
+    {
+      /* note: self->idx has already been updated */
+      gboolean flip = FALSE;
+
+      gint old_idx = base->idx[priv->base_idx];
+      while ((old_idx + delta) < 0)
+	{
+	  delta += priv->base_np;
+	  flip   = !flip;
+	}
+
+      while ((old_idx + delta) >= priv->base_np)
+	{
+	  delta -= priv->base_np;
+	  flip   = !flip;
+	}
+
+      iterator_increment(base, dim, delta);
+
+      if (flip && priv->negate_on_fold)
+	unfolded_iterator->negated = !unfolded_iterator->negated;
+    }
+}
+
+static struct spectrum_iterator*
+spectrum_unfolded_construct_iterator(HosSpectrum *self)
+{
+  struct unfolded_iterator *result            = g_new0(struct unfolded_iterator, 1);
+  struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_UNFOLDED_GET_PRIVATE(self);
+  result->base = spectrum_construct_iterator(result->priv->base);
+
+  spectrum_iterator->tickle     = spectrum_unfolded_tickle;
+  spectrum_iterator->wait       = spectrum_unfolded_wait;
+  spectrum_iterator->increment  = spectrum_unfolded_increment;
+  spectrum_iterator->mark       = spectrum_unfolded_mark;
+  spectrum_iterator->restore    = spectrum_unfolded_restore;
+  spectrum_iterator->probe      = spectrum_unfolded_probe;
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_unfolded_free_iterator(struct spectrum_iterator* self)
+{
+  struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
+}
 
 

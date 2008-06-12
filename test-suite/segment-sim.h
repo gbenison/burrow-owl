@@ -25,9 +25,6 @@ struct _HosSpectrumSegmentSim
 
 gdouble segment_sim_predict (HosSpectrumSegmentSim* self, guint idx);
 
-extern const guint segment_sim_segment_size;
-extern const guint segment_sim_np;
-
 G_END_DECLS
 
 #endif /* not HAVE_SEGMENT_SIM_H */

@@ -19,19 +19,31 @@
 
 #include "spectrum_priv.h"
 #include "spectrum-flaky.h"
+#include "debug.h"
 
-static gdouble   spectrum_flaky_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean  spectrum_flaky_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+static gdouble   spectrum_flaky_wait   (struct spectrum_iterator* self);
+static gboolean  spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest);
+
+static struct spectrum_iterator* spectrum_flaky_construct_iterator (HosSpectrum *self);
+static void                      spectrum_flaky_free_iterator      (struct spectrum_iterator* self);
 
 G_DEFINE_TYPE (HosSpectrumFlaky, hos_spectrum_flaky, HOS_TYPE_SPECTRUM)
+
+struct flaky_iterator
+{
+  struct spectrum_iterator  parent;
+
+  gdouble flake_factor;
+  struct spectrum_iterator* flakand;
+};
 
 static void
 hos_spectrum_flaky_class_init(HosSpectrumFlakyClass *klass)
 {
   HosSpectrumClass* spectrum_class = HOS_SPECTRUM_CLASS(klass);
 
-  spectrum_class->tickle     = spectrum_flaky_tickle;
-  spectrum_class->accumulate = spectrum_flaky_accumulate;
+  spectrum_class->construct_iterator = spectrum_flaky_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_flaky_free_iterator;
 }
 
 static void
@@ -40,18 +52,49 @@ hos_spectrum_flaky_init(HosSpectrumFlaky *self)
 }
 
 static gdouble
-spectrum_flaky_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx)
+spectrum_flaky_wait (struct spectrum_iterator* self)
 {
-  return spectrum_accumulate(HOS_SPECTRUM_FLAKY(self)->flakand, root, idx);
+  struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
+
+  gdouble result = iterator_wait(flaky_iterator->flakand);
+  g_assert(self->idx[0] == flaky_iterator->flakand->idx[0]);
+
+  return result;
 }
 
 static gboolean
-spectrum_flaky_tickle (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+spectrum_flaky_tickle (struct spectrum_iterator* self, gdouble *dest)
 {
-  if (g_random_double_range(0, 1.0) < HOS_SPECTRUM_FLAKY(self)->flake_factor)
-    return spectrum_tickle(HOS_SPECTRUM_FLAKY(self)->flakand, root, idx, dest);
+  struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
+
+  if (self->idx_linear != flaky_iterator->flakand->idx_linear)
+    CONFESS("Flaky 0x%x: idx DISCREPENCY self = %d, flakand = %d", self, self->idx_linear, flaky_iterator->flakand->idx_linear);
+  g_assert(self->idx[0] == flaky_iterator->flakand->idx[0]);
+
+  if (g_random_double_range(0, 1.0) < flaky_iterator->flake_factor)
+    return iterator_tickle(flaky_iterator->flakand, dest);
   else
     return FALSE;
+}
+
+static void
+spectrum_flaky_increment(struct spectrum_iterator* self, guint dim, gint delta)
+{
+  CONFESS("Flaky (0x%x) increment (%d, %d) linear idx=%d", self, dim, delta, self->idx_linear);
+  struct flaky_iterator* flaky_iterator = (struct flaky_iterator*)self;
+  iterator_increment(flaky_iterator->flakand, dim, delta);
+}
+
+static void
+spectrum_flaky_mark(struct spectrum_iterator* self)
+{
+  iterator_mark(((struct flaky_iterator*)self)->flakand);
+}
+
+static void
+spectrum_flaky_restore(struct spectrum_iterator* self)
+{
+  iterator_restore(((struct flaky_iterator*)self)->flakand);
 }
 
 /*
@@ -74,3 +117,27 @@ spectrum_flakify(HosSpectrum *self, gdouble flake_factor)
   return result;
 }
 
+static struct spectrum_iterator*
+spectrum_flaky_construct_iterator(HosSpectrum *self)
+{
+  struct flaky_iterator    *result = g_new0(struct flaky_iterator, 1);
+  struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  spectrum_iterator->tickle     = spectrum_flaky_tickle;
+  spectrum_iterator->wait       = spectrum_flaky_wait;
+  spectrum_iterator->increment  = spectrum_flaky_increment;
+  spectrum_iterator->mark       = spectrum_flaky_mark;
+  spectrum_iterator->restore    = spectrum_flaky_restore;
+
+  result->flake_factor  = HOS_SPECTRUM_FLAKY(self)->flake_factor;
+  result->flakand       = spectrum_construct_iterator(HOS_SPECTRUM_FLAKY(self)->flakand);
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_flaky_free_iterator(struct spectrum_iterator* self)
+{
+  iterator_free(((struct flaky_iterator*)self)->flakand);
+  g_free(self);
+}

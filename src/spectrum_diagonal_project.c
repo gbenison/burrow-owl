@@ -17,7 +17,6 @@
  *
  */
 
-#include <string.h>
 #include "burrow/spectrum.h"
 #include "spectrum_priv.h"
 #include "utils.h"
@@ -42,8 +41,22 @@ struct _HosSpectrumDiagonalPrivate
   guint *base_idx;
 };
 
-static gdouble  spectrum_diagonal_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_diagonal_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+struct diagonal_iterator
+{
+  struct spectrum_iterator    parent;
+  HosSpectrumDiagonalPrivate *priv;
+  struct spectrum_iterator   *base;
+};
+
+static void      spectrum_diagonal_increment (struct spectrum_iterator *self, guint dim, gint delta);
+static gboolean  spectrum_diagonal_tickle    (struct spectrum_iterator *self, gdouble *dest);
+static gdouble   spectrum_diagonal_wait      (struct spectrum_iterator *self);
+static void      spectrum_diagonal_mark      (struct spectrum_iterator *self);
+static void      spectrum_diagonal_restore   (struct spectrum_iterator *self);
+static gboolean  spectrum_diagonal_probe     (struct spectrum_iterator *self);
+
+static struct spectrum_iterator* spectrum_diagonal_construct_iterator (HosSpectrum *self);
+static void                      spectrum_diagonal_free_iterator      (struct spectrum_iterator *self);
 
 static void   spectrum_diagonal_dispose  (GObject *object);
 static void   spectrum_diagonal_finalize (GObject *object);
@@ -60,8 +73,8 @@ hos_spectrum_diagonal_class_init(HosSpectrumDiagonalClass *klass)
   gobject_class->dispose     = spectrum_diagonal_dispose;
   gobject_class->finalize    = spectrum_diagonal_finalize;
 
-  spectrum_class->accumulate = spectrum_diagonal_accumulate;
-  spectrum_class->tickle     = spectrum_diagonal_tickle;
+  spectrum_class->construct_iterator = spectrum_diagonal_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_diagonal_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumDiagonalPrivate));
 }
@@ -71,26 +84,6 @@ hos_spectrum_diagonal_init(HosSpectrumDiagonal* self)
 {
   /* FIXME */
   /* anything? */
-}
-
-static gdouble
-spectrum_diagonal_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
-{
-  HosSpectrumDiagonalPrivate *priv = SPECTRUM_DIAGONAL_GET_PRIVATE(self);
-  memcpy(priv->base_idx + 1, idx, (priv->base_ndim - 1) * sizeof(guint));
-  priv->base_idx[1] += priv->dim_1_offset;
-  priv->base_idx[0] = priv->schedule[idx[0]];
-  return spectrum_accumulate(priv->base, root, priv->base_idx);
-}
-
-static gboolean
-spectrum_diagonal_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
-{
-  HosSpectrumDiagonalPrivate *priv = SPECTRUM_DIAGONAL_GET_PRIVATE(self);
-  memcpy(priv->base_idx + 1, idx, (priv->base_ndim - 1) * sizeof(guint));
-  priv->base_idx[1] += priv->dim_1_offset;
-  priv->base_idx[0] = priv->schedule[idx[0]];
-  return spectrum_tickle(priv->base, root, priv->base_idx, dest);
 }
 
 static void
@@ -168,3 +161,86 @@ spectrum_diagonal_project(HosSpectrum *self)
   return result;
 
 }
+
+static void
+spectrum_diagonal_increment(struct spectrum_iterator *self, guint dim, gint delta)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+
+  iterator_increment(diagonal_iterator->base, dim + 1, delta);
+
+  if (dim == 0)
+    {
+      gint idx0 = self->idx[0];
+      gint delta0 = diagonal_iterator->priv->schedule[idx0]
+	- diagonal_iterator->priv->schedule[idx0 - delta];
+      iterator_increment(diagonal_iterator->base, 0, delta0);
+    }
+}
+
+static gboolean
+spectrum_diagonal_probe(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  return iterator_probe(diagonal_iterator->base);
+}
+
+static gboolean
+spectrum_diagonal_tickle(struct spectrum_iterator *self, gdouble *dest)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  return iterator_tickle(diagonal_iterator->base, dest);
+}
+
+static gdouble
+spectrum_diagonal_wait(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  return iterator_wait(diagonal_iterator->base);
+}
+
+static void
+spectrum_diagonal_mark(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  iterator_mark(diagonal_iterator->base);
+}
+
+static void
+spectrum_diagonal_restore(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  iterator_restore(diagonal_iterator->base);
+}
+
+static struct spectrum_iterator*
+spectrum_diagonal_construct_iterator (HosSpectrum *self)
+{
+  struct diagonal_iterator *result           = g_new0(struct diagonal_iterator, 1);
+  struct spectrum_iterator *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_DIAGONAL_GET_PRIVATE(self);
+  result->base = spectrum_construct_iterator(result->priv->base);
+
+  iterator_increment(result->base, 0, result->priv->schedule[0]);
+  iterator_increment(result->base, 1, result->priv->dim_1_offset);
+
+  spectrum_iterator->tickle     = spectrum_diagonal_tickle;
+  spectrum_iterator->wait       = spectrum_diagonal_wait;
+  spectrum_iterator->increment  = spectrum_diagonal_increment;
+  spectrum_iterator->mark       = spectrum_diagonal_mark;
+  spectrum_iterator->restore    = spectrum_diagonal_restore;
+  spectrum_iterator->probe      = spectrum_diagonal_probe;
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_diagonal_free_iterator(struct spectrum_iterator *self)
+{
+  struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
+  iterator_free(diagonal_iterator->base);
+  g_free(self);
+}
+
+

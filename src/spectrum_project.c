@@ -36,12 +36,26 @@ struct _HosSpectrumProjectedPrivate
 {
   HosSpectrum *base;
   
-  guint  base_ndim;
-  guint *base_idx;
+  guint offset;
 };
 
-static gdouble  spectrum_projected_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_projected_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+struct projected_iterator
+{
+  struct spectrum_iterator parent;
+
+  struct spectrum_iterator    *base;
+  HosSpectrumProjectedPrivate *priv;
+};
+
+static gboolean spectrum_projected_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_projected_mark       (struct spectrum_iterator* self);
+static void     spectrum_projected_restore    (struct spectrum_iterator* self);
+static gdouble  spectrum_projected_wait       (struct spectrum_iterator* self);
+static gboolean spectrum_projected_probe      (struct spectrum_iterator* self);
+static void     spectrum_projected_increment  (struct spectrum_iterator* self, guint dim, gint delta);
+
+static struct spectrum_iterator* spectrum_projected_construct_iterator (HosSpectrum *self);
+static void                      spectrum_projected_free_iterator      (struct spectrum_iterator* self);
 
 static void   spectrum_projected_dispose  (GObject *object);
 static void   spectrum_projected_finalize (GObject *object);
@@ -58,8 +72,8 @@ hos_spectrum_projected_class_init(HosSpectrumProjectedClass *klass)
   gobject_class->dispose     = spectrum_projected_dispose;
   gobject_class->finalize    = spectrum_projected_finalize;
 
-  spectrum_class->accumulate = spectrum_projected_accumulate;
-  spectrum_class->tickle     = spectrum_projected_tickle;
+  spectrum_class->construct_iterator = spectrum_projected_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_projected_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumProjectedPrivate));
 }
@@ -72,19 +86,44 @@ hos_spectrum_projected_init(HosSpectrumProjected* self)
 }
 
 static gdouble
-spectrum_projected_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
+spectrum_projected_wait(struct spectrum_iterator* self)
 {
-  HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(self);
-  memcpy(priv->base_idx + 1, idx, (priv->base_ndim - 1) * sizeof(guint));
-  return spectrum_accumulate(priv->base, root, priv->base_idx);
+  return iterator_wait(((struct projected_iterator*)self)->base);
 }
 
 static gboolean
-spectrum_projected_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+spectrum_projected_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
-  HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(self);
-  memcpy(priv->base_idx + 1, idx, (priv->base_ndim - 1) * sizeof(guint));
-  return spectrum_tickle(priv->base, root, priv->base_idx, dest);
+  return iterator_tickle(((struct projected_iterator*)self)->base, dest);
+}
+
+static void
+spectrum_projected_increment(struct spectrum_iterator* self, guint dim, gint delta)
+{
+  HosSpectrumProjectedPrivate *priv = ((struct projected_iterator*)self)->priv;
+  struct spectrum_iterator    *base = ((struct projected_iterator*)self)->base;
+
+  iterator_increment(base, dim + 1, delta);
+}
+
+static void
+spectrum_projected_mark(struct spectrum_iterator* self)
+{
+  struct projected_iterator* projected_iterator = (struct projected_iterator*)self;
+  iterator_mark(projected_iterator->base);
+}
+
+static void
+spectrum_projected_restore(struct spectrum_iterator* self)
+{
+  struct projected_iterator* projected_iterator = (struct projected_iterator*)self;
+  iterator_restore(projected_iterator->base);
+}
+
+static gboolean
+spectrum_projected_probe(struct spectrum_iterator* self)
+{
+  return iterator_probe(((struct projected_iterator*)self)->base);
 }
 
 static void
@@ -98,8 +137,6 @@ static void
 spectrum_projected_finalize(GObject *object)
 {
   HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(object);
-
-  g_free(priv->base_idx);
 
   G_OBJECT_CLASS(hos_spectrum_projected_parent_class)->finalize (object);
 }
@@ -121,13 +158,39 @@ spectrum_project(HosSpectrum *self, guint idx)
 
   HosSpectrumProjectedPrivate *priv = SPECTRUM_PROJECTED_GET_PRIVATE(result);
 
-  priv->base      = self;
-  priv->base_ndim = spectrum_ndim(self);
-  priv->base_idx  = g_new(guint, priv->base_ndim);
-  priv->base_idx[0] = idx;
+  priv->base   = self;
+  priv->offset = idx;
 
   spectrum_set_dimensions(result, dimensions);
 
   return result;
 
+}
+
+static struct spectrum_iterator*
+spectrum_projected_construct_iterator(HosSpectrum *self)
+{
+  struct projected_iterator *result            = g_new0(struct projected_iterator, 1);
+  struct spectrum_iterator  *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_PROJECTED_GET_PRIVATE(self);
+  result->base = spectrum_construct_iterator(result->priv->base);
+
+  iterator_increment(result->base, 0, result->priv->offset);
+
+  spectrum_iterator->tickle     = spectrum_projected_tickle;
+  spectrum_iterator->wait       = spectrum_projected_wait;
+  spectrum_iterator->increment  = spectrum_projected_increment;
+  spectrum_iterator->mark       = spectrum_projected_mark;
+  spectrum_iterator->restore    = spectrum_projected_restore;
+  spectrum_iterator->probe      = spectrum_projected_probe;
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_projected_free_iterator(struct spectrum_iterator* self)
+{
+  iterator_free(((struct projected_iterator*)self)->base);
+  g_free(self);
 }

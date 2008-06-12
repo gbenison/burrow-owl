@@ -62,7 +62,6 @@ static skip_node_t* insert_inner  (skip_list_t* list, skip_node_t* node, gint ke
 static skip_node_t* link_new_node (skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down);
 static void         print_inner   (skip_node_t* node);
 static gpointer     pop_inner     (skip_list_t* list, skip_node_t* node, gint key);
-static gpointer     lookup_inner  (skip_node_t* node, gint key);
 
 static skip_node_t*
 link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
@@ -78,7 +77,7 @@ link_new_node(skip_list_t* list, skip_node_t* base, gint key, skip_node_t* down)
   result->key  = key;
   result->down = down;
 
-  g_atomic_pointer_set(&base->next, result);
+  base->next = result;
 
   return result;
 }
@@ -123,6 +122,7 @@ insert_inner(skip_list_t* list, skip_node_t* node, gint key, gpointer data)
 {
   if (node == NULL) return NULL;
 
+  g_assert(key >= 0);
   g_assert(node->key < key);
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
@@ -199,6 +199,29 @@ skip_list_pop_first(skip_list_t* list)
   skip_list_pop(list, result);
 
   ASSERT_CONSISTENT(list);
+
+  return result;
+}
+
+/*
+ * Returns: the key of the second column in 'list', or -1 if
+ * 'list' has only one column (e.g. is empty).
+ * The second column of 'list' is deleted.
+ */
+gint
+skip_list_peek_first(skip_list_t* list)
+{
+  skip_node_t* node = list->nodes;
+  g_assert(node->key == -1);
+
+  /* Find bottom row */
+  while (node->down != NULL)
+    node = node->down;
+
+  if (node->next == NULL)
+    return -1;
+
+  gint result = node->next->key;
 
   return result;
 }
@@ -281,20 +304,54 @@ skip_list_lookup(skip_list_t* list, gint key)
 {
   if (list == NULL)
     return NULL;
-  return lookup_inner(list->nodes, key);
+
+  skip_node_t* node = list->nodes;
+  skip_node_t *next, *down;
+
+  while (1)
+    {
+      next = node->next;
+      
+      if ((next != NULL) && (next->key <= key))
+	node = next;
+      else
+	{
+	  down = node->down;
+	  if (down != NULL)
+	    node = down;
+	  else
+	    return (node->key == key) ? node->data : NULL;
+	}
+    }
 }
 
-static gpointer
-lookup_inner(skip_node_t* node, gint key)
+/*
+ * Does 'list' contain 'key'?
+ */
+gboolean
+skip_list_has_key(skip_list_t* list, gint key)
 {
-  skip_node_t* down = node->down;
-  skip_node_t* next = node->next;
+  if (list == NULL)
+    return FALSE;
 
-  if ((next != NULL) && (next->key <= key))
-    return lookup_inner(next, key);
-  else if (down != NULL)
-    return lookup_inner(down, key);
-  else return (node->key == key) ? node->data : NULL;
+  skip_node_t* node = list->nodes;
+  skip_node_t *next, *down;
+
+  while (1)
+    {
+      next = node->next;
+      
+      if ((next != NULL) && (next->key <= key))
+	node = next;
+      else
+	{
+	  down = node->down;
+	  if (down != NULL)
+	    node = down;
+	  else
+	    return (node->key == key) ? TRUE : FALSE;
+	}
+    }
 }
 
 gboolean
@@ -346,19 +403,19 @@ pop_inner(skip_list_t* list, skip_node_t* node, gint key)
   while ((node->next != NULL) && (node->next->key < key))
     node = node->next;
 
-  skip_node_t* down = g_atomic_pointer_get(&node->down);
+  skip_node_t* down = node->down;
   gpointer result = NULL;
 
   if ((node->next != NULL) && (node->next->key == key))
     {
       result = node->next->data;
       skip_node_t* dead = node->next;
-      g_atomic_pointer_set(&node->next,
-			   g_atomic_pointer_get(&node->next->next));
-      g_atomic_pointer_set(&dead->next, NULL);
-      g_atomic_pointer_set(&dead->down, NULL);
-      g_atomic_pointer_set(&dead->data, NULL);
-      g_atomic_int_set(&dead->key, -1);
+
+      node->next = node->next->next;
+      dead->next = NULL;
+      dead->down = NULL;
+      dead->data = NULL;
+      dead->key = -1;
       g_ptr_array_add(list->free_list, dead);
     }
 

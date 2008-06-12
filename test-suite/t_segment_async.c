@@ -22,20 +22,21 @@ main()
       spectrum_traverse(readers[i]);
     }
 
+  gint tick = 0;
   while (1)
     {
       g_usleep(500000);
+      ++tick;
       guint n_remaining = n_readers;
       for (i = 0; i < n_readers; ++i)
 	if (readers[i]->buf != NULL) --n_remaining;
-      g_printf("(%d) ", n_remaining);
-      spectrum_segmented_test_print_cache(HOS_SPECTRUM_SEGMENTED(spec_sim));
-      spectrum_segmented_report_request_status(HOS_SPECTRUM_SEGMENTED(spec_sim));
+      g_message("(%3d) %3d remaining", tick, n_remaining);
       if (n_remaining == 0)
 	break;
     }
 
   /* validate readers */
+  gint segment_sim_np = spectrum_np(spec_sim, 0);
   gdouble predicted = 
     ((gdouble)segment_sim_np * (gdouble)(segment_sim_np - 1)) / 2;
   for (i = 0; i < n_readers; ++i)

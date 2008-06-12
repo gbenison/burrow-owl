@@ -37,8 +37,24 @@ struct _HosSpectrumExtractedPrivate
   guint offset;
 };
 
-static gdouble  spectrum_extracted_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-static gboolean spectrum_extracted_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
+struct extracted_iterator
+{
+  struct spectrum_iterator parent;
+
+  struct spectrum_iterator    *base;
+  HosSpectrumExtractedPrivate *priv;
+};
+
+static gdouble  spectrum_extracted_wait       (struct spectrum_iterator* self);
+static gboolean spectrum_extracted_tickle     (struct spectrum_iterator* self, gdouble* dest);
+static void     spectrum_extracted_increment  (struct spectrum_iterator* self, guint dim, gint delta);
+static void     spectrum_extracted_mark       (struct spectrum_iterator* self);
+static void     spectrum_extracted_restore    (struct spectrum_iterator* self);
+static gboolean spectrum_extracted_probe      (struct spectrum_iterator* self);
+
+static struct spectrum_iterator* spectrum_extracted_construct_iterator (HosSpectrum *self);
+static void                      spectrum_extracted_free_iterator      (struct spectrum_iterator* self);
+
 
 static void   spectrum_extracted_dispose  (GObject *object);
 static void   spectrum_extracted_finalize (GObject *object);
@@ -55,8 +71,8 @@ hos_spectrum_extracted_class_init(HosSpectrumExtractedClass *klass)
   gobject_class->dispose     = spectrum_extracted_dispose;
   gobject_class->finalize    = spectrum_extracted_finalize;
 
-  spectrum_class->accumulate = spectrum_extracted_accumulate;
-  spectrum_class->tickle     = spectrum_extracted_tickle;
+  spectrum_class->construct_iterator = spectrum_extracted_construct_iterator;
+  spectrum_class->free_iterator      = spectrum_extracted_free_iterator;
 
   g_type_class_add_private(gobject_class, sizeof(HosSpectrumExtractedPrivate));
 }
@@ -69,23 +85,70 @@ hos_spectrum_extracted_init(HosSpectrumExtracted* self)
 }
 
 static gdouble
-spectrum_extracted_accumulate(HosSpectrum* self, HosSpectrum* root, guint* idx)
+spectrum_extracted_wait(struct spectrum_iterator* self)
 {
-  HosSpectrumExtractedPrivate *priv = SPECTRUM_EXTRACTED_GET_PRIVATE(self);
-  idx[0] += priv->offset;
-  gdouble result = spectrum_accumulate(priv->base, root, idx);
-  idx[0] -= priv->offset;
-  return result;
+  return iterator_wait(((struct extracted_iterator*)self)->base);
 }
 
 static gboolean
-spectrum_extracted_tickle(HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest)
+spectrum_extracted_tickle(struct spectrum_iterator* self, gdouble* dest)
 {
-  HosSpectrumExtractedPrivate *priv = SPECTRUM_EXTRACTED_GET_PRIVATE(self);
-  idx[0] += priv->offset;
-  gboolean result = spectrum_tickle(priv->base, root, idx, dest);
-  idx[0] -= priv->offset;
-  return result;
+  return iterator_tickle(((struct extracted_iterator*)self)->base, dest);
+}
+
+static void
+spectrum_extracted_increment(struct spectrum_iterator* self, guint dim, gint delta)
+{
+  iterator_increment(((struct extracted_iterator*)self)->base, dim, delta);
+}
+
+static void
+spectrum_extracted_mark(struct spectrum_iterator* self)
+{
+  struct extracted_iterator* extracted_iterator = (struct extracted_iterator*)self;
+  iterator_mark(extracted_iterator->base);
+}
+
+static void
+spectrum_extracted_restore(struct spectrum_iterator* self)
+{
+  struct extracted_iterator* extracted_iterator = (struct extracted_iterator*)self;
+  iterator_restore(extracted_iterator->base);
+}
+
+static gboolean
+spectrum_extracted_probe(struct spectrum_iterator* self)
+{
+  struct extracted_iterator* extracted_iterator = (struct extracted_iterator*)self;
+  iterator_probe(extracted_iterator->base);
+}
+
+static struct spectrum_iterator*
+spectrum_extracted_construct_iterator (HosSpectrum *self)
+{
+  struct extracted_iterator *result            = g_new0(struct extracted_iterator, 1);
+  struct spectrum_iterator  *spectrum_iterator = (struct spectrum_iterator*)result;
+
+  result->priv = SPECTRUM_EXTRACTED_GET_PRIVATE(self);
+  result->base = spectrum_construct_iterator(result->priv->base);
+
+  iterator_increment(result->base, 0, result->priv->offset);
+
+  spectrum_iterator->tickle     = spectrum_extracted_tickle;
+  spectrum_iterator->mark       = spectrum_extracted_mark;
+  spectrum_iterator->restore    = spectrum_extracted_restore;
+  spectrum_iterator->wait       = spectrum_extracted_wait;
+  spectrum_iterator->probe      = spectrum_extracted_probe;
+  spectrum_iterator->increment  = spectrum_extracted_increment;
+
+  return spectrum_iterator;
+}
+
+static void
+spectrum_extracted_free_iterator(struct spectrum_iterator* self)
+{
+  iterator_free(((struct extracted_iterator*)self)->base);
+  g_free(self);
 }
 
 static void

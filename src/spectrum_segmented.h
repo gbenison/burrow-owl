@@ -37,22 +37,20 @@ typedef struct _HosSpectrumSegmentedClass  HosSpectrumSegmentedClass;
 struct _HosSpectrumSegmented
 {
   HosSpectrum parent_instance;
+  
+  gpointer    traversal_env;
 };
 
 struct _HosSpectrumSegmentedClass
 {
   HosSpectrumClass parent_class;
 
-  void     (*idx2segment)  (HosSpectrumSegmented *self, guint *idx, gint *segid, gint *pt);
-  void     (*read_segment) (HosSpectrumSegmented *self, guint segid, gdouble *buf);
+  void     (*idx2segment)  (gpointer env, guint *idx, gint *segid, gint *pt);
+  void     (*read_segment) (gpointer env, guint segid, gdouble *buf);
 };
 
 void spectrum_segmented_set_segment_size  (HosSpectrumSegmented *self, guint size);
 void spectrum_segmented_set_cache_size    (HosSpectrumSegmented *self, guint size);
-void spectrum_segmented_test_load_segment (HosSpectrumSegmented *self, gint segid);
-gboolean spectrum_segmented_test_peek     (HosSpectrumSegmented *self, gint *idx, gdouble *dest);
-void spectrum_segmented_test_print_cache  (HosSpectrumSegmented *self);
-void spectrum_segmented_report_request_status (HosSpectrumSegmented *self);
 
 GType hos_spectrum_segmented_get_type (void);
 

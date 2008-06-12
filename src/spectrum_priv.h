@@ -25,11 +25,50 @@ struct _dimension
   gdouble sw;
 };
 
-gdouble  spectrum_accumulate (HosSpectrum* self, HosSpectrum* root, guint* idx);
-gboolean spectrum_tickle     (HosSpectrum* self, HosSpectrum* root, guint* idx, gdouble* dest);
-
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
+
+/*
+ *  --- Iterators ---
+ *
+ *  Operations supported by spectrum iterators:
+ *
+ *  increment -- change the position of the pointer
+ *  tickle    -- peek at the position of the pointer, returns TRUE if value is available
+ *  mark      -- save the position of the pointer (see 'wait' operation)
+ *  wait      -- block until the value at the position saved by 'mark' is available
+ *
+ */
+struct spectrum_iterator* spectrum_construct_iterator(HosSpectrum *self);
+void     iterator_free        (struct spectrum_iterator *self);
+void     iterator_increment   (struct spectrum_iterator *self, guint dim, gint delta);
+gboolean iterator_tickle      (struct spectrum_iterator *self, gdouble *dest);
+void     iterator_mark        (struct spectrum_iterator *self);
+void     iterator_restore     (struct spectrum_iterator *self);
+gdouble  iterator_wait        (struct spectrum_iterator *self);
+gboolean iterator_probe       (struct spectrum_iterator *self);
+
+struct spectrum_iterator
+{
+  HosSpectrum *root;
+  GType        root_type;
+  gint         ndim;
+  guint       *idx;
+  guint       *save_idx;
+  gsize       *stride;
+  gsize       *np;
+  gsize        idx_linear;
+  gsize        save_idx_linear;
+  gboolean     can_cache;
+
+  gboolean (*tickle)      (struct spectrum_iterator *self, gdouble *dest);
+  void     (*mark)        (struct spectrum_iterator *self);
+  void     (*restore)     (struct spectrum_iterator *self);
+  gdouble  (*wait)        (struct spectrum_iterator *self);
+  gboolean (*probe)       (struct spectrum_iterator *self);
+  void     (*increment)   (struct spectrum_iterator *self, guint dim, gint delta);
+};
+
 
 #endif /* not  _HOS_HAVE_SPECTRUM_PRIV_H */
 

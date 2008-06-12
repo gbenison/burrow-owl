@@ -32,6 +32,8 @@ main()
   static const gint n = 10;
   for (start = 1; start < 100000; start *= 4)
     {
+      if (start + n >= spectrum_np_total(cube))
+	break;
       gint i;
       g_print("Cube (%6d, ...) = ", start);
       for (i = 0; i < n; ++i)
@@ -52,8 +54,6 @@ main()
       g_assert(spectrum_peek(S3, i) == test_cube_I_predict(i));
     }
   g_print("\n\n");
-
-  g_assert(spectrum_peek(S3, 1) == 104950);
 
   HosSpectrum *S4 = spectrum_integrate(S3);
   g_print("S4 = integrate(S3)\n");
