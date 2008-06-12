@@ -23,6 +23,7 @@
 #include "painter_cairo.h"
 #include "cairo_shapes.h"
 #include "boomerang.h"
+#include "debug.h"
 
 enum {
   PROP_0,
@@ -257,6 +258,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
     {
       if (contour_plot_smooth_ready(contour_plot))
 	{
+	  CONFESS("contour plot 0x%x: copying cairo surface", self);
 	  cairo_t* cr = canvas_get_cairo_context(canvas);
 	  cairo_set_source_surface(cr, priv->backing, 0, 0);
 	  cairo_rectangle(cr, event->area.x, event->area.y, event->area.width, event->area.height);
@@ -266,6 +268,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
       else
 	{
 	  contour_plot_trace_cairo(contour_plot);
+	  CONFESS("contour plot 0x%x: drawing with GDK", self);
 
 	  /* fallback... draw with GDK */
 	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
@@ -286,7 +289,10 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	    painter_redraw_init_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
 
 	  if (state == NULL)
-	    return;
+	    {
+	      CONFESS("contour plot 0x%x: painter_redraw_init returned NULL", self);
+	      return;
+	    }
 
 	  gulong configure_id = priv->configure_id;
 
@@ -298,10 +304,12 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 
 	  gdouble start_time = g_timer_elapsed(contour_plot_timer, NULL);
 
+	  CONFESS("contour plot 0x%x: start GDK loop", self);
 	  while (1)
 	    {
 	      if (configure_id != priv->configure_id)
 		{
+		  CONFESS("contour plot 0x%x: cancelling GDK drawing", self);
 		  painter_redraw_cancel(state);
 		  state = NULL;
 		  break;
@@ -320,6 +328,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   else
     {
       /* spectrum not ready */
+      CONFESS("contour plot 0x%x: spectrum not ready; drawing waiting symbol", self);
       cairo_t* cr = canvas_get_cairo_context(canvas);
 
       gint window_width, window_height;
@@ -349,6 +358,8 @@ contour_plot_trace_cairo(HosContourPlot *self)
 
   if (CONTOUR_PLOT_PRIVATE(self, cairo_tracing))
     return;
+
+  CONFESS("contour plot 0x%x: starting trace of cairo surface", self);
 
   CONTOUR_PLOT_PRIVATE(self, cairo_tracing) = TRUE;
   g_idle_add_full(G_PRIORITY_LOW, (GSourceFunc)contour_plot_idle_draw, self, NULL);
@@ -390,6 +401,8 @@ contour_plot_idle_draw(HosContourPlot *self)
 
   if ((priv->cairo_trace_state != NULL) && (painter_redraw_tick(priv->cairo_trace_state)))
     return TRUE;
+
+  CONFESS("contour plot 0x%x: finished tracing cairo contours", self);
 
   /* get here... must be done! */
   priv->cairo_trace_state = NULL;
@@ -453,6 +466,8 @@ contour_plot_item_configure(HosCanvasItem *self)
 {
   /* invalidate the whole spectrum region */
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  CONFESS("contour plot 0x%x: configure", self);
 
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   if (canvas && GTK_WIDGET_REALIZED(canvas))

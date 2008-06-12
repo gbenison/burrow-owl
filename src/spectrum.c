@@ -731,14 +731,14 @@ spectrum_traverse_internal(HosSpectrum* self)
       
       g_atomic_pointer_set(&self->buf, buf);
       
-      /* FIXME can I just emit a signal from this thread? */
-      queue_ready_push(self);
-      iterator_free(iterator);
-
       g_mutex_lock(priv->traversal_lock);
       priv->status = COMPLETE;
       g_cond_signal(priv->complete_cond);
       g_mutex_unlock(priv->traversal_lock);
+
+      /* FIXME can I just emit a signal from this thread? */
+      queue_ready_push(self);
+      iterator_free(iterator);
 
     }
 }
