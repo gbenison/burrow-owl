@@ -60,7 +60,9 @@ struct _HosLine
 
   gboolean mouse_over;
 
-  GArray* points;
+  gdouble   width;
+  GArray   *points;
+  GdkColor *color;
 
 };
 

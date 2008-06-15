@@ -18,6 +18,7 @@
  */
 
 #include "line.h"
+#include <string.h>
 
 /* signals & properties */
 enum {
@@ -27,7 +28,9 @@ enum {
 };
 
 enum {
-  PROP_0
+  PROP_0,
+  PROP_COLOR,
+  PROP_WIDTH
 };
 
 static guint line_signals[LAST_SIGNAL] = { 0 };
@@ -50,6 +53,7 @@ static gboolean line_canvas_configure       (GtkWidget *widget, GdkEventConfigur
 static void     line_canvas_realize         (GtkWidget *widget, HosLine* self);
 static void     line_canvas_world_configure (GtkWidget *widget, HosLine* self);
 static void     line_paint_default          (HosLine* line, HosCanvas *canvas);
+static void     line_set_color              (HosLine* line, GdkColor *color);
 
 
 G_DEFINE_TYPE (HosLine, hos_line, HOS_TYPE_CANVAS_ITEM)
@@ -58,6 +62,8 @@ static void
 hos_line_init(HosLine *self)
 {
   self->points = g_array_new(FALSE, FALSE, sizeof(hos_line_point_t));
+  self->width  = 1.0;
+  line_set_color(self, gdk_rgb(1.0, 1.0, 1.0));
 }
 
 static void
@@ -74,6 +80,28 @@ hos_line_class_init (HosLineClass *klass)
   canvas_item_class->configure  = line_configure;
 
   klass->paint      = line_paint_default;
+
+  /* grab the type ID of gdk color, assuming it is already registered */
+  GType gdk_color_type = g_type_from_name("GdkColor");
+  g_assert(gdk_color_type > 0);
+
+  g_object_class_install_property (gobject_class,
+				   PROP_COLOR,
+				   g_param_spec_boxed ("color",
+						       "color",
+						       "foreground color of the line",
+						       gdk_color_type,
+						       G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class,
+				   PROP_WIDTH,
+				   g_param_spec_double ("width",
+							"Width",
+							"line width in pixels",
+							0,
+							20,
+							1,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   line_signals[ENTER] =
     g_signal_new ("enter",
@@ -103,6 +131,13 @@ hos_line_set_property   (GObject         *object,
 {
   switch (prop_id)
     {
+    case PROP_COLOR:
+      line_set_color(HOS_LINE(object), (GdkColor*)(g_value_get_boxed(value)));
+      break;
+    case PROP_WIDTH:
+      HOS_LINE(object)->width = g_value_get_double(value);
+      canvas_item_configure(HOS_CANVAS_ITEM(object));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -117,6 +152,12 @@ hos_line_get_property   (GObject         *object,
 {
   switch (prop_id)
     {
+    case PROP_WIDTH:
+      g_value_set_double(value, HOS_LINE(object)->width);
+      break;
+    case PROP_COLOR:
+      g_value_set_boxed(value, HOS_LINE(object)->color);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -258,9 +299,9 @@ line_paint_default(HosLine* line, HosCanvas *canvas)
 {
   cairo_t* cr = canvas_get_cairo_context(canvas);
 
-  /* FIXME customize colors & line styles */
-  cairo_set_line_width(cr, 1.0);
-  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+  /* FIXME customize line style */
+  cairo_set_line_width(cr, line->width);
+  gdk_cairo_set_source_color(cr, line->color);
 
   if (line->points->len > 0)
     {
@@ -284,7 +325,7 @@ line_paint_default(HosLine* line, HosCanvas *canvas)
 }
 
 void
-line_set_points   (HosLine* line, double* x, double* y, guint np)
+line_set_points(HosLine* line, double* x, double* y, guint np)
 {
   g_return_if_fail(HOS_IS_LINE(line));
 
@@ -301,7 +342,7 @@ line_set_points   (HosLine* line, double* x, double* y, guint np)
 }
 
 guint
-line_append_point (HosLine* line, double x, double y)
+line_append_point(HosLine* line, double x, double y)
 {
   g_return_if_fail(HOS_IS_LINE(line));
 
@@ -314,3 +355,13 @@ line_append_point (HosLine* line, double x, double y)
   return line->points->len;
 }
 
+static void
+line_set_color(HosLine* line, GdkColor *color)
+{
+  if (line->color == NULL)
+    line->color = g_new0(GdkColor, 1);
+
+  memcpy(line->color, color, sizeof(GdkColor));
+
+  canvas_item_configure(HOS_CANVAS_ITEM(line));
+}
