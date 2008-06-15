@@ -72,6 +72,7 @@ cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
+GdkColor*      gdk_rgb(gdouble red, gdouble green, gdouble blue);
 
 GType hos_canvas_get_type(void);
 

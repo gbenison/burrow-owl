@@ -33,7 +33,8 @@
 
 enum {
   PROP_0,
-  PROP_POSITION
+  PROP_POSITION,
+  PROP_ADJUSTMENT
 };
 
 enum {
@@ -89,6 +90,14 @@ hos_cursor_class_init (HosCursorClass *klass)
 							0.0,
 							G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class,
+				   PROP_ADJUSTMENT,
+				   g_param_spec_object ("adjustment",
+							"Adjustment",
+							"adjustment object controlling the cursor's position",
+							GTK_TYPE_ADJUSTMENT,
+							G_PARAM_READWRITE));
+
   signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
@@ -129,6 +138,9 @@ hos_cursor_set_property (GObject         *object,
       gtk_adjustment_set_value(HOS_CURSOR(object)->adjustment,
 			       g_value_get_double(value));
       break;
+    case PROP_ADJUSTMENT:
+      cursor_set_adjustment(HOS_CURSOR(object), GTK_ADJUSTMENT(g_value_get_object(value)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -145,6 +157,9 @@ hos_cursor_get_property (GObject         *object,
     {
     case PROP_POSITION:
       g_value_set_double(value, cursor_get_position(HOS_CURSOR(object)));
+      break;
+    case PROP_ADJUSTMENT:
+      g_value_set_object(value, G_OBJECT(cursor_get_adjustment(HOS_CURSOR(object))));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -223,7 +238,7 @@ cursor_set_orientation(HosCursor *cursor, guint orientation)
   if (orientation != cursor->orientation)
     {
       cursor->orientation = orientation;
-      ornament_configure(HOS_ORNAMENT(cursor));
+      canvas_item_configure(HOS_CANVAS_ITEM(cursor));
     }
 }
 
@@ -261,7 +276,7 @@ cursor_set_adjustment(HosCursor *cursor, GtkAdjustment *adjustment)
 			    cursor);
 	  /* cursor_adjustment_value_changed(adjustment, cursor); */
         }
-      ornament_configure(HOS_ORNAMENT(cursor));
+      canvas_item_configure(HOS_CANVAS_ITEM(cursor));
     }
 }
 
@@ -272,7 +287,7 @@ static void
 cursor_adjustment_value_changed(GtkAdjustment *adjustment, HosCursor *cursor)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
-  ornament_configure(HOS_ORNAMENT(cursor));
+  canvas_item_configure(HOS_CANVAS_ITEM(cursor));
   g_signal_emit_by_name(cursor, "moved", gtk_adjustment_get_value(adjustment));
 }
 

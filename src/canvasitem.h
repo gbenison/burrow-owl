@@ -42,7 +42,7 @@ struct _HosCanvasItemClass
 {
   GObjectClass parent_class;
   void (*expose)         (HosCanvasItem* self, GdkEventExpose *event);
-  void (*item_configure) (HosCanvasItem* self);
+  void (*configure)      (HosCanvasItem* self);
   void (*set_canvas)     (HosCanvasItem* self, HosCanvas *old_canvas, HosCanvas *canvas);
 };
 

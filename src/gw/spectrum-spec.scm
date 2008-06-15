@@ -22,6 +22,8 @@
         "#include <canvasitem.h>\n"
         "#include <marker.h>\n"
         "#include <marker_text.h>\n"
+        "#include <line.h>\n"
+        "#include <spectrum-profile.h>\n"
         "#include <cursor.h>\n"
         "#include <contourplot.h>\n"
         "#include <version.h>\n"

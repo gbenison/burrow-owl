@@ -68,6 +68,10 @@ grid.c \
 grid.h \
 cursor.c \
 cursor.h \
+line.c \
+line.h \
+spectrum-profile.c \
+spectrum-profile.h \
 marker_text.c \
 marker_text.h \
 nih.c  \

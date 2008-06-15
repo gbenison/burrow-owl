@@ -56,7 +56,7 @@ hos_canvas_item_class_init(HosCanvasItemClass *klass)
     g_signal_new ("item-configure",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-		  G_STRUCT_OFFSET(HosCanvasItemClass, item_configure),
+		  G_STRUCT_OFFSET(HosCanvasItemClass, configure),
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);

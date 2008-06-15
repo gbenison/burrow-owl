@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,6 +49,8 @@ struct _HosContourPlotPrivate
 
   gulong configure_id;
 
+  GdkRectangle extent;
+
 };
 
 enum {
@@ -75,7 +77,7 @@ static gboolean contour_plot_painter_configure (HosPainter *painter,
 						HosContourPlot *contour_plot);
 static gboolean contour_plot_painter_ready     (HosPainter *painter,
 						HosContourPlot *contour_plot);
-static void     contour_plot_item_configure    (HosCanvasItem *self);
+static void     contour_plot_configure         (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 static void     contour_plot_sync_xform        (HosContourPlot *self);
 static void     contour_plot_invalidate_xform  (HosContourPlot *self);
@@ -108,7 +110,7 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
   gobject_class->get_property = contour_plot_get_property;
 
   canvas_item_class->expose         = contour_plot_expose;
-  canvas_item_class->item_configure = contour_plot_item_configure;
+  canvas_item_class->configure      = contour_plot_configure;
   canvas_item_class->set_canvas     = contour_plot_set_canvas;
 
   g_object_class_install_property (gobject_class,
@@ -336,7 +338,16 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 			  &window_width, &window_height);
       
       cairo_translate (cr, window_width / 2, window_height / 2);
-      cairo_shape_hourglass(cr, 15, 25);
+
+      static const int hourglass_width = 15;
+      static const int hourglass_height = 25;
+      static const double pad_factor = 1.5;
+      cairo_shape_hourglass(cr, hourglass_width, hourglass_height);
+
+      priv->extent.width = hourglass_width * 2 * pad_factor;
+      priv->extent.height = hourglass_height * 2 * pad_factor;
+      priv->extent.x = (window_width / 2) - (hourglass_width * pad_factor);
+      priv->extent.y = (window_height / 2) - (hourglass_height * pad_factor);
 
       cairo_destroy(cr);
     }
@@ -462,9 +473,8 @@ contour_plot_invalidate_cairo(HosContourPlot *self, gboolean resize)
 }
 
 static void
-contour_plot_item_configure(HosCanvasItem *self)
+contour_plot_configure(HosCanvasItem *self)
 {
-  /* invalidate the whole spectrum region */
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
   CONFESS("contour plot 0x%x: configure", self);
@@ -492,7 +502,10 @@ contour_plot_item_configure(HosCanvasItem *self)
       rect.width = ABS(xn - x1);
       rect.height = ABS(yn - y1);
 
-      GdkRegion *region = gdk_region_rectangle(&rect);
+      GdkRegion *region = gdk_region_rectangle(&CONTOUR_PLOT_PRIVATE(self, extent));
+      gdk_region_union_with_rect(region, &rect);
+      CONTOUR_PLOT_PRIVATE(self, extent) = rect;
+
       canvas_invalidate_region(canvas, region);
       gdk_region_destroy(region);
     }
