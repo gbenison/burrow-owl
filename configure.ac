@@ -75,6 +75,8 @@ AC_CONFIG_FILES([Makefile
 		 benchmarks/Makefile
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
+		 src/models/Makefile
+		 src/models/gw/Makefile
 		 test-suite/Makefile])
 
 AC_CONFIG_FILES([test-suite/run-tests], [chmod +x test-suite/run-tests])

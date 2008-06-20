@@ -34,7 +34,7 @@ $(headers_dir)/line.h \
 $(headers_dir)/spectrum-profile.h
 # $(headers_dir)/box.h
 
-H2DEF=@srcdir@/h2def.py
+H2DEF=@top_srcdir@/utils/h2def.py
 
 hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
 	$(H2DEF) --all $(HEADERS_1) > $@

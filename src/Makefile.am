@@ -1,7 +1,7 @@
 
 EXTRA_DIST=
 AM_CPPFLAGS=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw 
+SUBDIRS=finite-state-machine . gw models
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
