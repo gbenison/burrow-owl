@@ -52,5 +52,4 @@
 
 (define-method (initialize (ws <spectrum-wrapset>) initargs)
   (next-method ws (cons #:module (cons '(spectrum) initargs)))
-  
   (load-defs ws "hosspectrum.defs"))
