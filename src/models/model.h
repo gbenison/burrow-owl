@@ -31,7 +31,7 @@ G_BEGIN_DECLS
 #define HOS_IS_MODEL(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_MODEL))
 #define HOS_IS_MODEL_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_MODEL))
 #define HOS_MODEL_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_MODEL, HosModelClass))
-					
+
 typedef struct _HosModel       HosModel;
 typedef struct _HosModelClass  HosModelClass;
 
