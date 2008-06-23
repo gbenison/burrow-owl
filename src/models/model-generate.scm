@@ -52,6 +52,10 @@
 #define HOS_IS_MODEL_@NAME@(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_MODEL_@NAME@))
 #define HOS_IS_MODEL_@NAME@_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_MODEL_@NAME@))
 #define HOS_MODEL_@NAME@_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_MODEL_@NAME@, HosModel@Name@Class))
+
+typedef struct _HosModel@Name@       HosModel@Name@;
+typedef struct _HosModel@Name@Class  HosModel@Name@Class;
+
 ")
 	   header-file)
   (display (substitute-class-name name

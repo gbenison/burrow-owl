@@ -1,5 +1,5 @@
 
-SUBDIRS=gw
+SUBDIRS=. gw
 
 lib_LTLIBRARIES=libburrow-model.la
 

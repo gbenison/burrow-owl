@@ -3,13 +3,15 @@ EXTRA_DIST= model.defs
 CLEANFILES=
 
 lib_LTLIBRARIES=libgw-guile-model.la
-libgw_guile_model_la_LDFLAGS=@GUILE_GNOME_LIBS@ @GTHREAD_LIBS@ @GUILE_LDFLAGS@ -module
+libgw_guile_model_la_LDFLAGS=-L.. -lburrow-model @GUILE_GNOME_LIBS@ @GTHREAD_LIBS@ @GUILE_LDFLAGS@ -module
 libgw_guile_model_la_SOURCES=model-gw.c
 
 headers_dir=@srcdir@/..
 
 HEADERS_1= \
-$(headers_dir)/expression.h
+$(headers_dir)/model.h \
+../model-subtypes-gen.h \
+$(headers_dir)/model-subtypes.h
 
 H2DEF=@top_srcdir@/utils/h2def.py
 
@@ -20,7 +22,7 @@ model-gw.c model-gw.h: model.defs
 	GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$(GUILE_PATH_GWRAP):@srcdir@:.:$$GUILE_LOAD_PATH \
            $(GUILE) -s @srcdir@/run-g-wrap.scm
 
-INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
+INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I..
 
 BUILT_SOURCES=model-gw.c model-gw.h model.defs
 

@@ -21,20 +21,53 @@
 #define _HAVE_MODEL_SUBTYPES_H
 
 #include "model.h"
-
-typedef struct _HosModel       HosModelSum;
-typedef struct _HosModelClass  HosModelSumClass;
-
-typedef struct _HosModel       HosModelProduct;
-typedef struct _HosModelClass  HosModelProductClass;
-
-typedef struct _HosModel       HosModelDifference;
-typedef struct _HosModelClass  HosModelDifferenceClass;
-
-typedef struct _HosModel       HosModelGaussian;
-typedef struct _HosModelClass  HosModelGaussianClass;
-
 #include "model-subtypes-gen.h"
+
+G_BEGIN_DECLS
+
+struct _HosModelSum
+{
+  HosModel parent_instance;
+};
+
+struct _HosModelSumClass
+{
+  HosModelClass parent_class;
+};
+
+struct _HosModelProduct
+{
+  HosModel parent_instance;
+};
+
+struct _HosModelProductClass
+{
+  HosModelClass parent_class;
+};
+
+
+struct _HosModelDifference
+{
+  HosModel parent_instance;
+};
+
+struct _HosModelDifferenceClass
+{
+  HosModelClass parent_class;
+};
+
+
+struct _HosModelGaussian
+{
+  HosModel parent_instance;
+};
+
+struct _HosModelGaussianClass
+{
+  HosModelClass parent_class;
+};
+
+G_END_DECLS
 
 #endif /* not  _HAVE_MODEL_SUBTYPES_H */
 
