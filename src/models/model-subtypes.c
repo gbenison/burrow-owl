@@ -60,3 +60,30 @@ model_dimension_iterator_fill(model_iterator_t* self, gdouble *dest)
 static void model_dimension_iterator_init(model_iterator_t* self) { }
 static void model_dimension_iterator_free(model_iterator_t* self) { }
 
+/** model_sum **/
+
+struct argument_pair
+{
+  model_iterator_t *iterator[2];
+  gdouble          *buffer[2];
+};
+
+static void
+model_sum_iterator_fill(model_iterator_t* self, gdouble *dest)
+{
+  struct argument_pair *args = (struct argument_pair*)(self->data);
+
+  model_iterator_fill(args->iterator[0], args->buffer[0]);
+  model_iterator_fill(args->iterator[1], args->buffer[1]);
+
+  int i;
+  int np_0 = (args->iterator[0])->np[0];
+  int np_1 = (args->iterator[1])->np[0];
+
+  for (i = 0; i < self->np[0]; ++i)
+    dest[i] = (args->buffer[0])[i % np_0] + (args->buffer[1])[i % np_1];
+}
+
+static void model_sum_iterator_init(model_iterator_t* self) { }
+static void model_sum_iterator_free(model_iterator_t* self) { }
+
