@@ -9,9 +9,10 @@ libgw_guile_model_la_SOURCES=model-gw.c
 headers_dir=@srcdir@/..
 
 HEADERS_1= \
-$(headers_dir)/model.h \
-../model-subtypes-gen.h \
-$(headers_dir)/model-subtypes.h
+   $(headers_dir)/model.h \
+   $(headers_dir)/parameter.h \
+   ../model-subtypes-gen.h \
+   $(headers_dir)/model-subtypes.h
 
 H2DEF=@top_srcdir@/utils/h2def.py
 
@@ -26,7 +27,7 @@ INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I
 
 BUILT_SOURCES=model-gw.c model-gw.h model.defs
 
-guiledir=$(datadir)/guile
+guiledir=$(datadir)/guile/burrow
 guile_DATA=model.scm
 CLEANFILES += model.scm
 

@@ -32,26 +32,32 @@ hos_model_init(HosModel *self)
 {
 }
 
-model_iterator_t* 
-model_construct_iterator (HosModel *self, gdouble *orig, gdouble *sw, guint *np)
+model_iterator_t*
+model_iterator_new(HosModel *self, gdouble *orig, gdouble *sw, guint *np)
 {
+  g_return_if_fail(HOS_IS_MODEL(self));
+  model_iterator_t *result = g_new0(model_iterator_t, 1);
+  result->root = self;
+
+  HosModelClass *class = HOS_MODEL_GET_CLASS(self);
+  if (class->iterator_init)
+    class->iterator_init(result);
+  return result;
 }
 
 void
-model_iterator_eval(model_iterator_t *self, gdouble *dest)
+model_iterator_fill (model_iterator_t *self, gdouble *dest)
 {
+  self->fill(self, dest);
 }
 
 void
-model_iterator_free(model_iterator_t *self)
+model_iterator_free (model_iterator_t *self)
 {
-  g_assert(self != NULL);
-  g_assert(self->root != NULL);
-
   HosModelClass *class = HOS_MODEL_GET_CLASS(self->root);
-
   if (class->iterator_free)
     class->iterator_free(self);
+  g_free(self);
 }
 
 

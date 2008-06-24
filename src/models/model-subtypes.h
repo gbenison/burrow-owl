@@ -28,6 +28,9 @@ G_BEGIN_DECLS
 struct _HosModelSum
 {
   HosModel parent_instance;
+
+  HosModel *A;
+  HosModel *B;
 };
 
 struct _HosModelSumClass
@@ -38,6 +41,9 @@ struct _HosModelSumClass
 struct _HosModelProduct
 {
   HosModel parent_instance;
+
+  HosModel *A;
+  HosModel *B;
 };
 
 struct _HosModelProductClass
@@ -45,21 +51,11 @@ struct _HosModelProductClass
   HosModelClass parent_class;
 };
 
-
-struct _HosModelDifference
-{
-  HosModel parent_instance;
-};
-
-struct _HosModelDifferenceClass
-{
-  HosModelClass parent_class;
-};
-
-
 struct _HosModelGaussian
 {
   HosModel parent_instance;
+  
+  HosModel *argument;
 };
 
 struct _HosModelGaussianClass

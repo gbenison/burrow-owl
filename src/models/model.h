@@ -35,18 +35,20 @@ G_BEGIN_DECLS
 typedef struct _HosModel       HosModel;
 typedef struct _HosModelClass  HosModelClass;
 
-struct model_iterator
+struct _model_iterator
 {
   HosModel *root;
 
   gdouble  *orig;
-  gdouble  *sw;
+  gdouble  *delta;
   guint    *np;
+
+  void    (*fill) (struct _model_iterator* self, gdouble *dest);
 
   gpointer  data;
 };
 
-typedef struct model_iterator model_iterator_t;
+typedef struct _model_iterator model_iterator_t;
 
 struct _HosModel
 {
@@ -58,9 +60,9 @@ struct _HosModelClass
 {
   GObjectClass parent_class;
 
-  model_iterator_t* (*iterator_construct) (HosModel* self, gdouble *orig, gdouble *sw, guint *np);
-  void              (*iterator_eval)      (model_iterator_t* self,  gdouble *dest);
-  void              (*iterator_free)      (model_iterator_t* self);
+  void      (*iterator_fill) (model_iterator_t* self, gdouble *dest);
+  void      (*iterator_init) (model_iterator_t* self);
+  void      (*iterator_free) (model_iterator_t* self);
 };
 
 /* 
@@ -71,9 +73,9 @@ struct _HosModelClass
  */
 #define CONSTRUCTOR  /* empty */
 
-model_iterator_t* model_construct_iterator (HosModel *self, gdouble *orig, gdouble *sw, guint *np);
-void              model_iterator_eval      (model_iterator_t *self, gdouble *dest);
-void              model_iterator_free      (model_iterator_t *self);
+model_iterator_t* model_iterator_new  (HosModel *self, gdouble *orig, gdouble *delta, guint *np);
+void              model_iterator_fill (model_iterator_t *self, gdouble *dest);
+void              model_iterator_free (model_iterator_t *self);
 
 #endif /*  _HAVE_MODEL_H */
 

@@ -21,4 +21,19 @@
 
 #include "model-subtypes-gen.c"
 
+static void
+model_gaussian_iterator_fill(model_iterator_t* self, gdouble *dest)
+{
+  model_iterator_t *arg = (model_iterator_t*)(self->data);
+  arg->fill(arg, dest);
+  int i;
+  for (i = 0; i < self->np[0]; ++i)
+    *dest = exp(- (*dest * *dest));
+}
 
+static void
+model_gaussian_iterator_init(model_iterator_t* self)
+{
+  self->data =
+    model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->argument, self->orig, self->delta, self->np);
+}

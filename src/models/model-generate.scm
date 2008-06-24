@@ -62,16 +62,25 @@ typedef struct _HosModel@Name@Class  HosModel@Name@Class;
 "
 G_DEFINE_TYPE (HosModel@Name@, hos_model_@name@, HOS_TYPE_MODEL)
 
+static void    model_@name@_iterator_fill (model_iterator_t* self, gdouble *dest);
+static void    model_@name@_iterator_init (model_iterator_t* self);
+static void    model_@name@_iterator_free (model_iterator_t* self);
+
 static void
 hos_model_@name@_class_init(HosModel@Name@Class *klass)
 {
   GObjectClass  *gobject_class = G_OBJECT_CLASS(klass);
   HosModelClass *model_class   = HOS_MODEL_CLASS(klass);
+
+  model_class->iterator_fill = model_@name@_iterator_fill;
+  model_class->iterator_init = model_@name@_iterator_init;
+  model_class->iterator_free = model_@name@_iterator_free;
 }
 
 static void
 hos_model_@name@_init(HosModel@Name@ *self)
 {
+ /* no-op */
 }
 
 ")
@@ -79,7 +88,6 @@ hos_model_@name@_init(HosModel@Name@ *self)
   'ok)
 
 (generate-derived-type "sum")
-(generate-derived-type "difference")
 (generate-derived-type "product")
 (generate-derived-type "gaussian")
 

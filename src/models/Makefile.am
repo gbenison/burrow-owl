@@ -10,6 +10,8 @@ AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
 libburrow_model_la_SOURCES=\
 model.c \
 model.h \
+parameter.c \
+parameter.h \
 model-subtypes.c \
 model-subtypes.h
 
