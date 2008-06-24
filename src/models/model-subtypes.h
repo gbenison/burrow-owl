@@ -54,11 +54,20 @@ struct _HosModelProductClass
 struct _HosModelGaussian
 {
   HosModel parent_instance;
-  
   HosModel *argument;
 };
 
 struct _HosModelGaussianClass
+{
+  HosModelClass parent_class;
+};
+
+struct _HosModelDimension
+{
+  HosModel parent_instance;
+};
+
+struct _HosModelDimensionClass
 {
   HosModelClass parent_class;
 };

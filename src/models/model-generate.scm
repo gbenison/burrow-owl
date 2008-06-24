@@ -90,6 +90,7 @@ hos_model_@name@_init(HosModel@Name@ *self)
 (generate-derived-type "sum")
 (generate-derived-type "product")
 (generate-derived-type "gaussian")
+(generate-derived-type "dimension")
 
 
 
