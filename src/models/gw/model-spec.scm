@@ -15,6 +15,7 @@
 (define-method (global-declarations-cg (self <model-wrapset>))
   (list (next-method)
 	"#include <model.h>\n"
+	"#include <parameter.h>\n"
 	"#include <model-subtypes.h>\n"
         "\n"))
 
@@ -24,6 +25,6 @@
    (next-method)))
 
 (define-method (initialize (ws <model-wrapset>) initargs)
-  (next-method ws (cons #:module (cons '(model) initargs)))
+  (next-method ws (cons #:module (cons '(burrow model) initargs)))
   (load-defs ws "model.defs"))
 
