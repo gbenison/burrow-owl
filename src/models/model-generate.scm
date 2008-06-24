@@ -62,9 +62,9 @@ typedef struct _HosModel@Name@Class  HosModel@Name@Class;
 "
 G_DEFINE_TYPE (HosModel@Name@, hos_model_@name@, HOS_TYPE_MODEL)
 
-static void    model_@name@_iterator_fill (model_iterator_t* self, gdouble *dest);
-static void    model_@name@_iterator_init (model_iterator_t* self);
-static void    model_@name@_iterator_free (model_iterator_t* self);
+static void    model_@name@_iterator_fill (model_iterator_t *self, gdouble *dest);
+static void    model_@name@_iterator_init (model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np);
+static void    model_@name@_iterator_free (model_iterator_t *self);
 
 static void
 hos_model_@name@_class_init(HosModel@Name@Class *klass)

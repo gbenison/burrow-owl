@@ -41,7 +41,7 @@ model_iterator_new(HosModel *self, gdouble *orig, gdouble *sw, guint *np)
 
   HosModelClass *class = HOS_MODEL_GET_CLASS(self);
   if (class->iterator_init)
-    class->iterator_init(result);
+    class->iterator_init(result, orig, sw, np);
   return result;
 }
 

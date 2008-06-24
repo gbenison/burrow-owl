@@ -27,15 +27,16 @@ model_gaussian_iterator_fill(model_iterator_t* self, gdouble *dest)
   model_iterator_t *arg = (model_iterator_t*)(self->data);
   arg->fill(arg, dest);
   int i;
-  for (i = 0; i < self->np[0]; ++i)
+  for (i = 0; i < self->np; ++i)
     dest[i] = exp(- (dest[i] * dest[i]));
 }
 
 static void
-model_gaussian_iterator_init(model_iterator_t* self)
+model_gaussian_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
 {
-  self->data =
-    model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->argument, self->orig, self->delta, self->np);
+  model_iterator_t *arg = model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->argument, orig, delta, np);
+  self->data = arg;
+  self->np = arg->np;
 }
 
 static void
@@ -44,25 +45,42 @@ model_gaussian_iterator_free(model_iterator_t* self)
   model_iterator_free((model_iterator_t*)(self->data));
 }
 
+/** model_dimension **/
+
+struct dimension_data
+{
+  gdouble orig;
+  gdouble delta;
+};
 
 static void
 model_dimension_iterator_fill(model_iterator_t* self, gdouble *dest)
 {
   int i;
-  gdouble y = self->orig[0];
-  for (i = 0; i < self->np[0]; ++i)
+  struct dimension_data *data = (struct dimension_data*)(self->data);
+  gdouble y = data->orig;
+  for (i = 0; i < self->np; ++i)
     {
       dest[i] = y;
-      y += self->delta[0];
+      y += data->delta;
     }
 }
 
-static void model_dimension_iterator_init(model_iterator_t* self) { }
-static void model_dimension_iterator_free(model_iterator_t* self) { }
+static void
+model_dimension_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+  struct dimension_data *data = g_new0(struct dimension_data, 1);
+  data->orig  = orig[0];
+  data->delta = delta[0];
+  self->np    = np[0];
+  self->data  = data;
+}
+
+static void model_dimension_iterator_free(model_iterator_t *self) { }
 
 /** model_sum **/
 
-struct argument_pair
+struct pair_data
 {
   model_iterator_t *iterator[2];
   gdouble          *buffer[2];
@@ -71,19 +89,26 @@ struct argument_pair
 static void
 model_sum_iterator_fill(model_iterator_t* self, gdouble *dest)
 {
-  struct argument_pair *args = (struct argument_pair*)(self->data);
+  struct pair_data *args = (struct pair_data*)(self->data);
 
   model_iterator_fill(args->iterator[0], args->buffer[0]);
   model_iterator_fill(args->iterator[1], args->buffer[1]);
 
   int i;
-  int np_0 = (args->iterator[0])->np[0];
-  int np_1 = (args->iterator[1])->np[0];
+  int np_0 = (args->iterator[0])->np;
+  int np_1 = (args->iterator[1])->np;
 
-  for (i = 0; i < self->np[0]; ++i)
+  for (i = 0; i < self->np; ++i)
     dest[i] = (args->buffer[0])[i % np_0] + (args->buffer[1])[i % np_1];
 }
 
-static void model_sum_iterator_init(model_iterator_t* self) { }
-static void model_sum_iterator_free(model_iterator_t* self) { }
+static void
+model_sum_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+  struct pair_data *data = g_new0(struct pair_data, 0);
+  self->data = data;
+  /* FIXME */
+}
+
+static void model_sum_iterator_free(model_iterator_t *self) { }
 

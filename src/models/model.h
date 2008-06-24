@@ -38,13 +38,8 @@ typedef struct _HosModelClass  HosModelClass;
 struct _model_iterator
 {
   HosModel *root;
-
-  gdouble  *orig;
-  gdouble  *delta;
-  guint    *np;
-
+  guint     np;
   void    (*fill) (struct _model_iterator* self, gdouble *dest);
-
   gpointer  data;
 };
 
@@ -60,9 +55,9 @@ struct _HosModelClass
 {
   GObjectClass parent_class;
 
-  void      (*iterator_fill) (model_iterator_t* self, gdouble *dest);
-  void      (*iterator_init) (model_iterator_t* self);
-  void      (*iterator_free) (model_iterator_t* self);
+  void (*iterator_init) (model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np);
+  void (*iterator_fill) (model_iterator_t *self, gdouble *dest);
+  void (*iterator_free) (model_iterator_t *self);
 };
 
 /* 
