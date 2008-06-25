@@ -5,11 +5,13 @@ lib_LTLIBRARIES=libburrow-model.la
 
 BUILT_SOURCES=model-subtypes-gen.h model-subtypes-gen.c
 
-AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
+AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@ -I@srcdir@/..
 
 libburrow_model_la_SOURCES=\
 model.c \
 model.h \
+spectrum_model.c \
+spectrum_model.h \
 parameter.c \
 parameter.h \
 model-subtypes.c \

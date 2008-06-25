@@ -12,7 +12,8 @@ HEADERS_1= \
    $(headers_dir)/model.h \
    $(headers_dir)/parameter.h \
    ../model-subtypes-gen.h \
-   $(headers_dir)/model-subtypes.h
+   $(headers_dir)/model-subtypes.h \
+   $(headers_dir)/spectrum_model.h
 
 H2DEF=@top_srcdir@/utils/h2def.py
 
@@ -23,7 +24,7 @@ model-gw.c model-gw.h: model.defs
 	GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$(GUILE_PATH_GWRAP):@srcdir@:.:$$GUILE_LOAD_PATH \
            $(GUILE) -s @srcdir@/run-g-wrap.scm
 
-INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I..
+INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I.. -I@srcdir@/../..
 
 BUILT_SOURCES=model-gw.c model-gw.h model.defs
 

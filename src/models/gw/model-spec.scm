@@ -17,6 +17,7 @@
 	"#include <model.h>\n"
 	"#include <parameter.h>\n"
 	"#include <model-subtypes.h>\n"
+	"#include <spectrum_model.h>\n"
         "\n"))
 
 (define-method (initializations-cg (self <model-wrapset>) err)
@@ -26,5 +27,6 @@
 
 (define-method (initialize (ws <model-wrapset>) initargs)
   (next-method ws (cons #:module (cons '(burrow model) initargs)))
+  (load-defs ws "spectrum-type.defs")
   (load-defs ws "model.defs"))
 
