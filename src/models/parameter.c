@@ -39,6 +39,7 @@ static void hos_parameter_get_property (GObject         *object,
 G_DEFINE_TYPE (HosParameter, hos_parameter, HOS_TYPE_MODEL)
 
 static void parameter_iterator_fill(model_iterator_t* self, gdouble *dest);
+static void parameter_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np);
 
 static void
 hos_parameter_class_init(HosParameterClass *klass)
@@ -56,6 +57,7 @@ hos_parameter_class_init(HosParameterClass *klass)
   g_object_class_install_property(gobject_class, PROP_PRIOR_STDDEV, STD_P_SPEC("prior-stddev", "standard deviation of prior distribution"));
 
   model_class->iterator_fill   = parameter_iterator_fill;
+  model_class->iterator_init   = parameter_iterator_init;
 }
 
 static void
@@ -118,6 +120,12 @@ static void
 parameter_iterator_fill(model_iterator_t* self, gdouble *dest)
 {
   *dest = HOS_PARAMETER(self->root)->value;
+}
+
+static void
+parameter_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+  self->np = 1;
 }
 
 HosParameter*

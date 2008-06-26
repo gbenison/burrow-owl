@@ -79,7 +79,7 @@ model_dimension_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *de
 {
   struct dimension_data *data = g_new0(struct dimension_data, 1);
   data->orig  = orig[0];
-  data->delta = delta[0];
+  data->delta = -delta[0];
   self->np    = np[0];
   self->data  = data;
 }
@@ -113,9 +113,23 @@ model_sum_iterator_fill(model_iterator_t* self, gdouble *dest)
 static void
 model_sum_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
 {
-  struct pair_data *data = g_new0(struct pair_data, 0);
+  struct pair_data *data = g_new0(struct pair_data, 1);
   self->data = data;
-  /* FIXME */
+  HosModelSum *model_sum = HOS_MODEL_SUM(self->root);
+
+  data->iterator[0] = model_iterator_new(model_sum->A, orig, delta, np);
+  data->iterator[1] = model_iterator_new(model_sum->B, orig, delta, np);
+
+  gint np_0 = (data->iterator[0])->np;
+  gint np_1 = (data->iterator[0])->np;
+
+  g_assert(np_0 > 0);
+  g_assert(np_1 > 0);
+
+  data->buffer[0] = g_new(gdouble, np_0);
+  data->buffer[1] = g_new(gdouble, np_1);
+
+  self->np = MAX(np_0, np_1);
 }
 
 static void model_sum_iterator_free(model_iterator_t *self) { }

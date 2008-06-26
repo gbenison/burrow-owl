@@ -49,7 +49,7 @@ spectrum_from_model(HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint
       dimension_t* dimen = g_new0(dimension_t, 1);
       dimen->np   = np[i];
       dimen->sw   = sw[i];
-      dimen->sf   = 1e-10;
+      dimen->sf   = 1.0;
       dimen->orig = orig[i];
       dimensions = g_list_append(dimensions, dimen);
     }
