@@ -72,6 +72,12 @@ struct _HosModelDimensionClass
   HosModelClass parent_class;
 };
 
+#define CONSTRUCTOR  /* empty */
+
+HosModel* model_sum      (HosModel *A, HosModel *B);
+HosModel* model_product  (HosModel *A, HosModel *B);
+HosModel* model_gaussian (HosModel *src);
+
 G_END_DECLS
 
 #endif /* not  _HAVE_MODEL_SUBTYPES_H */
