@@ -18,6 +18,7 @@
  */
 
 #include "spectrum_model.h"
+#include "spectrum_priv.h"
 
 G_DEFINE_TYPE (HosSpectrumModel, hos_spectrum_model, HOS_TYPE_SPECTRUM)
 
@@ -39,8 +40,35 @@ spectrum_from_model(HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint
   HosSpectrum      *result         = g_object_new(HOS_TYPE_SPECTRUM_MODEL, NULL);
   HosSpectrumModel *spectrum_model = HOS_SPECTRUM_MODEL(result);
 
+  int i;
+
+  /* initialize the dimensions */
+  GList *dimensions = NULL;
+  for (i = 0; i < ndim; ++i)
+    {
+      dimension_t* dimen = g_new0(dimension_t, 1);
+      dimen->np   = np[i];
+      dimen->sw   = sw[i];
+      dimen->sf   = 1e-10;
+      dimen->orig = orig[i];
+      dimensions = g_list_append(dimensions, dimen);
+    }
+
+  spectrum_set_dimensions(result, dimensions);
+
   spectrum_model->model = model;
-  /* FIXME */
+  int total_np = spectrum_np_total(result);
+  gdouble *buf = g_new(gdouble, total_np);
+
+  /* instantiate the model and copy to spectrum buffer */
+  gdouble delta[ndim];
+  for (i = 0; i < ndim; ++i)
+    delta[i] = sw[i] / np[i];
+  model_iterator_t *model_iterator = model_iterator_new(model, orig, delta, np);
+  model_iterator_fill(model_iterator, buf);
+  model_iterator_free(model_iterator);
+
+  spectrum_set_contents(result, buf);
 
   return result;
 }

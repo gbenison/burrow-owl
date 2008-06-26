@@ -266,6 +266,22 @@ spectrum_set_dimensions(HosSpectrum* self, GList *dimensions)
   priv->dimensions = dimensions;
 }
 
+/*
+ * Set the buffer of 'self' to 'buf', disregarding any old
+ * self->buf.
+ * !! 'buf' must be appropriately sized for 'self' !!
+ * !! callee (i.e. 'self') owns 'buf' after this call !!
+ */
+void
+spectrum_set_contents(HosSpectrum *self, gdouble *buf)
+{
+  /* FIXME free old buf? */
+  g_atomic_pointer_set(&self->buf, NULL);
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  priv->status = COMPLETE;
+  g_atomic_pointer_set(&self->buf, buf);
+}
+
 GList*
 spectrum_copy_dimensions(HosSpectrum *self)
 {

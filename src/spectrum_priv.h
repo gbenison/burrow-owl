@@ -27,6 +27,7 @@ struct _dimension
 
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
+void     spectrum_set_contents    (HosSpectrum *self, gdouble *buf);
 
 /*
  *  --- Iterators ---

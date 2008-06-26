@@ -39,7 +39,11 @@ model_iterator_new(HosModel *self, gdouble *orig, gdouble *sw, guint *np)
   model_iterator_t *result = g_new0(model_iterator_t, 1);
   result->root = self;
 
+  g_object_ref(self);
+
   HosModelClass *class = HOS_MODEL_GET_CLASS(self);
+  g_assert(class->iterator_fill != NULL);
+  result->fill = class->iterator_fill;
   if (class->iterator_init)
     class->iterator_init(result, orig, sw, np);
   return result;
@@ -57,6 +61,9 @@ model_iterator_free (model_iterator_t *self)
   HosModelClass *class = HOS_MODEL_GET_CLASS(self->root);
   if (class->iterator_free)
     class->iterator_free(self);
+
+  g_object_unref(self->root);
+
   g_free(self);
 }
 
