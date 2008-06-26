@@ -19,6 +19,23 @@
 
 #include "parameter.h"
 
+enum {
+  PROP_0,
+  PROP_VALUE,
+  PROP_PRIOR_MEAN,
+  PROP_PRIOR_STDDEV
+};
+
+
+static void hos_parameter_set_property (GObject         *object,
+					guint            prop_id,
+					const GValue    *value,
+					GParamSpec      *pspec);
+static void hos_parameter_get_property (GObject         *object,
+					guint            prop_id,
+					GValue          *value,
+					GParamSpec      *pspec);
+
 G_DEFINE_TYPE (HosParameter, hos_parameter, HOS_TYPE_MODEL)
 
 static void parameter_iterator_fill(model_iterator_t* self, gdouble *dest);
@@ -29,8 +46,68 @@ hos_parameter_class_init(HosParameterClass *klass)
   GObjectClass  *gobject_class = G_OBJECT_CLASS(klass);
   HosModelClass *model_class   = HOS_MODEL_CLASS(klass);
 
+  gobject_class->set_property = hos_parameter_set_property;
+  gobject_class->get_property = hos_parameter_get_property;
+
+#define STD_P_SPEC(name, blurb)   g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE | G_PARAM_WRITABLE)
+
+  g_object_class_install_property(gobject_class, PROP_VALUE,      STD_P_SPEC("value",  "value of the parameter"));
+  g_object_class_install_property(gobject_class, PROP_PRIOR_MEAN, STD_P_SPEC("prior-mean", "mean of prior distribution"));
+  g_object_class_install_property(gobject_class, PROP_PRIOR_STDDEV, STD_P_SPEC("prior-stddev", "standard deviation of prior distribution"));
+
   model_class->iterator_fill   = parameter_iterator_fill;
 }
+
+static void
+hos_parameter_set_property (GObject         *object,
+			    guint            prop_id,
+			    const GValue    *value,
+			    GParamSpec      *pspec)
+{
+  HosParameter *par = HOS_PARAMETER(object);
+
+  switch (prop_id)
+    {
+    case PROP_VALUE:
+      par->value = g_value_get_double(value);
+      break;
+    case PROP_PRIOR_MEAN:
+      par->prior_mean = g_value_get_double(value);
+      break;
+    case PROP_PRIOR_STDDEV:
+      par->prior_stddev = g_value_get_double(value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+static void
+hos_parameter_get_property (GObject         *object,
+			    guint            prop_id,
+			    GValue          *value,
+			    GParamSpec      *pspec)
+{
+  HosParameter *par = HOS_PARAMETER(object);
+
+  switch (prop_id)
+    {
+    case PROP_VALUE:
+      g_value_set_double (value, par->value);
+      break;
+    case PROP_PRIOR_MEAN:
+      g_value_set_double (value, par->prior_mean);
+      break;
+    case PROP_PRIOR_STDDEV:
+      g_value_set_double (value, par->prior_stddev);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
 
 static void
 hos_parameter_init(HosParameter *self)
