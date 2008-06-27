@@ -46,7 +46,7 @@ struct _HosSpectrumClass
 {
   GObjectClass parent_class;
 
-  void       (*ready)      (HosSpectrum *spec);
+  void (*ready) (HosSpectrum *spec);
 
   struct spectrum_iterator* (*construct_iterator) (HosSpectrum* self);
   void                      (*free_iterator)      (struct spectrum_iterator* self);

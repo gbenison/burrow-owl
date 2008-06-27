@@ -56,6 +56,8 @@
 typedef struct _HosModel@Name@       HosModel@Name@;
 typedef struct _HosModel@Name@Class  HosModel@Name@Class;
 
+GType hos_model_@name@_get_type(void);
+
 ")
 	   header-file)
   (display (substitute-class-name name
@@ -80,7 +82,8 @@ hos_model_@name@_class_init(HosModel@Name@Class *klass)
 static void
 hos_model_@name@_init(HosModel@Name@ *self)
 {
- /* no-op */
+ HosModel *model = HOS_MODEL(self);
+ model->ndim = HOS_IS_MODEL_DIMENSION(self) ? 1 : 0;
 }
 
 ")

@@ -72,5 +72,7 @@ model_iterator_t* model_iterator_new  (HosModel *self, gdouble *orig, gdouble *d
 void              model_iterator_fill (model_iterator_t *self, gdouble *dest);
 void              model_iterator_free (model_iterator_t *self);
 
+GType hos_model_get_type(void);
+
 #endif /*  _HAVE_MODEL_H */
 

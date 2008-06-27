@@ -21,6 +21,8 @@
 #include "model-subtypes.h"
 #include "model-subtypes-gen.c"
 
+/*** model_gaussian ***/
+
 static void
 model_gaussian_iterator_fill(model_iterator_t* self, gdouble *dest)
 {
@@ -50,6 +52,7 @@ model_gaussian(HosModel *src)
 {
   HosModel *result = g_object_new(HOS_TYPE_MODEL_GAUSSIAN, NULL);
   HOS_MODEL_GAUSSIAN(result)->argument = src;
+  result->ndim = src->ndim;
   return result;
 }
 
@@ -132,7 +135,11 @@ model_sum_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, g
   self->np = MAX(np_0, np_1);
 }
 
-static void model_sum_iterator_free(model_iterator_t *self) { }
+static void
+model_sum_iterator_free(model_iterator_t *self)
+{
+  /* FIXME free argument iterators */
+}
 
 HosModel*
 model_sum(HosModel *A, HosModel *B)
@@ -141,6 +148,8 @@ model_sum(HosModel *A, HosModel *B)
   HosModelSum *model_sum = HOS_MODEL_SUM(result);
   model_sum->A = A;
   model_sum->B = B;
+
+  result->ndim = MAX(A->ndim, B->ndim);
 
   return result;
 }
@@ -160,7 +169,7 @@ model_product_iterator_fill(model_iterator_t* self, gdouble *dest)
   int np_1 = (args->iterator[1])->np;
 
   for (i = 0; i < self->np; ++i)
-    dest[i] = (args->buffer[0])[i / np_0] * (args->buffer[1])[i % np_0];
+    dest[i] = (args->buffer[0])[i % np_0] * (args->buffer[1])[i / np_0];
 }
 
 static void
@@ -168,10 +177,30 @@ model_product_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delt
 {
   struct pair_data *data = g_new0(struct pair_data, 0);
   self->data = data;
-  /* FIXME */
+  HosModelProduct *model_product = HOS_MODEL_PRODUCT(self->root);
+
+  int nA = model_product->A->ndim;
+
+  data->iterator[0] = model_iterator_new(model_product->A, orig, delta, np);
+  data->iterator[1] = model_iterator_new(model_product->B, orig + nA, delta + nA, np + nA);
+
+  gint np_0 = (data->iterator[0])->np;
+  gint np_1 = (data->iterator[0])->np;
+
+  g_assert(np_0 > 0);
+  g_assert(np_1 > 0);
+
+  data->buffer[0] = g_new(gdouble, np_0);
+  data->buffer[1] = g_new(gdouble, np_1);
+
+  self->np = np_0 * np_1;
 }
 
-static void model_product_iterator_free(model_iterator_t *self) { }
+static void
+model_product_iterator_free(model_iterator_t *self)
+{
+  /* FIXME free argument iterators */
+}
 
 HosModel*
 model_product(HosModel *A, HosModel *B)
@@ -180,6 +209,8 @@ model_product(HosModel *A, HosModel *B)
   HosModelProduct *model_product = HOS_MODEL_PRODUCT(result);
   model_product->A = A;
   model_product->B = B;
+  
+  result->ndim = A->ndim + B->ndim;
 
   return result;
 }
