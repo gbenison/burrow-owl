@@ -36,7 +36,8 @@ hos_spectrum_model_init(HosSpectrumModel *self)
 HosSpectrum*
 spectrum_from_model(HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint ndim)
 {
-  /* FIXME check dim count */
+  g_return_if_fail(ndim == model->ndim);
+
   HosSpectrum      *result         = g_object_new(HOS_TYPE_SPECTRUM_MODEL, NULL);
   HosSpectrumModel *spectrum_model = HOS_SPECTRUM_MODEL(result);
 
