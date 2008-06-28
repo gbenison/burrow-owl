@@ -175,7 +175,7 @@ model_product_iterator_fill(model_iterator_t* self, gdouble *dest)
 static void
 model_product_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
 {
-  struct pair_data *data = g_new0(struct pair_data, 0);
+  struct pair_data *data = g_new0(struct pair_data, 1);
   self->data = data;
   HosModelProduct *model_product = HOS_MODEL_PRODUCT(self->root);
 
@@ -185,7 +185,7 @@ model_product_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delt
   data->iterator[1] = model_iterator_new(model_product->B, orig + nA, delta + nA, np + nA);
 
   gint np_0 = (data->iterator[0])->np;
-  gint np_1 = (data->iterator[0])->np;
+  gint np_1 = (data->iterator[1])->np;
 
   g_assert(np_0 > 0);
   g_assert(np_1 > 0);
