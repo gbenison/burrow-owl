@@ -18,6 +18,7 @@
  */
 
 #include <math.h>
+#include <gsl/gsl_randist.h>
 #include "model-subtypes.h"
 #include "model-subtypes-gen.c"
 
@@ -211,6 +212,49 @@ model_product(HosModel *A, HosModel *B)
   model_product->B = B;
   
   result->ndim = A->ndim + B->ndim;
+
+  return result;
+}
+
+/** model_noise **/
+
+static void
+model_noise_iterator_fill(model_iterator_t* self, gdouble *dest)
+{
+  static gsl_rng *rng = NULL;
+  if (rng == NULL)
+    {
+      gsl_rng_env_setup();
+      rng = gsl_rng_alloc(gsl_rng_default);
+    }
+
+  HosModelNoise *model_noise = HOS_MODEL_NOISE(self->root);
+  model_iterator_t *arg = (model_iterator_t*)(self->data);
+  arg->fill(arg, dest);
+  int i;
+  for (i = 0; i < self->np; ++i)
+    dest[i] += gsl_ran_gaussian(rng, model_noise->noise);
+}
+
+static void
+model_noise_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+  model_iterator_t *arg = model_iterator_new(HOS_MODEL_NOISE(self->root)->argument, orig, delta, np);
+  self->data = arg;
+  self->np   = arg->np;
+}
+
+static void model_noise_iterator_free(model_iterator_t *self) {  /* no-op */ }
+
+HosModel*
+model_add_noise(HosModel *src, gdouble noise)
+{
+  HosModel      *result      = g_object_new(HOS_TYPE_MODEL_NOISE, NULL);
+  HosModelNoise *model_noise = HOS_MODEL_NOISE(result);
+  
+  model_noise->argument = src;
+  model_noise->noise = noise;
+  result->ndim = src->ndim;
 
   return result;
 }

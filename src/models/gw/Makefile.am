@@ -13,7 +13,9 @@ HEADERS_1= \
    $(headers_dir)/parameter.h \
    ../model-subtypes-gen.h \
    $(headers_dir)/model-subtypes.h \
-   $(headers_dir)/spectrum_model.h
+   $(headers_dir)/spectrum_model.h \
+   $(headers_dir)/solver.h \
+   $(headers_dir)/solver_anneal.h
 
 H2DEF=@top_srcdir@/utils/h2def.py
 

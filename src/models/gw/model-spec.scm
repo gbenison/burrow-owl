@@ -18,6 +18,8 @@
 	"#include <parameter.h>\n"
 	"#include <model-subtypes.h>\n"
 	"#include <spectrum_model.h>\n"
+	"#include <solver.h>\n"
+	"#include <solver_anneal.h>\n"
         "\n"))
 
 (define-method (initializations-cg (self <model-wrapset>) err)

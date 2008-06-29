@@ -53,7 +53,7 @@ struct _HosModelProductClass
 
 struct _HosModelGaussian
 {
-  HosModel parent_instance;
+  HosModel  parent_instance;
   HosModel *argument;
 };
 
@@ -72,11 +72,24 @@ struct _HosModelDimensionClass
   HosModelClass parent_class;
 };
 
+struct _HosModelNoise
+{
+  HosModel  parent;
+  HosModel *argument;
+  gdouble   noise;
+};
+
+struct _HosModelNoiseClass
+{
+  HosModelClass parent_class;
+};
+
 #define CONSTRUCTOR  /* empty */
 
-HosModel* model_sum      (HosModel *A, HosModel *B);
-HosModel* model_product  (HosModel *A, HosModel *B);
-HosModel* model_gaussian (HosModel *src);
+HosModel* model_sum       (HosModel *A, HosModel *B);
+HosModel* model_product   (HosModel *A, HosModel *B);
+HosModel* model_gaussian  (HosModel *src);
+HosModel* model_add_noise (HosModel *src, gdouble noise);
 
 G_END_DECLS
 

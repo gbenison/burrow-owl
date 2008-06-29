@@ -18,6 +18,7 @@ AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 PKG_CHECK_MODULES(GLIB, glib-2.0)
 PKG_CHECK_MODULES(GTK, gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
+PKG_CHECK_MODULES(GSL, gsl >= 1.0)
 
 if test -d $srcdir/nmr-utils; then
    AC_CONFIG_SUBDIRS(nmr-utils)
