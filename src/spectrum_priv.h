@@ -68,6 +68,7 @@ struct spectrum_iterator
   gdouble  (*wait)        (struct spectrum_iterator *self);
   gboolean (*probe)       (struct spectrum_iterator *self);
   void     (*increment)   (struct spectrum_iterator *self, guint dim, gint delta);
+  void     (*free)        (struct spectrum_iterator *self);
 };
 
 
