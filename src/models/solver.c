@@ -23,17 +23,19 @@
 #define SOLVER_PRIVATE(o, field) ((SOLVER_GET_PRIVATE(o))->field)
 typedef struct _HosSolverPrivate HosSolverPrivate;
 
-struct solver_target
-{
-  HosSpectrum *spectrum;
-  HosModel    *model;
-  gdouble      noise;
-};
-
 struct _HosSolverPrivate
 {
-  GList    *targets;
-  GList    *parameters;
+  gint place_holder;
+};
+
+struct solver_target
+{
+  HosSpectrum      *spectrum;
+  HosModel         *model;
+  gint              np_total;
+  model_iterator_t *model_iterator;
+  gdouble          *model_buffer;
+  gdouble           noise;
 };
 
 static struct solver_target* solver_find_target(HosSolver *self, HosSpectrum *spectrum);
@@ -60,7 +62,7 @@ static struct solver_target*
 solver_find_target(HosSolver *self, HosSpectrum *spectrum)
 {
   GList *target;
-  for (target = SOLVER_PRIVATE(self, targets); target != NULL; target = target->next)
+  for (target = self->targets; target != NULL; target = target->next)
     if (((struct solver_target*)(target->data))->spectrum == spectrum)
       return target->data;
   
@@ -83,13 +85,14 @@ solver_set_model(HosSolver *self, HosSpectrum *spectrum, HosModel *model)
   if (target == NULL)
     {
       target = g_new0(struct solver_target, 1);
-      HosSolverPrivate *priv = SOLVER_GET_PRIVATE(self);
-      priv->targets = g_list_append(priv->targets, target);
+      self->targets = g_list_append(self->targets, target);
     }
 
-  target->spectrum = spectrum;
-  target->model    = model;
-  target->noise    = spectrum_stddev(spectrum);
+  target->spectrum       = spectrum;
+  target->model          = model;
+  target->model_buffer   = g_new(gdouble, spectrum_np_total(spectrum));
+  target->noise          = spectrum_stddev(spectrum);
+  target->np_total       = spectrum_np_total(spectrum);
 }
 
 void
@@ -110,11 +113,55 @@ solver_append_parameter(HosSolver *self, HosParameter *parameter)
   g_return_if_fail(HOS_IS_PARAMETER(parameter));
   g_return_if_fail(HOS_IS_SOLVER(self));
 
-  HosSolverPrivate *priv = SOLVER_GET_PRIVATE(self);
-
-  if (g_list_index(priv->parameters, parameter) < 0)
-    priv->parameters = g_list_append(priv->parameters, parameter);
+  if (g_list_index(self->parameters, parameter) < 0)
+    self->parameters = g_list_append(self->parameters, parameter);
 
   /* FIXME note any 'model-caching' is now invalid */
     
+}
+
+/*
+ * Returns:
+ * sum for all self->targets:
+ *   sum of all ((S(i) - M(i)) / noise)^2
+ */
+gdouble
+solver_square_error(HosSolver *self)
+{
+  gdouble result = 0;
+
+  GList *target_p;
+  for (target_p = self->targets; target_p != NULL; target_p = target_p->next)
+    {
+      struct solver_target* target = (struct solver_target*)(target_p->data);
+      HosSpectrum *spectrum = target->spectrum;
+      gdouble *spec_data = spectrum_traverse_blocking(spectrum);
+      if (target->model_iterator == NULL)
+	{
+	  int ndim = spectrum_ndim(spectrum);
+	  gdouble orig[ndim];
+	  gdouble delta[ndim];
+	  gint np[ndim];
+	  int i;
+	  for (i = 0; i < ndim; ++i)
+	    {
+	      orig[i]  = spectrum_orig_ppm(spectrum, i);
+	      delta[i] = spectrum_sw_ppm(spectrum, i) / spectrum_np(spectrum, i);
+	      np[i]    = spectrum_np(spectrum, i);
+	    }
+	  target->model_iterator = model_iterator_new(target->model, orig, delta, np);
+	}
+      model_iterator_fill(target->model_iterator, target->model_buffer);
+
+      gdouble this_result = 0;
+      int j;
+      for (j = 0; j < target->np_total; ++j)
+	{
+	  gdouble delta = (spec_data[j] - target->model_buffer[j]);
+	  this_result += delta * delta;
+	}
+      this_result /= (target->noise * target->noise);
+      result += this_result;
+    }
+  return result;
 }

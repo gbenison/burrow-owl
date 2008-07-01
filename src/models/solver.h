@@ -39,6 +39,9 @@ typedef struct _HosSolverClass  HosSolverClass;
 struct _HosSolver
 {
   GObject parent_instance;
+
+  GList *targets;
+  GList *parameters;
 };
 
 struct _HosSolverClass
@@ -46,9 +49,10 @@ struct _HosSolverClass
   GObjectClass parent_class;
 };
 
-void   solver_set_model        (HosSolver *self, HosSpectrum *spectrum, HosModel *model);
-void   solver_set_noise        (HosSolver *self, HosSpectrum *spectrum, gdouble noise);
-void   solver_append_parameter (HosSolver *self, HosParameter *parameter);
+void    solver_set_model        (HosSolver *self, HosSpectrum *spectrum, HosModel *model);
+void    solver_set_noise        (HosSolver *self, HosSpectrum *spectrum, gdouble noise);
+void    solver_append_parameter (HosSolver *self, HosParameter *parameter);
+gdouble solver_square_error     (HosSolver *self);
 
 G_END_DECLS
 

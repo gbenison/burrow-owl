@@ -44,6 +44,7 @@ struct _HosSolverAnnealClass
   HosSolverClass parent_class;
 };
 
+int solver_anneal_sample(HosSolverAnneal *self, int n_step, double step_scale, double temperature);
 
 G_END_DECLS
 
