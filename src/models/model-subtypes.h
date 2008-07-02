@@ -84,12 +84,25 @@ struct _HosModelNoiseClass
   HosModelClass parent_class;
 };
 
+struct _HosModelProjection
+{
+  HosModel  parent;
+  HosModel *argument;
+  gdouble   coordinate;
+};
+
+struct _HosModelProjectionClass
+{
+  HosModelClass parent_class;
+};
+
 #define CONSTRUCTOR  /* empty */
 
 HosModel* model_sum       (HosModel *A, HosModel *B);
 HosModel* model_product   (HosModel *A, HosModel *B);
 HosModel* model_gaussian  (HosModel *src);
 HosModel* model_add_noise (HosModel *src, gdouble noise);
+HosModel* model_project   (HosModel *src, gdouble coordinate);
 
 G_END_DECLS
 

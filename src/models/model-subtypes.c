@@ -258,3 +258,65 @@ model_add_noise(HosModel *src, gdouble noise)
 
   return result;
 }
+
+/** model_projection **/
+
+static void
+model_projection_iterator_fill(model_iterator_t* self, gdouble *dest)
+{
+  model_iterator_t *arg = (model_iterator_t*)(self->data);
+  model_iterator_fill(arg, dest);
+}
+
+static void
+model_projection_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+  HosModelProjection *model_projection = HOS_MODEL_PROJECTION(self->root);
+  gint arg_ndim = model_projection->argument->ndim;
+
+  gdouble arg_orig[arg_ndim];
+  gdouble arg_delta[arg_ndim];
+  guint arg_np[arg_ndim];
+
+  arg_orig[0] = model_projection->coordinate;
+  arg_delta[0] = 0;
+  arg_np[0] = 1;
+
+  int i;
+  for (i = 1; i < arg_ndim; ++i)
+    {
+      arg_orig[i]  = orig[i - 1];
+      arg_delta[i] = delta[i - 1];
+      arg_np[i]    = np[i - 1];
+    }
+
+  model_iterator_t *arg_iterator = model_iterator_new(model_projection->argument,
+						      arg_orig,
+						      arg_delta,
+						      arg_np);
+  self->data = arg_iterator;
+  self->np = arg_iterator->np;
+}
+
+static void
+model_projection_iterator_free(model_iterator_t *self)
+{
+  model_iterator_free((model_iterator_t*)(self->data));
+}
+
+HosModel*
+model_project(HosModel *src, gdouble coordinate)
+{
+  HosModel           *result           = g_object_new(HOS_TYPE_MODEL_PROJECTION, NULL);
+  HosModelProjection *model_projection = HOS_MODEL_PROJECTION(result);
+
+  g_return_if_fail(src->ndim > 0);
+
+  model_projection->argument   = src;
+  model_projection->coordinate = coordinate;
+
+  result->ndim = src->ndim - 1;
+
+  return result;
+}
+
