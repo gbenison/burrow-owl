@@ -320,3 +320,111 @@ model_project(HosModel *src, gdouble coordinate)
   return result;
 }
 
+/*** model_transposition ***/
+
+static void
+model_transposition_iterator_fill(model_iterator_t* self, gdouble *dest)
+{
+  model_iterator_t *arg = (model_iterator_t*)(self->data);
+  model_iterator_fill(arg, dest);
+
+  HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(self->root);
+
+  gdouble tmp;
+
+  guint n_i = model_transposition->n_i;
+  guint n_j = model_transposition->n_j;
+  guint n_k = model_transposition->n_k;
+
+  guint i, j, k; 
+  gdouble *orig = dest;
+
+  for (k = 0; k < n_k; ++k)
+    {
+      for (i = 0; i < n_i; ++i)
+	for (j = 0; j < n_j; ++j)
+	  {
+	    gdouble A = *(orig + (i + n_i * j));
+	    gdouble B = *(orig + (j + i * n_j));
+	    tmp = A;
+	    A = B;
+	    B = tmp;
+	  }
+      orig += n_i * n_j;
+    }
+}
+
+static void
+model_transposition_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
+{
+
+  HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(self->root);
+  gint ndim = HOS_MODEL(self->root)->ndim;
+  guint idx = model_transposition->idx;
+
+  gdouble arg_orig[ndim];
+  gdouble arg_delta[ndim];
+  guint   arg_np[ndim];
+
+  arg_orig[0]  = orig[idx];
+  arg_delta[0] = delta[idx];
+  arg_np[0]    = np[idx];
+
+  int i;
+  for (i = 1; i < ndim; ++i)
+    {
+      guint src_idx = (i > idx) ? i : i - 1;
+      arg_orig[i]  = orig[src_idx];
+      arg_delta[i] = delta[src_idx];
+      arg_np[i]    = np[src_idx];
+    }
+
+  model_iterator_t *arg_iterator = model_iterator_new(model_transposition->argument,
+						      arg_orig,
+						      arg_delta,
+						      arg_np);
+  self->data = arg_iterator;
+  self->np = arg_iterator->np;
+
+  /* set up dimensions for transpose */
+  model_transposition->n_i = 1;
+  model_transposition->n_j = 1;
+  model_transposition->n_k = 1;
+
+  for (i = 0; i < idx; ++i)
+    model_transposition->n_i *= arg_np[i];
+
+  model_transposition->n_j = arg_np[idx];
+
+  for (i = idx + 1; i < ndim; ++i)
+    model_transposition->n_k *= arg_np[i];
+
+}
+
+static void
+model_transposition_iterator_free(model_iterator_t *self)
+{
+  model_iterator_free((model_iterator_t*)(self->data));
+}
+
+HosModel*
+model_transpose(HosModel *src, guint idx)
+{
+  HosModel           *result           = g_object_new(HOS_TYPE_MODEL_TRANSPOSITION, NULL);
+  HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(result);
+
+  g_return_if_fail(HOS_IS_MODEL(src));
+
+  if (idx == 0)
+    return src;
+
+  g_return_if_fail(src->ndim > 0);
+
+  model_transposition->argument = src;
+  model_transposition->idx      = idx;
+
+  result->ndim = src->ndim;
+
+  return result;
+}
+

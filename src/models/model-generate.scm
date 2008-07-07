@@ -96,6 +96,7 @@ hos_model_@name@_init(HosModel@Name@ *self)
 (generate-derived-type "dimension")
 (generate-derived-type "noise")
 (generate-derived-type "projection")
+(generate-derived-type "transposition")
 
 
 

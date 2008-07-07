@@ -96,6 +96,21 @@ struct _HosModelProjectionClass
   HosModelClass parent_class;
 };
 
+struct _HosModelTransposition
+{
+  HosModel  parent;
+  HosModel *argument;
+  guint     idx;
+  guint     n_i;
+  guint     n_j;
+  guint     n_k;
+};
+
+struct _HosModelTranspositionClass
+{
+  HosModelClass parent_class;
+};
+
 #define CONSTRUCTOR  /* empty */
 
 HosModel* model_sum       (HosModel *A, HosModel *B);
@@ -103,6 +118,7 @@ HosModel* model_product   (HosModel *A, HosModel *B);
 HosModel* model_gaussian  (HosModel *src);
 HosModel* model_add_noise (HosModel *src, gdouble noise);
 HosModel* model_project   (HosModel *src, gdouble coordinate);
+HosModel* model_transpose (HosModel *src, guint idx);
 
 G_END_DECLS
 
