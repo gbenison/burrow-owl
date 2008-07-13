@@ -9,7 +9,7 @@
 	     (gnome gtk)
 	     (spectrum)
 	     (spec-extra)
-	     (nmr average-shift))
+	     (burrow chemical-shift-distributions))
 
 (sleep-if-requested)
 
