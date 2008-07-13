@@ -139,12 +139,13 @@ model_sum_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, g
 static void
 model_sum_iterator_free(model_iterator_t *self)
 {
-  struct pair_data *args = (struct pair_data*)(self->data);
-  model_iterator_free(args->iterator[0]);
-  model_iterator_free(args->iterator[1]);
-
-  g_free(args->buffer[0]);
-  g_free(args->buffer[1]);
+  struct pair_data *data = (struct pair_data*)(self->data);
+  g_free(data->buffer[0]);
+  g_free(data->buffer[1]);
+  model_iterator_free(data->iterator[0]);
+  model_iterator_free(data->iterator[1]);
+  g_free(data);
+  self->data = NULL;
 }
 
 HosModel*
@@ -205,12 +206,13 @@ model_product_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delt
 static void
 model_product_iterator_free(model_iterator_t *self)
 {
-  struct pair_data *args = (struct pair_data*)(self->data);
-  model_iterator_free(args->iterator[0]);
-  model_iterator_free(args->iterator[1]);
-
-  g_free(args->buffer[0]);
-  g_free(args->buffer[1]);
+  struct pair_data *data = (struct pair_data*)(self->data);
+  g_free(data->buffer[0]);
+  g_free(data->buffer[1]);
+  model_iterator_free(data->iterator[0]);
+  model_iterator_free(data->iterator[1]);
+  g_free(data);
+  self->data = NULL;
 }
 
 HosModel*
