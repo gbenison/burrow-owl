@@ -41,11 +41,8 @@ hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
 	$(H2DEF) --all $(HEADERS_2) >> $@
 	$(H2DEF) --all $(HEADERS_3) >> $@
 
-GUILE_PATH_GWRAP :=@srcdir@:${G_WRAP_MODULE_DIR}:@builddir@
-
 spectrum-gw.c spectrum-gw.h: hosspectrum.defs
-	echo $(GUILE_LOAD_PATH)
-	GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$(GUILE_PATH_GWRAP):$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
+	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
 INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
 

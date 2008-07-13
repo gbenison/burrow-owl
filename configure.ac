@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT(burrow, 1.4rc, [gbenison@gmail.com])
+AC_INIT(burrow-owl, 1.5rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/spectrum.c])
@@ -15,25 +15,25 @@ AC_PROG_LIBTOOL
 
 AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 
-PKG_CHECK_MODULES(GLIB, glib-2.0)
-PKG_CHECK_MODULES(GTK, gtk+-2.0)
-PKG_CHECK_MODULES(GTHREAD, gthread-2.0)
-PKG_CHECK_MODULES(GSL, gsl >= 1.0)
+PKG_CHECK_MODULES(GLIB,      glib-2.0)
+PKG_CHECK_MODULES(GTK,       gtk+-2.0)
+PKG_CHECK_MODULES(GTHREAD,   gthread-2.0)
+PKG_CHECK_MODULES(STARPARSE, starparse)
+PKG_CHECK_MODULES(GSL,       gsl >= 1.0)
 
-if test -d $srcdir/nmr-utils; then
-   AC_CONFIG_SUBDIRS(nmr-utils)
+GUILE_GNOME_API=none;
+PKG_CHECK_MODULES(GUILE_GNOME_0, guile-gnome-glib-0 >= 2.15, GUILE_GNOME_API=0, true);
+PKG_CHECK_MODULES(GUILE_GNOME_2, guile-gnome-glib-2 >= 2.15, GUILE_GNOME_API=2, true);
+
+if test "$GUILE_GNOME_API" = "none";
+then
+  AC_MSG_ERROR([No guile-gnome found.])
 fi
 
-if test -d $srcdir/starparse; then
-   AC_CONFIG_SUBDIRS(starparse)
-fi
+PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-$GUILE_GNOME_API >= 2.15);
 
-PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-0 >= 2.15,
-{
-	AC_MSG_RESULT([Using installed guile-gnome])
-	guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-0`;
-	GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-0;
-})
+guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-$GUILE_GNOME_API`;
+GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-$GUILE_GNOME_API;
 
 AC_SUBST(guile_gnome_prefix)
 AC_SUBST(GUILE_GNOME_CFLAGS)
@@ -69,7 +69,7 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset pow sqrt])
 
 AC_CONFIG_FILES([Makefile
-                 burrow.pc
+                 burrow-owl.pc
                  doc/Makefile
                  src/Makefile
                  wrapper/burrow

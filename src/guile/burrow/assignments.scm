@@ -242,7 +242,7 @@
 ;; map NMR-Star v.2 names to standard NMR-Star v.3 names
 (define (ensure-star-v3 name)
   (case name
-    ((Residue_seq_code Atom_chem_shift.Auth_seq_ID)
+    ((Residue_seq_code Atom_chem_shift.Auth_seq_ID Atom_chem_shift.Seq_ID)
      'Atom_chem_shift.Seq_ID)
     ((Atom_name Atom_chem_shift.Atom_ID Atom_chem_shift.Auth_atom_ID)
      'Atom_chem_shift.Atom_ID)
@@ -259,7 +259,7 @@
      'Atom_name)
     ((Chem_shift_value Atom_chem_shift.Val)
      'Chem_shift_value)
-    ((Residue_label)
+    ((Atom_chem_shift.Auth_comp_ID Residue_label Atom_chem_sift.Comp_ID)
      'Residue_label)
     (else name)))
 
@@ -284,14 +284,13 @@
 	    (set! result (cons assignment result))))
       (set! group (list)))
     (define (process-entry name value)
-      (let ((name  (ensure-star-v2.1 name))
-	    (value (value-tidy value)))
+      (let ((value (value-tidy value)))
 	(if (and (equal? name  'Saveframe_category)
 		 (equal? value 'assigned_chemical_shifts))
 	    (set! group (list)))
 	(if (in-group? name)
 	    (append-assignment!))
-	(set! group (cons (cons name value) group))))
+	(set! group (cons (cons (ensure-star-v2.1 name) value) group))))
     (with-parse-trap
      (lambda ()
        (star-parse fname #f process-entry)))
@@ -301,7 +300,7 @@
   (display "data_assignments\n\n")
   (format #t "_creation_date  ~a~%"   (strftime "%F" (localtime (current-time))))
   (format #t "_creation_time  ~a~%~%" (strftime "%T" (localtime (current-time))))
-  (write-bmrb-loop
+  (write-star-loop
    (cons 'Residue_seq_code (map assignment:residue-name assignments))
    (cons 'Residue_label    (map assignment:residue-type assignments))
    (cons 'Atom_name        (map assignment:atom-name    assignments))
