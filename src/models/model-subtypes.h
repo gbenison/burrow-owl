@@ -54,7 +54,9 @@ struct _HosModelProductClass
 struct _HosModelGaussian
 {
   HosModel  parent_instance;
-  HosModel *argument;
+  HosModel *src;
+  HosModel *center;
+  HosModel *sigma;
 };
 
 struct _HosModelGaussianClass
@@ -115,7 +117,7 @@ struct _HosModelTranspositionClass
 
 HosModel* model_sum       (HosModel *A, HosModel *B);
 HosModel* model_product   (HosModel *A, HosModel *B);
-HosModel* model_gaussian  (HosModel *src);
+HosModel* model_gaussian  (HosModel *src, HosModel *center, HosModel *sigma);
 HosModel* model_add_noise (HosModel *src, gdouble noise);
 HosModel* model_project   (HosModel *src, gdouble coordinate);
 HosModel* model_transpose (HosModel *src, guint idx);

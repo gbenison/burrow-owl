@@ -24,35 +24,60 @@
 
 /*** model_gaussian ***/
 
+struct gaussian_data
+{
+  model_iterator_t *src;
+  model_iterator_t *center;
+  model_iterator_t *sigma;
+};
+
 static void
 model_gaussian_iterator_fill(model_iterator_t* self, gdouble *dest)
 {
-  model_iterator_t *arg = (model_iterator_t*)(self->data);
-  arg->fill(arg, dest);
+  struct gaussian_data* data = (struct gaussian_data*)(self->data);
+  gdouble center;
+  gdouble sigma;
+
+  static gdouble sqrt2pi = 1;
+  if (sqrt2pi == 1) sqrt2pi = sqrt(2 * M_PI);
+
+  model_iterator_fill(data->center, &center);
+  model_iterator_fill(data->sigma, &sigma);
+  model_iterator_fill(data->src, dest);
   int i;
   for (i = 0; i < self->np; ++i)
-    dest[i] = exp(- (dest[i] * dest[i]));
+    dest[i] = (1.0 / (sigma * sqrt2pi)) * exp(- (dest[i] - center) * (dest[i] - center) / (2 * sigma * sigma));
 }
 
 static void
 model_gaussian_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
 {
-  model_iterator_t *arg = model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->argument, orig, delta, np);
-  self->data = arg;
-  self->np = arg->np;
+  struct gaussian_data *data = g_new0(struct gaussian_data, 1);
+  data->src = model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->src, orig, delta, np);
+  data->center = model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->center, NULL, NULL, NULL);
+  data->sigma = model_iterator_new(HOS_MODEL_GAUSSIAN(self->root)->sigma, NULL, NULL, NULL);
+  self->data = data;
+  self->np = data->src->np;
 }
 
 static void
 model_gaussian_iterator_free(model_iterator_t* self)
 {
-  model_iterator_free((model_iterator_t*)(self->data));
+  struct gaussian_data* data = (struct gaussian_data*)(self->data);
+  model_iterator_free(data->src);
+  model_iterator_free(data->center);
+  model_iterator_free(data->sigma);
 }
 
 HosModel*
-model_gaussian(HosModel *src)
+model_gaussian(HosModel *src, HosModel *center, HosModel *sigma)
 {
   HosModel *result = g_object_new(HOS_TYPE_MODEL_GAUSSIAN, NULL);
-  HOS_MODEL_GAUSSIAN(result)->argument = src;
+  g_return_if_fail(center->ndim == 0);
+  g_return_if_fail(sigma->ndim == 0);
+  HOS_MODEL_GAUSSIAN(result)->src = src;
+  HOS_MODEL_GAUSSIAN(result)->center = center;
+  HOS_MODEL_GAUSSIAN(result)->sigma = sigma;
   result->ndim = src->ndim;
   return result;
 }
@@ -97,6 +122,7 @@ struct pair_data
   model_iterator_t *iterator[2];
   gdouble          *buffer[2];
 };
+
 
 static void
 model_sum_iterator_fill(model_iterator_t* self, gdouble *dest)
