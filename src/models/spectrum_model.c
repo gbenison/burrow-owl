@@ -79,3 +79,14 @@ spectrum_1d_from_model(HosModel *model, gdouble orig, gdouble sw, guint np)
 {
   return spectrum_from_model(model, &orig, &sw, &np, 1);
 }
+
+HosSpectrum* CONSTRUCTOR spectrum_2d_from_model (HosModel *model,
+						 gdouble orig1, gdouble sw1, guint np1,
+						 gdouble orig2, gdouble sw2, guint np2)
+{
+  gdouble orig[2] = {orig1, orig2};
+  gdouble sw[2]   = {sw1, sw2};
+  guint   np[2]   = {np1, np2};
+
+  return spectrum_from_model(model, &orig, &sw, &np, 2);
+}

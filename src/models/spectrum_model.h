@@ -51,6 +51,9 @@ struct _HosSpectrumModelClass
 
 HosSpectrum* CONSTRUCTOR spectrum_from_model    (HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint ndim);
 HosSpectrum* CONSTRUCTOR spectrum_1d_from_model (HosModel *model, gdouble orig, gdouble sw, guint np);
+HosSpectrum* CONSTRUCTOR spectrum_2d_from_model (HosModel *model,
+						 gdouble orig1, gdouble sw1, guint np1,
+						 gdouble orig2, gdouble sw2, guint np2);
 
 GType hos_spectrum_model_get_type (void);
 
