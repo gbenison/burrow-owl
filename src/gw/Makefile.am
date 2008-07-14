@@ -20,8 +20,6 @@ HEADERS_2= \
 $(headers_dir)/hoscanvas.h \
 $(headers_dir)/canvasitem.h \
 $(headers_dir)/ornament.h \
-$(headers_dir)/hosbackingsim.h \
-$(headers_dir)/hosdimensionsim.h \
 $(headers_dir)/version.h
 
 HEADERS_3= \

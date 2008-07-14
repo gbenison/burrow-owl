@@ -32,7 +32,6 @@
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
         "#include <painter_gdk.h>\n"
-        "#include <hosbackingsim.h>\n"
         "\n"))
 
         ; couple of disabled sources
