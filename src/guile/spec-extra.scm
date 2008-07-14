@@ -179,6 +179,10 @@
 	 (s3 (spectrum-extract-ppm s2 y1 yn)))
     (spectrum-transpose s3 1)))
 
+(define-public (spectrum-cache spec)
+  (spectrum-peek spec 0) ;; forces traversal
+  spec)
+
 (define-public (adjustment-for-spectrum spectrum dim)
   (let ((lower (spectrum-giro-ppm spectrum dim))
 	(upper (spectrum-orig-ppm spectrum dim)))
@@ -191,6 +195,10 @@
 (define-public (marker-set-movable marker movable)
   (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
   (set marker 'sensitive movable))
+
+(define-public (marker-set-pos marker x y)
+  (set (marker-get-x-adjustment marker) 'value x)
+  (set (marker-get-y-adjustment marker) 'value y))
 
 (define-public (cursor-set-movable cursor movable)
   (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")
