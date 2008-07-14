@@ -96,7 +96,7 @@
 	  (marker-set-pos marker
 			  (assignment:shift H)
 			  (assignment:shift N))
-	  (marker-set-movable marker #f)))))
+	  (set marker 'sensitive #f)))))
 
 (define w (make <gtk-window> #:default-height 300 #:default-width 300))
 (confess "making canvas...")
