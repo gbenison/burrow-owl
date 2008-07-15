@@ -9,6 +9,7 @@ lib_LTLIBRARIES=libburrow.la
 CLEANFILES += $(bin_SCRIPTS)
 
 nobase_data_DATA=guile/spec-extra.scm \
+                 guile/spectrum.scm \
                  guile/burrow/assignments.scm \
                  guile/burrow/hacks.scm \
                  guile/burrow/chemical-shift-distributions.scm \
