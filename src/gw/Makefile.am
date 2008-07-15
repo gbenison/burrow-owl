@@ -34,12 +34,8 @@ INCLUDES=@GLIB_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(h
 
 BUILT_SOURCES=spectrum-gw.c spectrum-gw.h hosspectrum.defs
 
-guiledir=$(datadir)/guile
-guile_DATA=spectrum.scm
-CLEANFILES += spectrum.scm
-
-spectrum.scm: spectrum-gw.scm
-	cp $< $@
+moduledir=$(datadir)/guile/burrow
+module_DATA=spectrum-gw.scm spectrum.scm
 
 CLEANFILES += hosspectrum.defs spectrum-gw.c spectrum-gw.h spectrum-gw.scm
 CLEANFILES += spectrum.log gnome-glib.log
