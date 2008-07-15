@@ -10,7 +10,7 @@
   #:use-module (gnome gw support defs))
 
 (define-class <canvas-wrapset> (<gobject-wrapset-base>)
-  #:id 'canvas
+  #:id 'burrowcanvas
   #:dependencies '(standard gnome-glib gnome-gobject gnome-gdk gnome-gtk))
 
 (define-method (global-declarations-cg (self <canvas-wrapset>))
@@ -42,5 +42,5 @@
    (next-method)))
 
 (define-method (initialize (ws <canvas-wrapset>) initargs)
-  (next-method ws (cons #:module (cons '(canvas) initargs)))
+  (next-method ws (cons #:module (cons '(burrow canvas-gw) initargs)))
   (load-defs ws "canvas.defs"))

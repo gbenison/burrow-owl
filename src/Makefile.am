@@ -1,7 +1,7 @@
 
 EXTRA_DIST=
 INCLUDES=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw 
+SUBDIRS=finite-state-machine . gw canvas
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la

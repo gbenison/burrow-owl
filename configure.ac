@@ -70,9 +70,11 @@ AC_CHECK_FUNCS([memset pow sqrt])
 AC_CONFIG_FILES([Makefile
                  burrow-owl.pc
                  doc/Makefile
-                 src/Makefile
                  wrapper/burrow
+                 src/Makefile
                  src/gw/Makefile
+                 src/canvas/Makefile
+                 src/canvas/gw/Makefile
 		 src/finite-state-machine/Makefile
 		 test-suite/Makefile])
 
