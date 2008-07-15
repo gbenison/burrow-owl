@@ -106,6 +106,8 @@ static void          spectrum_push_cached       (HosSpectrum *self, guint *idx, 
 static void          point_cache_store          (HosSpectrum *spec, gsize idx, gdouble value);
 static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
 
+static struct spectrum_iterator* spectrum_iterator_cached(HosSpectrum *self);
+
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
 /* Iterators */
@@ -264,6 +266,22 @@ spectrum_set_dimensions(HosSpectrum* self, GList *dimensions)
 {
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
   priv->dimensions = dimensions;
+}
+
+/*
+ * Set the buffer of 'self' to 'buf', disregarding any old
+ * self->buf.
+ * !! 'buf' must be appropriately sized for 'self' !!
+ * !! callee (i.e. 'self') owns 'buf' after this call !!
+ */
+void
+spectrum_set_contents(HosSpectrum *self, gdouble *buf)
+{
+  /* FIXME free old buf? */
+  g_atomic_pointer_set(&self->buf, NULL);
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  priv->status = COMPLETE;
+  g_atomic_pointer_set(&self->buf, buf);
 }
 
 GList*
@@ -971,14 +989,17 @@ point_cache_fetch(HosSpectrum *spec, gsize idx)
 struct spectrum_iterator*
 spectrum_construct_iterator(HosSpectrum *self)
 {
-  /* 
-   * FIXME if 'self' is already instantiated,
-   * generate a 'buffered' interator
-   */
+  struct spectrum_iterator* result = NULL;
 
-  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
-  g_assert(class->construct_iterator != NULL);
-  struct spectrum_iterator* result = class->construct_iterator(self);
+  if (self->buf != NULL)
+    result = spectrum_iterator_cached(self);
+  else
+    {
+      HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+      g_assert(class->construct_iterator != NULL);
+      result = class->construct_iterator(self);
+      result->free = class->free_iterator;
+    }
 
   result->root      = self;
   result->root_type = G_OBJECT_TYPE(self);
@@ -1146,8 +1167,20 @@ iterator_free(struct spectrum_iterator *self)
   g_free(self->np);
   g_free(self->stride);
 
-  class->free_iterator(self);
-
+  if (self->free)
+    (self->free)(self);
 }
 
+/**** 'cached' iterators ****/
 
+static struct spectrum_iterator*
+spectrum_iterator_cached(HosSpectrum *self)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+  g_assert(self->buf != NULL);
+  struct spectrum_iterator *result           = g_new0(struct spectrum_iterator, 1);
+
+  /* FIXME insert entries for result->tickle, etc. here */
+
+  return result;
+}

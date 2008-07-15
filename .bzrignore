@@ -22,3 +22,5 @@ src/marshal.h
 src/marshal.c
 starparse
 nmr-utils
+model-subtypes-gen.c
+model-subtypes-gen.h

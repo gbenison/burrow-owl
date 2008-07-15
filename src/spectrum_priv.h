@@ -27,6 +27,7 @@ struct _dimension
 
 GList*   spectrum_copy_dimensions (HosSpectrum *self);
 void     spectrum_set_dimensions  (HosSpectrum *self, GList *dimensions);
+void     spectrum_set_contents    (HosSpectrum *self, gdouble *buf);
 
 /*
  *  --- Iterators ---
@@ -67,6 +68,7 @@ struct spectrum_iterator
   gdouble  (*wait)        (struct spectrum_iterator *self);
   gboolean (*probe)       (struct spectrum_iterator *self);
   void     (*increment)   (struct spectrum_iterator *self, guint dim, gint delta);
+  void     (*free)        (struct spectrum_iterator *self);
 };
 
 

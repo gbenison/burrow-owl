@@ -1,14 +1,18 @@
 
 EXTRA_DIST=
 AM_CPPFLAGS=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw 
+SUBDIRS=finite-state-machine . gw models
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
 
 CLEANFILES += $(bin_SCRIPTS)
 
-nobase_data_DATA=guile/spec-extra.scm guile/burrow/assignments.scm guile/burrow/hacks.scm
+nobase_data_DATA=guile/spec-extra.scm \
+                 guile/burrow/assignments.scm \
+                 guile/burrow/hacks.scm \
+                 guile/burrow/chemical-shift-distributions.scm \
+                 guile/burrow/amino-codes.scm
 
 BUILT_SOURCES=marshal.c marshal.h
 
@@ -36,18 +40,10 @@ contour.c  \
 contour.h  \
 contourplot.c \
 contourplot.h \
-hosbacking.c  \
-hosbacking.h  \
-hosbackingsim.c  \
-hosbackingsim.h  \
 hoscanvas.c  \
 hoscanvas.h  \
 canvasitem.c \
 canvasitem.h \
-hosdimension.c  \
-hosdimension.h  \
-hosdimensionsim.c  \
-hosdimensionsim.h  \
 spectrum.c  \
 burrow/spectrum.h  \
 spectrum_priv.h \

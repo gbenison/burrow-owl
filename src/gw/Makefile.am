@@ -20,8 +20,6 @@ HEADERS_2= \
 $(headers_dir)/hoscanvas.h \
 $(headers_dir)/canvasitem.h \
 $(headers_dir)/ornament.h \
-$(headers_dir)/hosbackingsim.h \
-$(headers_dir)/hosdimensionsim.h \
 $(headers_dir)/version.h
 
 HEADERS_3= \
@@ -34,19 +32,15 @@ $(headers_dir)/line.h \
 $(headers_dir)/spectrum-profile.h
 # $(headers_dir)/box.h
 
-H2DEF=@srcdir@/h2def.py
+H2DEF=@top_srcdir@/utils/h2def.py
 
 hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
 	$(H2DEF) --all $(HEADERS_1) > $@
 	$(H2DEF) --all $(HEADERS_2) >> $@
 	$(H2DEF) --all $(HEADERS_3) >> $@
 
-GGDIR := @top_srcdir@/guile-gnome
-GUILE_PATH_GWRAP :=@srcdir@:${G_WRAP_MODULE_DIR}:$(GGDIR)/gtk:$(GGDIR)/gdk:$(GGDIR)/atk:$(GGDIR)/pango:$(GGDIR)/glib:$(GGDIR)/defs:@builddir@
-
 spectrum-gw.c spectrum-gw.h: hosspectrum.defs
-	echo $(GUILE_LOAD_PATH)
-	GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$(GUILE_PATH_GWRAP):$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
+	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
 INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
 

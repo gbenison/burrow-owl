@@ -17,7 +17,7 @@
 	     (ice-9 getopt-long)
 	     (srfi srfi-1)
 	     (srfi srfi-19)
-	     (nmr average-shift))
+	     (burrow chemical-shift-distributions))
 
 (define (confess . args) 'ok)
 ; to debug use this:
@@ -804,14 +804,14 @@
 	     (gtk-ui-manager-add-ui ui (gtk-ui-manager-new-merge-id ui) "ui/MenuBar/ShowMenu"
 				    (symbol->string name)
 				    (symbol->string name)
-				    -1 -1))))
+				    '(auto) #f))))
       (for-each add-spec-toggler strippers))
     (let ((strip-names (map strip-name residues)))
       (define (name->action name)
 	(list name #f name #f name (lambda args (strip-jump-to-name name))))
       (define (add-strip-selector name)
 	(gtk-ui-manager-add-ui ui (gtk-ui-manager-new-merge-id ui) "ui/MenuBar/Actions/JumpMenu"
-			       name name -1 -1))
+			       name name '(auto) #f))
       (add-actions actions (map name->action strip-names))
       (for-each add-strip-selector (reverse strip-names)))
     ui))
