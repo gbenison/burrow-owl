@@ -21,7 +21,6 @@
 #define _HOS_HAVE_CANVAS_H
 
 #include <gtk/gtk.h>
-#include <burrow/spectrum.h>
 
 G_BEGIN_DECLS
 
@@ -73,6 +72,7 @@ cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
+GdkColor*      gdk_rgb(gdouble red, gdouble green, gdouble blue);
 
 GType hos_canvas_get_type(void);
 

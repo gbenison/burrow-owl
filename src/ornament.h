@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, 2007 Greg Benison
+ *  Copyright (C) 2006-2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
-#include <burrow/spectrum.h>
 #include "canvasitem.h"
 
 typedef struct _HosOrnament       HosOrnament;
@@ -77,7 +76,6 @@ struct _HosOrnament
 
 void ornament_acquire   (HosOrnament *self);
 void ornament_release   (HosOrnament *self);
-void ornament_configure (HosOrnament* ornament);
 
 GType hos_ornament_get_type (void);
 

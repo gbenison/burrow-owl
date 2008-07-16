@@ -16,10 +16,14 @@
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)
         "#include <burrow/spectrum.h>\n"
+        "#include <spectrum_integrated.h>\n"
+        "#include <spectrum_convoluted.h>\n"
         "#include <hoscanvas.h>\n"
         "#include <canvasitem.h>\n"
         "#include <marker.h>\n"
         "#include <marker_text.h>\n"
+        "#include <line.h>\n"
+        "#include <spectrum-profile.h>\n"
         "#include <cursor.h>\n"
         "#include <contourplot.h>\n"
         "#include <version.h>\n"
@@ -28,8 +32,6 @@
         "#include <painter.h>\n"
         "#include <painter_bwps.h>\n"
         "#include <painter_gdk.h>\n"
-        "#include <burrow/nih.h>\n"
-        "#include <hosbackingsim.h>\n"
         "\n"))
 
         ; couple of disabled sources
@@ -49,5 +51,4 @@
 
 (define-method (initialize (ws <spectrum-wrapset>) initargs)
   (next-method ws (cons #:module (cons '(spectrum) initargs)))
-  
   (load-defs ws "hosspectrum.defs"))

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "painter_cairo.h"
 #include "cairo_shapes.h"
 #include "boomerang.h"
+#include "debug.h"
 
 enum {
   PROP_0,
@@ -47,6 +48,8 @@ struct _HosContourPlotPrivate
   cairo_t         *cr;
 
   gulong configure_id;
+
+  GdkRectangle extent;
 
 };
 
@@ -74,7 +77,7 @@ static gboolean contour_plot_painter_configure (HosPainter *painter,
 						HosContourPlot *contour_plot);
 static gboolean contour_plot_painter_ready     (HosPainter *painter,
 						HosContourPlot *contour_plot);
-static void     contour_plot_item_configure    (HosCanvasItem *self);
+static void     contour_plot_configure         (HosCanvasItem *self);
 static void     contour_plot_set_painter       (HosContourPlot *self, HosPainter *painter);
 static void     contour_plot_sync_xform        (HosContourPlot *self);
 static void     contour_plot_invalidate_xform  (HosContourPlot *self);
@@ -107,7 +110,7 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
   gobject_class->get_property = contour_plot_get_property;
 
   canvas_item_class->expose         = contour_plot_expose;
-  canvas_item_class->item_configure = contour_plot_item_configure;
+  canvas_item_class->configure      = contour_plot_configure;
   canvas_item_class->set_canvas     = contour_plot_set_canvas;
 
   g_object_class_install_property (gobject_class,
@@ -257,6 +260,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
     {
       if (contour_plot_smooth_ready(contour_plot))
 	{
+	  CONFESS("contour plot 0x%x: copying cairo surface", self);
 	  cairo_t* cr = canvas_get_cairo_context(canvas);
 	  cairo_set_source_surface(cr, priv->backing, 0, 0);
 	  cairo_rectangle(cr, event->area.x, event->area.y, event->area.width, event->area.height);
@@ -266,6 +270,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
       else
 	{
 	  contour_plot_trace_cairo(contour_plot);
+	  CONFESS("contour plot 0x%x: drawing with GDK", self);
 
 	  /* fallback... draw with GDK */
 	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
@@ -286,7 +291,10 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	    painter_redraw_init_ppm(HOS_PAINTER(painter_gdk), x1, y1, xn, yn);
 
 	  if (state == NULL)
-	    return;
+	    {
+	      CONFESS("contour plot 0x%x: painter_redraw_init returned NULL", self);
+	      return;
+	    }
 
 	  gulong configure_id = priv->configure_id;
 
@@ -298,10 +306,12 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 
 	  gdouble start_time = g_timer_elapsed(contour_plot_timer, NULL);
 
+	  CONFESS("contour plot 0x%x: start GDK loop", self);
 	  while (1)
 	    {
 	      if (configure_id != priv->configure_id)
 		{
+		  CONFESS("contour plot 0x%x: cancelling GDK drawing", self);
 		  painter_redraw_cancel(state);
 		  state = NULL;
 		  break;
@@ -320,6 +330,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   else
     {
       /* spectrum not ready */
+      CONFESS("contour plot 0x%x: spectrum not ready; drawing waiting symbol", self);
       cairo_t* cr = canvas_get_cairo_context(canvas);
 
       gint window_width, window_height;
@@ -327,7 +338,16 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 			  &window_width, &window_height);
       
       cairo_translate (cr, window_width / 2, window_height / 2);
-      cairo_shape_hourglass(cr, 15, 25);
+
+      static const int hourglass_width = 15;
+      static const int hourglass_height = 25;
+      static const double pad_factor = 1.5;
+      cairo_shape_hourglass(cr, hourglass_width, hourglass_height);
+
+      priv->extent.width = hourglass_width * 2 * pad_factor;
+      priv->extent.height = hourglass_height * 2 * pad_factor;
+      priv->extent.x = (window_width / 2) - (hourglass_width * pad_factor);
+      priv->extent.y = (window_height / 2) - (hourglass_height * pad_factor);
 
       cairo_destroy(cr);
     }
@@ -349,6 +369,8 @@ contour_plot_trace_cairo(HosContourPlot *self)
 
   if (CONTOUR_PLOT_PRIVATE(self, cairo_tracing))
     return;
+
+  CONFESS("contour plot 0x%x: starting trace of cairo surface", self);
 
   CONTOUR_PLOT_PRIVATE(self, cairo_tracing) = TRUE;
   g_idle_add_full(G_PRIORITY_LOW, (GSourceFunc)contour_plot_idle_draw, self, NULL);
@@ -390,6 +412,8 @@ contour_plot_idle_draw(HosContourPlot *self)
 
   if ((priv->cairo_trace_state != NULL) && (painter_redraw_tick(priv->cairo_trace_state)))
     return TRUE;
+
+  CONFESS("contour plot 0x%x: finished tracing cairo contours", self);
 
   /* get here... must be done! */
   priv->cairo_trace_state = NULL;
@@ -449,10 +473,11 @@ contour_plot_invalidate_cairo(HosContourPlot *self, gboolean resize)
 }
 
 static void
-contour_plot_item_configure(HosCanvasItem *self)
+contour_plot_configure(HosCanvasItem *self)
 {
-  /* invalidate the whole spectrum region */
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  CONFESS("contour plot 0x%x: configure", self);
 
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   if (canvas && GTK_WIDGET_REALIZED(canvas))
@@ -477,7 +502,10 @@ contour_plot_item_configure(HosCanvasItem *self)
       rect.width = ABS(xn - x1);
       rect.height = ABS(yn - y1);
 
-      GdkRegion *region = gdk_region_rectangle(&rect);
+      GdkRegion *region = gdk_region_rectangle(&CONTOUR_PLOT_PRIVATE(self, extent));
+      gdk_region_union_with_rect(region, &rect);
+      CONTOUR_PLOT_PRIVATE(self, extent) = rect;
+
       canvas_invalidate_region(canvas, region);
       gdk_region_destroy(region);
     }

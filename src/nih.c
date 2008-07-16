@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,14 +17,13 @@
  *
  */
 
-#include <stdio.h>
-#include <assert.h>
-#include <burrow/nih.h>
-#include "hosdimension.h"
-#include "hosdimensionblock.h"
-#include "hosbackingblock.h"
-#include "hosbackingfile.h"
+#include "nih.h"
+#include "burrow/spectrum.h"
+#include "spectrum_priv.h"
 #include "endian.h"
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /*  --- header contents ----
  *
@@ -73,7 +72,60 @@
 #define IS_COMPLEX_Y(_h)((_h)[AWOL_REALFLAG_Y] != 1.0)
 #define IS_COMPLEX_Z(_h)((_h)[AWOL_REALFLAG_Z] != 1.0)
 
-/****** end header contents ******/
+static void find_permutation (const int A[3], const int B[3], int result[3]);
+static void permute          (float array[3], int permutation[3]);
+
+static void nih_idx2segment  (gpointer env, guint *idx, gint *segid, gint *pt);
+static void nih_read_segment (gpointer env, guint segid, gdouble *buf);
+
+static HosSpectrum* spectrum_clip_futile_dimensions(HosSpectrum *self);
+
+#define NIH_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_NIH, HosSpectrumNihPrivate))
+#define NIH_PRIVATE(o, field) ((NIH_GET_PRIVATE(o))->field)
+typedef struct _HosSpectrumNihPrivate HosSpectrumNihPrivate;
+
+struct _HosSpectrumNihPrivate
+{
+  gboolean need_swap;
+  gsize    stride[3];
+
+  float   *buffer;
+  gsize    segment_size;
+
+  int      fd;
+  off_t    file_size;
+};
+
+G_DEFINE_TYPE (HosSpectrumNih, hos_spectrum_nih, HOS_TYPE_SPECTRUM_SEGMENTED)
+
+static void
+hos_spectrum_nih_class_init(HosSpectrumNihClass *klass)
+{
+  GObjectClass     *gobject_class  = G_OBJECT_CLASS(klass);
+  HosSpectrumSegmentedClass *segmented_class = HOS_SPECTRUM_SEGMENTED_CLASS(klass);
+
+  segmented_class->idx2segment  = nih_idx2segment;
+  segmented_class->read_segment = nih_read_segment;
+
+  g_type_class_add_private(gobject_class, sizeof(HosSpectrumNihPrivate));
+}
+
+static void
+hos_spectrum_nih_init(HosSpectrumNih *self)
+{
+  /*
+   * FIXME
+   * rather than hard-coded, the segment size could be determined
+   * from stat() at object creation time to match the filesystem's IO block size.
+   */
+  gsize segment_size = 1024 * 4;
+  NIH_PRIVATE(self, segment_size) = segment_size;
+  spectrum_segmented_set_segment_size(HOS_SPECTRUM_SEGMENTED(self), segment_size);
+  spectrum_segmented_set_cache_size(HOS_SPECTRUM_SEGMENTED(self), 64);
+  NIH_PRIVATE(self, buffer) = g_new(float, segment_size);
+  NIH_PRIVATE(self, fd) = -1;
+  HOS_SPECTRUM_SEGMENTED(self)->traversal_env = NIH_GET_PRIVATE(self);
+}
 
 /*
  * fill 'result' with a permutation that transforms 'A' into 'B'.
@@ -92,9 +144,9 @@ find_permutation(const int A[3], const int B[3], int result[3])
       if(B[i] == A[j])
 	result[i] = j;
 
-  assert((result[0] > -1) && (result[0] < 3));
-  assert((result[1] > -1) && (result[1] < 3));
-  assert((result[2] > -1) && (result[2] < 3));
+  g_assert((result[0] > -1) && (result[0] < 3));
+  g_assert((result[1] > -1) && (result[1] < 3));
+  g_assert((result[2] > -1) && (result[2] < 3));
 
 }
 
@@ -114,23 +166,59 @@ permute(float array[3], int permutation[3])
   
   for (i = 0; i < 3; ++i)
     {
-      assert(permutation[i] > -1);
-      assert(permutation[i] < 3);
+      g_assert(permutation[i] > -1);
+      g_assert(permutation[i] < 3);
       array[i] = buffer[permutation[i]];
     }
 }
 
-/*
- * Construct a list of one member.
- */
-static GList*
-g_list_singleton(gpointer data)
+static void
+nih_idx2segment(gpointer env, guint *idx, gint *segid, gint *pt)
 {
-  GList* result = NULL;
- 
-  result = g_list_append(result, data);
+  HosSpectrumNihPrivate *priv = (HosSpectrumNihPrivate*)env;
 
-  return result;
+  gsize point_idx =
+    idx[0] * priv->stride[0] +
+    idx[1] * priv->stride[1] +
+    idx[2] * priv->stride[2];
+
+  point_idx += NIH_HDR_SIZE;
+
+  *segid = point_idx / priv->segment_size;
+  *pt    = point_idx % priv->segment_size;
+}
+
+static void
+nih_read_segment (gpointer env, guint segid, gdouble *buf)
+{
+  HosSpectrumNihPrivate *priv = (HosSpectrumNihPrivate*)env;
+
+  /* FIXME  better error handling */  
+  g_assert(priv->fd > 0);
+
+  off_t offset = priv->segment_size * segid * sizeof(float);
+  g_assert (lseek(priv->fd, offset, SEEK_SET) == offset);
+
+  /* read */
+  size_t n_remaining = priv->segment_size * sizeof(float);
+  if ((n_remaining + offset) > priv->file_size)
+    n_remaining = priv->file_size - offset;
+  char* dest = (char*)(priv->buffer);
+  while (n_remaining > 0)
+    {
+      size_t n_read = read(priv->fd, dest, n_remaining);
+      dest += n_read;
+      n_remaining -= n_read;
+    }
+
+  /* convert */
+  if (priv->need_swap)
+    endian_swap4(&priv->buffer, priv->segment_size);
+
+  int i;
+  for (i = 0; i < priv->segment_size; ++i)
+    buf[i] = priv->buffer[i];
+
 }
 
 
@@ -140,41 +228,49 @@ g_list_singleton(gpointer data)
 HosSpectrum*
 spectrum_nih_from_file(gchar* fname)
 {
-  float hdr[NIH_HDR_SIZE];
-  HosSpectrum *result = g_object_new(HOS_TYPE_SPECTRUM, NULL);
-  HosDimensionBlock *dimen_block;
-  HosDimension *dimen;
-  HosBackingFile *backing_file;
-  HosBacking *backing;
-  gulong cumulative_stride;
+  float        hdr[NIH_HDR_SIZE];
+  HosSpectrum *result = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_NIH, NULL));
+
+  HosSpectrumNihPrivate *priv = NIH_GET_PRIVATE(result);
 
   /* read header data -- FIXME error checking */
-  {
-    FILE *channel = fopen(fname, "r");
+  GError *file_error = NULL;
+  GIOChannel *channel = g_io_channel_new_file(fname, "r", &file_error);
 
-    if (channel == NULL)
-      return NULL;
-    fread(hdr, sizeof(float), NIH_HDR_SIZE, channel);
+  if (channel == NULL)
+    return NULL;
 
-    fclose(channel);
-  }
+  priv->fd = open(fname, O_RDONLY);
+  struct stat statbuf;
+  g_assert (fstat(priv->fd, &statbuf) == 0);
+  priv->file_size = statbuf.st_size;
 
-  /* create a backing object for the spectrum */
-  backing_file = g_object_new(HOS_TYPE_BACKING_FILE, NULL);
-  backing_file->fname = g_strdup(fname);
-  backing_file->hdr_size = NIH_HDR_SIZE * sizeof(float);
-  backing = HOS_BACKING(backing_file);
+  g_io_channel_set_encoding(channel, NULL, &file_error);
+
+  gsize header_size_bytes = sizeof(float) * NIH_HDR_SIZE;
+  gsize bytes_read;
+  g_io_channel_read_chars(channel, (gchar*)hdr, header_size_bytes, &bytes_read, &file_error);
+
+  g_io_channel_close(channel);
+  channel = NULL;
+
+  if (header_size_bytes != bytes_read)
+    return NULL;
+
+  HOS_SPECTRUM_NIH(result)->fname = g_strdup(fname);
 
   /* checks for endian-ness based on sanity of header values */
   if ((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1))
     {
       endian_swap4(hdr, NIH_HDR_SIZE);
-      backing_file->needs_swap = 1;
+      priv->need_swap = TRUE;
     }
+  else
+    priv->need_swap = FALSE;
 
   /* sanity checks after byte swapping */
-  assert(!((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1)));
-  assert(!((hdr[AWOL_NP_X] > 1e6) || (hdr[AWOL_NP_X] < 1)));
+  g_assert(!((hdr[AWOL_SF_X] > 1000) || (hdr[AWOL_SF_X] < 1)));
+  g_assert(!((hdr[AWOL_NP_X] > 1e6) || (hdr[AWOL_NP_X] < 1)));
 
   /*
    * check dimension transposition order 
@@ -207,119 +303,73 @@ spectrum_nih_from_file(gchar* fname)
     hdr[AWOL_ORIG_Z]
   };
 
-  permute(sf, permutation);
-  permute(sw, permutation);
+  float np[3] = {
+    hdr[AWOL_NP_X],
+    (IS_COMPLEX_X(hdr) && IS_COMPLEX_Y(hdr)) ? hdr[AWOL_NP_Y] / 2 : hdr[AWOL_NP_Y],
+    IS_COMPLEX_Z(hdr) ? hdr[AWOL_NP_Z] / 2 : hdr[AWOL_NP_Z]
+  };
+
+  permute(sf,   permutation);
+  permute(sw,   permutation);
   permute(orig, permutation);
 
   /* set up dimensions */
+  GList *dimensions = NULL;
+  gint i;
+  for (i = 0; i < 3; ++i)
+    {
+      dimension_t* dimen = g_new0(dimension_t, 1);
+      dimen->np   = np[i];
+      dimen->sw   = sw[i];
+      dimen->sf   = sf[i];
+      dimen->orig = orig[i] + sw[i] * ((np[i] - 1.0) / np[i]);
+      dimensions = g_list_append(dimensions, dimen);
+    }
+
+  spectrum_set_dimensions(HOS_SPECTRUM(result), dimensions);
 
   /* X */
-  dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
-  dimen = HOS_DIMENSION(dimen_block);
-
-  dimen->backing = backing;
-  dimen_block->schedule = NULL;
-  dimen_block->np_physical = hdr[AWOL_NP_X];
-  dimen_block->sw_physical = sw[0];
-  dimen->sw = dimen_block->sw_physical;
-  dimen->sf = sf[0];
-  dimen->orig = orig[0] + dimen->sw;
-  dimen->np = dimen_block->np_physical;
-  /* FIXME-- make sure orig corresponds to point 0 */
-  dimen->orig -= dimen->sw / dimen->np;
-  dimen_block->initial_offset = 0;
-  dimen_block->stride = 1;
-  dimen_block->fold_allowed = TRUE;
-  cumulative_stride = dimen_block->np_physical;
+  priv->stride[0] = 1;
+  gsize cumulative_stride = np[0];
   if (IS_COMPLEX_X(hdr))
     cumulative_stride *= 2;
-  dimen_block->negated_initially = FALSE;
-  dimen_block->negate_on_fold = FALSE;
-
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
 
   /* Y */
-  dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
-  dimen = HOS_DIMENSION(dimen_block);
-
-  dimen->backing = backing;
-  dimen_block->schedule = NULL;
-  dimen_block->np_physical =
-    (IS_COMPLEX_X(hdr) && IS_COMPLEX_Y(hdr)) ? hdr[AWOL_NP_Y] / 2 : hdr[AWOL_NP_Y];
-  dimen_block->sw_physical = sw[1];
-  dimen->sw = dimen_block->sw_physical;
-  dimen->sf = sf[1];
-  dimen->orig = orig[1] + dimen->sw;
-  dimen->np = dimen_block->np_physical;
-  /* FIXME-- make sure orig corresponds to point 0 */
-  dimen->orig -= dimen->sw / dimen->np;
-  dimen_block->initial_offset = 0;
   if (IS_COMPLEX_Y(hdr))
     cumulative_stride *= 2;
-  dimen_block->stride = cumulative_stride;
-  dimen_block->fold_allowed = TRUE;
-  cumulative_stride *= dimen_block->np_physical;
-  dimen_block->negated_initially = FALSE;
-  dimen_block->negate_on_fold = FALSE;
-
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
+  priv->stride[1] = cumulative_stride;
+  cumulative_stride *= np[1];
 
   /* Z */
-  dimen_block = g_object_new(HOS_TYPE_DIMENSION_BLOCK, NULL);
-  dimen = HOS_DIMENSION(dimen_block);
-
-  dimen->backing = backing;
-  dimen_block->schedule = NULL;
-  dimen_block->np_physical =
-    IS_COMPLEX_Z(hdr) ? hdr[AWOL_NP_Z] / 2 : hdr[AWOL_NP_Z];
-
-  dimen_block->sw_physical = sw[2];
-  dimen->sw = dimen_block->sw_physical;
-  dimen->sf = sf[2];
-  dimen->orig = orig[2] + dimen->sw;
-  dimen->np = dimen_block->np_physical;
-  /* FIXME-- make sure orig corresponds to point 0 */
-  dimen->orig -= dimen->sw / dimen->np;
-  dimen_block->initial_offset = 0;
   if (IS_COMPLEX_Z(hdr))
     cumulative_stride *= 2;
-  dimen_block->stride = cumulative_stride;
-  dimen_block->fold_allowed = TRUE;
-  cumulative_stride *= dimen_block->np_physical;
-  dimen_block->negated_initially = FALSE;
-  dimen_block->negate_on_fold = FALSE;
+  priv->stride[2] = cumulative_stride;
+  cumulative_stride *= np[2];
 
-  result->dimensions = g_list_append(result->dimensions, g_list_singleton(dimen));
+  /* Trim away second and third dimensions if they have only one point. */
+  result = spectrum_clip_futile_dimensions(result);
+  result = spectrum_clip_futile_dimensions(result);
 
   return result;
 }
 
 /*
- * Convenience function to load an NIH spectrum
- * which lacks a Z dimension.
+ * If final dimension of 'self' is futile i.e. has only one point,
+ * return a spectrum having all but the last dimesion; otherwise
+ * just return 'self'.
  */
-HosSpectrum*
-spectrum_nih_2d_from_file(gchar* fname)
+static HosSpectrum*
+spectrum_clip_futile_dimensions(HosSpectrum *self)
 {
-  HosSpectrum* result;
+  int ndim = spectrum_ndim(self);
+  if (spectrum_np(self, ndim - 1) > 1)
+    return self;
+  self = spectrum_transpose(self, ndim - 1);
+  self = spectrum_project(self, 0);
 
-  result = spectrum_nih_from_file(fname);
-  result = spectrum_transpose(result, 2);
-  result = spectrum_project(result);
-
-  return result;
+  return self;
 }
 
-void
-spectrum_nih_unfold(HosSpectrum *self,
-		    guint dim,
-		    guint downfield,
-		    guint upfield,
-		    gboolean negate_on_fold)
-{
-  HosDimensionBlock *dimen =
-    (HosDimensionBlock*)g_list_nth_data((GList*)g_list_nth_data(self->dimensions, dim), 0);
-    dimension_block_unfold(dimen, downfield, upfield, negate_on_fold);
-}
+
 
 

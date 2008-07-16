@@ -11,7 +11,6 @@ libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \
 $(headers_dir)/burrow/spectrum.h \
-$(headers_dir)/burrow/nih.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
 $(headers_dir)/painter_gdk.h \
@@ -21,8 +20,6 @@ HEADERS_2= \
 $(headers_dir)/hoscanvas.h \
 $(headers_dir)/canvasitem.h \
 $(headers_dir)/ornament.h \
-$(headers_dir)/hosbackingsim.h \
-$(headers_dir)/hosdimensionsim.h \
 $(headers_dir)/version.h
 
 HEADERS_3= \
@@ -30,12 +27,14 @@ $(headers_dir)/marker.h \
 $(headers_dir)/cursor.h \
 $(headers_dir)/grid.h \
 $(headers_dir)/marker_text.h \
-$(headers_dir)/contourplot.h
+$(headers_dir)/contourplot.h \
+$(headers_dir)/line.h \
+$(headers_dir)/spectrum-profile.h
 # $(headers_dir)/box.h
 
-H2DEF=@srcdir@/h2def.py
+H2DEF=@top_srcdir@/utils/h2def.py
 
-hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3)
+hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
 	$(H2DEF) --all $(HEADERS_1) > $@
 	$(H2DEF) --all $(HEADERS_2) >> $@
 	$(H2DEF) --all $(HEADERS_3) >> $@

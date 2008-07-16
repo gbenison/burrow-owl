@@ -4,7 +4,7 @@
 AC_INIT(burrow-owl, 1.5rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_SRCDIR([src/hosspectrum.c])
+AC_CONFIG_SRCDIR([src/spectrum.c])
 
 GUILE_PROGS
 GUILE_FLAGS
@@ -19,6 +19,7 @@ PKG_CHECK_MODULES(GLIB,      glib-2.0)
 PKG_CHECK_MODULES(GTK,       gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD,   gthread-2.0)
 PKG_CHECK_MODULES(STARPARSE, starparse)
+PKG_CHECK_MODULES(GSL,       gsl >= 1.0)
 
 GUILE_GNOME_API=none;
 PKG_CHECK_MODULES(GUILE_GNOME_0, guile-gnome-glib-0 >= 2.15, GUILE_GNOME_API=0, true);
@@ -72,8 +73,11 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  src/Makefile
                  wrapper/burrow
+		 benchmarks/Makefile
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
+		 src/models/Makefile
+		 src/models/gw/Makefile
 		 test-suite/Makefile])
 
 AC_CONFIG_FILES([test-suite/run-tests], [chmod +x test-suite/run-tests])

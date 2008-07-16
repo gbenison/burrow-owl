@@ -39,12 +39,13 @@ static void grid_get_property (GObject         *object,
 			       GParamSpec      *pspec);
 
 static void  grid_expose          (HosCanvasItem *self, GdkEventExpose *event);
-static void  grid_item_configure  (HosCanvasItem *self);
+static void  grid_configure       (HosCanvasItem *self);
 static void  grid_set_canvas      (HosCanvasItem *self,
 				   HosCanvas *old_canvas,
 				   HosCanvas *canvas);
 static gboolean grid_canvas_configure       (GtkWidget *widget,
 					     GdkEventConfigure *event, HosGrid *self);
+static gboolean grid_canvas_realize         (GtkWidget *widget, HosGrid *self);
 static void     grid_canvas_world_configure (HosCanvas *canvas, HosGrid *self);
 
 static gdouble  round_sig_figs              (gdouble x, gint sig_figs);
@@ -67,7 +68,7 @@ hos_grid_class_init(HosGridClass *klass)
   gobject_class->get_property   = grid_get_property;
 
   canvas_item_class->expose         = grid_expose;
-  canvas_item_class->item_configure = grid_item_configure;
+  canvas_item_class->configure      = grid_configure;
   canvas_item_class->set_canvas     = grid_set_canvas;
 
   g_object_class_install_property (gobject_class,
@@ -152,6 +153,7 @@ grid_set_property (GObject         *object,
       grid_set_spacing_vertical(HOS_GRID(object), g_value_get_double(value));
       break;
     case PROP_AUTO_SPACING:
+      grid_set_auto_spacing(HOS_GRID(object), g_value_get_int(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -205,21 +207,32 @@ grid_auto_configure(HosGrid* self)
   if (!HOS_IS_CANVAS(canvas))
     return;
 
+  if (!GTK_WIDGET_REALIZED(canvas))
+    return;
+
   gint window_width, window_height;
   gdk_window_get_size(GTK_WIDGET(canvas)->window,
 		      &window_width, &window_height);
 
   /* spacing = world / n_tics;  n_tics = view / auto_spacing */
-  self->spacing_vertical =
-    round_sig_figs(fabs(canvas->xn - canvas->x1) /
-		   (window_width / self->auto_spacing), 2);
+  gint n_vertical_tics = window_width / self->auto_spacing;
+  if (n_vertical_tics > 0)
+    self->spacing_vertical = round_sig_figs((fabs(canvas->xn - canvas->x1) / n_vertical_tics), 2);
+  else
+    self->spacing_vertical = 0;
 
-  self->spacing_horizontal =
-    round_sig_figs(fabs(canvas->yn - canvas->y1) /
-		   (window_height / self->auto_spacing), 2);
+  gint n_horizontal_tics = window_height / self->auto_spacing;
+  if (n_horizontal_tics > 0)
+    self->spacing_horizontal = round_sig_figs((fabs(canvas->yn - canvas->y1) / n_horizontal_tics), 2);
+  else
+    self->spacing_horizontal = 0;
 
 }
 
+/*
+ * return 'x' rounded to 'sig_figs' number of significant digits,
+ * with all less-significant digits set to 0.
+ */
 static gdouble
 round_sig_figs(gdouble x, gint sig_figs)
 {
@@ -276,37 +289,40 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
   gint window_width, window_height;
   gdk_window_get_size(GTK_WIDGET(canvas)->window,
 		      &window_width, &window_height);
-
-  g_return_if_fail(grid->spacing_vertical > 0);
-  g_return_if_fail(grid->spacing_horizontal > 0);
  
   gdouble x1 = MIN(canvas->x1, canvas->xn);
   gdouble xn = MAX(canvas->x1, canvas->xn);
   gdouble y1 = MIN(canvas->y1, canvas->yn);
   gdouble yn = MAX(canvas->y1, canvas->yn);
 
-  gdouble x = grid->anchor_vertical
-    + grid->spacing_vertical * (ceil ((x1 - grid->anchor_vertical) / grid->spacing_vertical));
-  while (x < xn)
+  if (grid->spacing_vertical > 0)
     {
-      gdouble x_view = x;
-      canvas_world2view(canvas, &x_view, NULL);
-      x_view = ceil(x_view) + 0.5;
-      cairo_move_to(cr, x_view, 0);
-      cairo_rel_line_to(cr, 0, window_height);
-      x += grid->spacing_vertical;
+      gdouble x = grid->anchor_vertical
+	+ grid->spacing_vertical * (ceil ((x1 - grid->anchor_vertical) / grid->spacing_vertical));
+      while (x < xn)
+	{
+	  gdouble x_view = x;
+	  canvas_world2view(canvas, &x_view, NULL);
+	  x_view = ceil(x_view) + 0.5;
+	  cairo_move_to(cr, x_view, 0);
+	  cairo_rel_line_to(cr, 0, window_height);
+	  x += grid->spacing_vertical;
+	}
     }
 
-  gdouble y = grid->anchor_horizontal
-    + grid->spacing_horizontal * (ceil ((y1 - grid->anchor_horizontal) / grid->spacing_horizontal));
-  while (y < yn)
+  if (grid->spacing_horizontal > 0)
     {
-      gdouble y_view = y;
-      canvas_world2view(canvas, NULL, &y_view);
-      y_view = ceil(y_view) + 0.5;
-      cairo_move_to(cr, 0, y_view);
-      cairo_rel_line_to(cr, window_width, 0);
-      y += grid->spacing_horizontal;
+      gdouble y = grid->anchor_horizontal
+	+ grid->spacing_horizontal * (ceil ((y1 - grid->anchor_horizontal) / grid->spacing_horizontal));
+      while (y < yn)
+	{
+	  gdouble y_view = y;
+	  canvas_world2view(canvas, NULL, &y_view);
+	  y_view = ceil(y_view) + 0.5;
+	  cairo_move_to(cr, 0, y_view);
+	  cairo_rel_line_to(cr, window_width, 0);
+	  y += grid->spacing_horizontal;
+	}
     }
 
   cairo_stroke(cr);
@@ -316,14 +332,30 @@ grid_expose(HosCanvasItem *self, GdkEventExpose *event)
 }
 
 static void
-grid_item_configure(HosCanvasItem *self)
+grid_configure(HosCanvasItem *self)
 {
+  g_return_if_fail(HOS_IS_GRID(self));
+  grid_auto_configure(HOS_GRID(self));
+
+  /* FIXME it may be possible to do partial redraws */
+  if ((self->canvas) && (GTK_WIDGET_DRAWABLE(self->canvas)))
+    gtk_widget_queue_draw(GTK_WIDGET(self->canvas));
 }
 
 static gboolean
 grid_canvas_configure(GtkWidget *widget,
 		      GdkEventConfigure *event, HosGrid *self)
 {
+  grid_auto_configure(self);
+  return FALSE;
+}
+
+static gboolean
+grid_canvas_realize(GtkWidget *widget, HosGrid *self)
+{
+  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_GRID(self));
+
   grid_auto_configure(self);
   return FALSE;
 }
@@ -355,11 +387,14 @@ grid_set_canvas(HosCanvasItem *self,
       g_signal_connect (canvas, "configure-event",
 			G_CALLBACK (grid_canvas_configure),
 			self);
+      g_signal_connect (canvas, "realize",
+			G_CALLBACK (grid_canvas_realize),
+			self);
       g_signal_connect (canvas, "world-configure",
 			G_CALLBACK (grid_canvas_world_configure),
 			self);
     }
-  grid_auto_configure(HOS_GRID(self));
+  canvas_item_configure(self);
 }
 
 

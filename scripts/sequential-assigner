@@ -151,21 +151,6 @@
 ; Spectra
 ; ---------------
 
-;; note: for bruker, dimension order is HNC
-;; transform: HNC->CHN->HCN
-(define (bruker-transpose spec)  ;; HNC
-  (set! spec (spectrum-transpose spec 2))  ;; CHN
-  (set! spec (spectrum-transpose spec 1))  ;; HCN
-  spec)
-
-;; Assume input spectrum is a triple-resonance in either
-;; Bruker (HNC) or Varian (HCN) order; output in
-;; Varian order (HCN)
-(define (normalize-hcn spec)
-  (let ((ratio (/ (spectrum-sf spec 0)(spectrum-sf spec 1))))
-    (if (> ratio 8)
-	(bruker-transpose spec)
-	spec)))
 
 ; --------------
 ; Convoluted search spectra
@@ -204,11 +189,11 @@
 (define spectra
   (let ((data (list)))
     (define (grab x)(assoc-ref data x))
-    (push cbcaconh (normalize-hcn (spectrum-nih-from-file "cbcaconh.DAT")))
-    (push hncacb (normalize-hcn (spectrum-nih-from-file "hncacb.DAT")))
-    (push hnca (normalize-hcn (spectrum-nih-from-file "hnca.DAT")))
-    (push hsqc (spectrum-nih-2d-from-file "hsqc.DAT"))
-    (push noesy (bruker-transpose (spectrum-nih-from-file "noesy.DAT")))
+    (push cbcaconh (spectrum-normalize-order (spectrum-nih-from-file "cbcaconh.DAT")))
+    (push hncacb   (spectrum-normalize-order (spectrum-nih-from-file "hncacb.DAT")))
+    (push hnca     (spectrum-normalize-order (spectrum-nih-from-file "hnca.DAT")))
+    (push hsqc     (spectrum-nih-2d-from-file "hsqc.DAT"))
+    (push noesy    (spectrum-normalize-order (spectrum-nih-from-file "noesy.DAT")))
     (push noesy-diagonal (grab 'noesy))
     (push noesy-convoluted (make-noesy-convoluted (grab 'noesy)))
     (push hncacb-convoluted (make-convoluted-4d (grab 'hncacb)))

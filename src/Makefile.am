@@ -1,7 +1,7 @@
 
 EXTRA_DIST=
-INCLUDES=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw 
+AM_CPPFLAGS=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
+SUBDIRS=finite-state-machine . gw models
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
@@ -17,57 +17,61 @@ nobase_data_DATA=guile/spec-extra.scm \
 BUILT_SOURCES=marshal.c marshal.h
 
 burrowincludedir=$(includedir)/burrow
-burrowinclude_HEADERS=burrow/spectrum.h burrow/nih.h
+burrowinclude_HEADERS=burrow/spectrum.h
 include_HEADERS=burrow.h
 
 # disabled sources -- awaiting updating
 # box.c 
 # box.h 
 
+
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
 @builddir@/marshal.h \
+debug.h \
+debug.c \
+utils.h \
 boomerang.c  \
 boomerang.h  \
+skiplist.c \
+skiplist.h \
 burrow.h  \
 contour.c  \
 contour.h  \
 contourplot.c \
 contourplot.h \
-filebuf.c  \
-filebuf.h  \
-hosbackingblock.c  \
-hosbackingblock.h  \
-hosbacking.c  \
-hosbackingcache.c  \
-hosbackingcache.h  \
-hosbackingfile.c  \
-hosbackingfile.h  \
-hosbacking.h  \
-hosbackingsim.c  \
-hosbackingsim.h  \
 hoscanvas.c  \
 hoscanvas.h  \
 canvasitem.c \
 canvasitem.h \
-hosdimensionblock.c  \
-hosdimensionblock.h  \
-hosdimension.c  \
-hosdimension.h  \
-hosdimensionsim.c  \
-hosdimensionsim.h  \
-hosspectrum.c  \
+spectrum.c  \
 burrow/spectrum.h  \
+spectrum_priv.h \
+spectrum_integrated.c \
+spectrum_extract.c \
+spectrum_integrated.h \
+spectrum_segmented.c \
+spectrum_segmented.h \
+spectrum_convoluted.c \
+spectrum_transpose.c \
+spectrum_unfold.c \
+spectrum_diagonal_project.c \
+spectrum_convoluted.h \
+spectrum_project.c \
 marker.c  \
 marker.h  \
 grid.c \
 grid.h \
 cursor.c \
 cursor.h \
+line.c \
+line.h \
+spectrum-profile.c \
+spectrum-profile.h \
 marker_text.c \
 marker_text.h \
 nih.c  \
-burrow/nih.h  \
+nih.h  \
 cairo_shapes.c \
 cairo_shapes.h \
 ornament.c  \

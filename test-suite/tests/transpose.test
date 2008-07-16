@@ -1,12 +1,9 @@
-;
-; Are nmrPipe spectra with transposed dimensions interpreted correctly?
-;
 
 (define (spectrum-grab-point spec x y z)
   (spectrum-peek
-   (spectrum-project-pt
-    (spectrum-project-pt
-     (spectrum-project-pt spec x) y) z) 0))
+   (spectrum-project
+    (spectrum-project
+     (spectrum-project spec x) y) z) 0))
 
 (define spec     (spectrum-nih-from-file (example-spectrum-path "cbcaconh.DAT")))
 (define spec-zyx (spectrum-nih-from-file (example-spectrum-path "cbcaconh-zyx.DAT")))
@@ -23,7 +20,6 @@
 	 (and (test-point 22 15 9)
 	      (test-point 3 19 20)
 	      (test-point 1 24 2)))
-
 
 
 

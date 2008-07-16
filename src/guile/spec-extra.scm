@@ -79,6 +79,10 @@
 	 (contour (get contour-plot 'contour)))
     (contour-set-thres-adjustment contour thres)))
 
+(define-public (spectrum-nih-2d-from-file fname)
+  (warn "use of deprecated function canvas-set-thres")
+  (spectrum-nih-from-file fname))
+
 (define-public (canvas-set-draw-negative canv neg?)
   (warn "use of deprecated function canvas-set-draw-negative")
   (let* ((contour-plot (canvas-ensure-contour-plot canv))
@@ -134,6 +138,29 @@
   (set! spec (spectrum-transpose spec 1))  ;; HCN
   spec)
 
+;
+; Sort 'spec' such that dimensions with highest sf come first;
+; if sf's are equal, highest np's come first
+;
+(define-public (spectrum-normalize-order spec)
+  (define (dim:> spec a b)
+    (cond ((> (spectrum-sf spec a)(spectrum-sf spec b)) #t)
+	  ((< (spectrum-sf spec a)(spectrum-sf spec b)) #f)
+	  ((> (spectrum-np spec a)(spectrum-np spec b)) #t)
+	  (else #f)))
+  (define (inversion? spec dim)
+    (let loop ((n dim))
+      (cond ((< n 0) #f)
+	    ((dim:> spec dim n) #t)
+	    (else (loop (- n 1))))))
+  (let loop ((spec spec)
+	     (dim (- (spectrum-ndim spec) 1)))
+    (if (= dim 0)
+	spec
+	(if (inversion? spec dim)
+	    (loop (spectrum-transpose spec dim) dim)
+	    (loop spec (- dim 1))))))
+
 ; ----- ornamental considerations -------
 (define-public (ornaments-allow-simultaneous-grab . ornaments)
   (define (process-ornament ornament)
@@ -152,6 +179,10 @@
 	 (s3 (spectrum-extract-ppm s2 y1 yn)))
     (spectrum-transpose s3 1)))
 
+(define-public (spectrum-cache spec)
+  (spectrum-peek spec 0) ;; forces traversal
+  spec)
+
 (define-public (adjustment-for-spectrum spectrum dim)
   (let ((lower (spectrum-giro-ppm spectrum dim))
 	(upper (spectrum-orig-ppm spectrum dim)))
@@ -164,6 +195,10 @@
 (define-public (marker-set-movable marker movable)
   (warn "use of deprecated function marker-set-movable; use 'sensitive' property")
   (set marker 'sensitive movable))
+
+(define-public (marker-set-pos marker x y)
+  (set (marker-get-x-adjustment marker) 'value x)
+  (set (marker-get-y-adjustment marker) 'value y))
 
 (define-public (cursor-set-movable cursor movable)
   (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")

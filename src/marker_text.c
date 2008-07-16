@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006, 2007 Greg Benison
+ *  Copyright (C) 2006, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include "marker_text.h"
-#include <burrow/spectrum.h>
 
 enum {
   PROP_0,
@@ -228,7 +227,7 @@ marker_text_set_label(HosMarkerText* marker_text, const gchar *text)
       marker_text->layout =
 	gtk_widget_create_pango_layout (GTK_WIDGET(canvas), NULL);
       pango_layout_set_markup(marker_text->layout, text, -1);
-      ornament_configure(HOS_ORNAMENT(marker_text));
+      canvas_item_configure(HOS_CANVAS_ITEM(marker_text));
     }
 }
 
@@ -241,7 +240,7 @@ marker_text_set_color(HosMarkerText* self, guint16 red, guint16 green, guint16 b
   self->text_color.green = green;
   self->text_color.blue = blue;
 
-  ornament_configure(HOS_ORNAMENT(self));
+  canvas_item_configure(HOS_CANVAS_ITEM(self));
 }
 
 static void
@@ -313,7 +312,7 @@ marker_text_set_patch(HosMarkerText* self, gdouble width, gdouble height)
   self->patch_width = width;
   self->patch_height = height;
 
-  ornament_configure(HOS_ORNAMENT(self));
+  canvas_item_configure(HOS_CANVAS_ITEM(self));
 }
 
 

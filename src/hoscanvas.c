@@ -23,11 +23,18 @@
 
 #define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \
                                          gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
-
 enum {
   CLICKED,
   WORLD_CONFIGURE,
   LAST_SIGNAL
+};
+
+enum {
+  PROP_0,
+  PROP_X1,
+  PROP_Y1,
+  PROP_XN,
+  PROP_YN
 };
 
 static guint canvas_signals[LAST_SIGNAL] = { 0 };
@@ -67,6 +74,14 @@ hos_canvas_class_init (HosCanvasClass *klass)
   widget_class->realize            = canvas_realize;
 
   klass->world_configure           = canvas_world_configure;
+
+#define STD_P_SPEC(name, blurb)   g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE | G_PARAM_WRITABLE)
+
+  g_object_class_install_property(gobject_class, PROP_X1, STD_P_SPEC("x1", "X left limit"));
+  g_object_class_install_property(gobject_class, PROP_Y1, STD_P_SPEC("y1", "Y lower limit"));
+
+  g_object_class_install_property(gobject_class, PROP_XN, STD_P_SPEC("xn", "X right limit"));
+  g_object_class_install_property(gobject_class, PROP_YN, STD_P_SPEC("yn", "Y upper limit"));
 
   canvas_signals[CLICKED] =
     g_signal_new("clicked",
@@ -194,8 +209,22 @@ hos_canvas_set_property (GObject         *object,
 			 const GValue    *value,
 			 GParamSpec      *pspec)
 {
+  HosCanvas *canvas = HOS_CANVAS(object);
+
   switch (prop_id)
     {
+    case PROP_X1:
+      canvas_set_world(canvas, g_value_get_double(value), canvas->y1, canvas->xn, canvas->yn);
+      break;
+    case PROP_Y1:
+      canvas_set_world(canvas, canvas->x1, g_value_get_double(value), canvas->xn, canvas->yn);
+      break;
+    case PROP_XN:
+      canvas_set_world(canvas, canvas->x1, canvas->y1, g_value_get_double(value), canvas->yn);
+      break;
+    case PROP_YN:
+      canvas_set_world(canvas, canvas->x1, canvas->y1, canvas->xn, g_value_get_double(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -210,6 +239,18 @@ hos_canvas_get_property (GObject         *object,
 {
   switch (prop_id)
     {
+    case PROP_X1:
+      g_value_set_double(value, HOS_CANVAS(object)->x1);
+      break;
+    case PROP_Y1:
+      g_value_set_double(value, HOS_CANVAS(object)->y1);
+      break;
+    case PROP_XN:
+      g_value_set_double(value, HOS_CANVAS(object)->xn);
+      break;
+    case PROP_YN:
+      g_value_set_double(value, HOS_CANVAS(object)->yn);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -347,4 +388,15 @@ adjustment_for_canvas_y(HosCanvas* canvas)
   return GTK_ADJUSTMENT(gtk_adjustment_new((min + max) / 2.0, min, max,
 					   (max - min) / 2000.0,
 					   0, 0));
+}
+
+GdkColor*
+gdk_rgb(gdouble red, gdouble green, gdouble blue)
+{
+  GdkColor *result = g_new0(GdkColor, 1);
+  result->red   = CLAMP(red, 0, 1)   * G_MAXUINT16;
+  result->blue  = CLAMP(blue, 0, 1)  * G_MAXUINT16;
+  result->green = CLAMP(green, 0, 1) * G_MAXUINT16;
+
+  return result;
 }

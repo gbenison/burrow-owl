@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006 Greg Benison
+ *  Copyright (C) 2005, 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,33 +35,22 @@ G_BEGIN_DECLS
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
 
-/* spectrum status */
-enum
-{
-  NO_STATUS = 0,
-  LATENT,
-  TRAVERSING,
-  COMPLETE
-};
 
 struct _HosSpectrum
 {
-
   GObject parent_instance;
-
   gdouble *buf;
-
-  gboolean negated;
-  guint status;
-
-  GList *dimensions;
-
 };
 
 struct _HosSpectrumClass
 {
   GObjectClass parent_class;
-  void(*ready)(HosSpectrum *spec);
+
+  void (*ready) (HosSpectrum *spec);
+
+  struct spectrum_iterator* (*construct_iterator) (HosSpectrum* self);
+  void                      (*free_iterator)      (struct spectrum_iterator* self);
+
 };
 
 /* 
@@ -73,6 +62,7 @@ struct _HosSpectrumClass
 #define CONSTRUCTOR  /* empty */
 
 gsize   spectrum_np       (HosSpectrum* spec, guint dim);
+gsize   spectrum_np_total (HosSpectrum* spec);
 gsize   spectrum_ndim     (HosSpectrum* spec);
 gdouble spectrum_sw       (HosSpectrum* spec, guint dim);
 gdouble spectrum_sw_ppm   (HosSpectrum* spec, guint dim);
@@ -84,16 +74,20 @@ gdouble spectrum_giro_ppm (HosSpectrum* spec, guint dim);
 gdouble spectrum_ppm2pt   (HosSpectrum* spec, guint dim, gdouble ppm);
 gdouble spectrum_pt2ppm   (HosSpectrum* spec, guint dim, gdouble pt);
 
-HosSpectrum* CONSTRUCTOR spectrum_project          (HosSpectrum* self);
-HosSpectrum* CONSTRUCTOR spectrum_project_pt       (HosSpectrum* self, guint pt);
+HosSpectrum* CONSTRUCTOR spectrum_project          (HosSpectrum* self, guint pt);
 HosSpectrum* CONSTRUCTOR spectrum_project_ppm      (HosSpectrum* self, gdouble ppm);
 HosSpectrum* CONSTRUCTOR spectrum_transpose        (HosSpectrum* self, guint dim);
-HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, gdouble A, gdouble B);
+HosSpectrum* CONSTRUCTOR spectrum_extract          (HosSpectrum* spec, guint A, guint B);
 HosSpectrum* CONSTRUCTOR spectrum_extract_ppm      (HosSpectrum* spec, gdouble A, gdouble B);
-HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
 HosSpectrum* CONSTRUCTOR spectrum_convolute        (HosSpectrum *A, HosSpectrum *B);
-HosSpectrum* CONSTRUCTOR spectrum_integrate        (HosSpectrum* self);
-HosSpectrum* CONSTRUCTOR spectrum_cache            (HosSpectrum* self);
+HosSpectrum* CONSTRUCTOR spectrum_diagonal_project (HosSpectrum* spec);
+HosSpectrum* CONSTRUCTOR spectrum_unfold           (HosSpectrum* self,
+						    guint idx,
+						    guint downfield,
+						    guint upfield,
+						    gboolean negate_on_fold);
+HosSpectrum* CONSTRUCTOR spectrum_integrate (HosSpectrum* self);
+HosSpectrum* CONSTRUCTOR spectrum_nih_from_file(gchar* fname);
 
 gdouble  spectrum_get_ranked         (HosSpectrum *spec, guint n);
 gdouble  spectrum_get_max            (HosSpectrum *spec);
