@@ -5,7 +5,7 @@ headers_dir=@top_srcdir@/src
 
 lib_LTLIBRARIES=libgw-guile-spectrum.la
 
-libgw_guile_spectrum_la_LDFLAGS=-L.. -lburrow @GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
+libgw_guile_spectrum_la_LDFLAGS=-L.. -lburrow @GLIB_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
                                 @GUILE_LDFLAGS@ -module
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
@@ -13,49 +13,26 @@ HEADERS_1= \
 $(headers_dir)/burrow/spectrum.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
-$(headers_dir)/painter_gdk.h \
-$(headers_dir)/painter_bwps.h
-
-HEADERS_2= \
-$(headers_dir)/hoscanvas.h \
-$(headers_dir)/canvasitem.h \
-$(headers_dir)/ornament.h \
+$(headers_dir)/painter_bwps.h \
 $(headers_dir)/version.h
-
-HEADERS_3= \
-$(headers_dir)/marker.h \
-$(headers_dir)/cursor.h \
-$(headers_dir)/grid.h \
-$(headers_dir)/marker_text.h \
-$(headers_dir)/contourplot.h \
-$(headers_dir)/line.h \
-$(headers_dir)/spectrum-profile.h
-# $(headers_dir)/box.h
 
 H2DEF=@top_srcdir@/utils/h2def.py
 
-hosspectrum.defs: $(HEADERS_1) $(HEADERS_2) $(HEADERS_3) spectrum-spec.scm
+hosspectrum.defs: $(HEADERS_1)
 	$(H2DEF) --all $(HEADERS_1) > $@
-	$(H2DEF) --all $(HEADERS_2) >> $@
-	$(H2DEF) --all $(HEADERS_3) >> $@
 
 spectrum-gw.c spectrum-gw.h: hosspectrum.defs
 	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
-INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
+INCLUDES=@GLIB_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
 
 BUILT_SOURCES=spectrum-gw.c spectrum-gw.h hosspectrum.defs
 
-guiledir=$(datadir)/guile
-guile_DATA=spectrum.scm
-CLEANFILES += spectrum.scm
-
-spectrum.scm: spectrum-gw.scm
-	cp $< $@
+moduledir=$(datadir)/guile/burrow
+module_DATA=spectrum-gw.scm spectrum.scm
 
 CLEANFILES += hosspectrum.defs spectrum-gw.c spectrum-gw.h spectrum-gw.scm
-CLEANFILES += spectrum.log gnome-atk.log gnome-gdk.log gnome-gtk.log \
-               gnome-glib.log gnome-pango.log
+CLEANFILES += spectrum.log gnome-glib.log
 
 EXTRA_DIST += run-g-wrap.scm h2def.py spectrum-spec.scm
 

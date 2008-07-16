@@ -1,7 +1,7 @@
 
 EXTRA_DIST=
-AM_CPPFLAGS=@GTK_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw models
+AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
+SUBDIRS=finite-state-machine . gw canvas models
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
@@ -9,6 +9,7 @@ lib_LTLIBRARIES=libburrow.la
 CLEANFILES += $(bin_SCRIPTS)
 
 nobase_data_DATA=guile/spec-extra.scm \
+                 guile/spectrum.scm \
                  guile/burrow/assignments.scm \
                  guile/burrow/hacks.scm \
                  guile/burrow/chemical-shift-distributions.scm \
@@ -19,11 +20,6 @@ BUILT_SOURCES=marshal.c marshal.h
 burrowincludedir=$(includedir)/burrow
 burrowinclude_HEADERS=burrow/spectrum.h
 include_HEADERS=burrow.h
-
-# disabled sources -- awaiting updating
-# box.c 
-# box.h 
-
 
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \
@@ -38,12 +34,6 @@ skiplist.h \
 burrow.h  \
 contour.c  \
 contour.h  \
-contourplot.c \
-contourplot.h \
-hoscanvas.c  \
-hoscanvas.h  \
-canvasitem.c \
-canvasitem.h \
 spectrum.c  \
 burrow/spectrum.h  \
 spectrum_priv.h \
@@ -58,30 +48,10 @@ spectrum_unfold.c \
 spectrum_diagonal_project.c \
 spectrum_convoluted.h \
 spectrum_project.c \
-marker.c  \
-marker.h  \
-grid.c \
-grid.h \
-cursor.c \
-cursor.h \
-line.c \
-line.h \
-spectrum-profile.c \
-spectrum-profile.h \
-marker_text.c \
-marker_text.h \
 nih.c  \
 nih.h  \
-cairo_shapes.c \
-cairo_shapes.h \
-ornament.c  \
-ornament.h  \
 painter_bwps.c  \
 painter_bwps.h  \
-painter_gdk.c  \
-painter_gdk.h  \
-painter_cairo.c \
-painter_cairo.h \
 painter.c  \
 painter.h  \
 ticket.c  \
@@ -91,7 +61,7 @@ endian.h \
 version.c \
 version.h
 
-libburrow_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -module
+libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm -module
 libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd
