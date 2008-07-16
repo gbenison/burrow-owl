@@ -26,7 +26,7 @@
 (display "made grid\n")
 
 ;; test 1D spectrum plots.
-(define spec-2d (spectrum-nih-2d-from-file spectrum-file-name))
+(define spec-2d (spectrum-nih-from-file spectrum-file-name))
 (define contour-plot (canvas-add-item
 		      contour-canvas
 		      (make <hos-contour-plot> #:spectrum spec-2d)))

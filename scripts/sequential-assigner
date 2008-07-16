@@ -192,7 +192,7 @@
     (push cbcaconh (spectrum-normalize-order (spectrum-nih-from-file "cbcaconh.DAT")))
     (push hncacb   (spectrum-normalize-order (spectrum-nih-from-file "hncacb.DAT")))
     (push hnca     (spectrum-normalize-order (spectrum-nih-from-file "hnca.DAT")))
-    (push hsqc     (spectrum-nih-2d-from-file "hsqc.DAT"))
+    (push hsqc     (spectrum-nih-from-file "hsqc.DAT"))
     (push noesy    (spectrum-normalize-order (spectrum-nih-from-file "noesy.DAT")))
     (push noesy-diagonal (grab 'noesy))
     (push noesy-convoluted (make-noesy-convoluted (grab 'noesy)))

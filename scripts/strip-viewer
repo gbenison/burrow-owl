@@ -77,7 +77,7 @@
        (cdr (assoc name (cdr (assoc 'assignments (cdr asg))))))
       default))
 
-(define spec-hsqc (spectrum-nih-2d-from-file hsqc-file-name))
+(define spec-hsqc (spectrum-nih-from-file hsqc-file-name))
 
 (define (spec->zoom-canvas spec)
   (let* ((sw (make <gtk-scrolled-window> #:height-request 300))
