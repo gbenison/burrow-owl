@@ -3,4 +3,4 @@
 	     (g-wrap guile)
 	     (model-spec))
 
-(generate-wrapset 'guile 'model "model-gw")
+(generate-wrapset 'guile 'burrowmodel "model-gw")

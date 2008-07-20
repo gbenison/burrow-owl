@@ -4,6 +4,9 @@ bin_SCRIPTS=wrapper/burrow
 
 scriptdir=$(pkgdatadir)/scripts
 
+all-local:
+	$(INSTALL) wrapper/pre-inst-burrow-env @pre_install_path@
+
 ## FIXME perhaps this should be done using more of automake's native
 ## abilities
 script_DATA =

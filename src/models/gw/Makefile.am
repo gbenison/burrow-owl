@@ -2,9 +2,15 @@
 EXTRA_DIST= model.defs
 CLEANFILES=
 
-lib_LTLIBRARIES=libgw-guile-model.la
-libgw_guile_model_la_LDFLAGS=-L.. -lburrow-model @GUILE_GNOME_LIBS@ @GTHREAD_LIBS@ @GUILE_LDFLAGS@ -module
-libgw_guile_model_la_SOURCES=model-gw.c
+lib_LTLIBRARIES=libgw-guile-burrowmodel.la
+libgw_guile_burrowmodel_la_LDFLAGS=-L.. -lburrow-model @GUILE_GNOME_LIBS@ @GTHREAD_LIBS@ @GUILE_LDFLAGS@ -module
+libgw_guile_burrowmodel_la_SOURCES=model-gw.c
+
+preinstalldir=$(abs_top_builddir)/@pre_install_path@
+all-local:
+	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
+	$(INSTALL_DATA) $(srcdir)/model.scm model-gw.scm $(preinstalldir)/share/guile/burrow
+
 
 headers_dir=@srcdir@/..
 
@@ -31,11 +37,7 @@ INCLUDES=@G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I
 BUILT_SOURCES=model-gw.c model-gw.h model.defs
 
 guiledir=$(datadir)/guile/burrow
-guile_DATA=model.scm
-CLEANFILES += model.scm
-
-model.scm: model-gw.scm
-	cp $< $@
+guile_DATA=model.scm model-gw.scm
 
 CLEANFILES += model.defs model-gw.c model-gw.h model-gw.scm
 CLEANFILES += model.log

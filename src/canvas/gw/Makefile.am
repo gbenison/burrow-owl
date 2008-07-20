@@ -1,11 +1,18 @@
 
 EXTRA_DIST= canvas.defs
 lib_LTLIBRARIES=libgw-guile-burrowcanvas.la
-libgw_guile_burrowcanvas_la_LDFLAGS=-L.. -lburrowcanvas @GTK_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
+libgw_guile_burrowcanvas_la_LDFLAGS=-L.. -lburrow-canvas @GTK_LIBS@ \
+                                    @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
                                     @GUILE_LDFLAGS@ -module
 libgw_guile_burrowcanvas_la_SOURCES=canvas-gw.c
 
 headers_dir=@top_srcdir@/src/canvas
+
+preinstalldir=$(abs_top_builddir)/@pre_install_path@
+all-local:
+	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
+	$(INSTALL_DATA) $(srcdir)/canvas.scm canvas-gw.scm $(preinstalldir)/share/guile/burrow
+
 
 HEADERS_1= \
 $(headers_dir)/hoscanvas.h \
