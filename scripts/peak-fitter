@@ -1,10 +1,9 @@
 ; -*-scheme-*-
 (use-modules (oop goops)
 	     (ice-9 format)
-             (burrow hacks)
+             (burrow spectrum)
 	     (gnome gtk)
-	     (spectrum)
-	     (spec-extra)
+             (burrow canvas)
 	     (burrow model))
 
 (sleep-if-requested)
