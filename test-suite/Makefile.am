@@ -6,7 +6,7 @@ check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_cache \
                t_collision
 TESTS = $(check_PROGRAMS) run-tests
-SUBDIRS=guile-binding
+SUBDIRS=. guile-binding
 
 noinst_LTLIBRARIES=libburrowtest.la
 libburrowtest_la_SOURCES=spectrum-ramp.c      spectrum-ramp.h \

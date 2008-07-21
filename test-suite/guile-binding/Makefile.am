@@ -1,6 +1,6 @@
 
-TESTS_ENVIRONMENT=@top_builddir@/@pre_install_path@/pre-inst-burrow-env @GUILE@ -s 
-TESTS=guile-gnome-test
+TESTS_ENVIRONMENT=EXAMPLE_DIR=@srcdir@/../data @top_builddir@/@pre_install_path@/pre-inst-burrow-env @GUILE@ -s 
+TESTS=guile-gnome-test \
+      open-spectrum-test
 
-
-EXTRA_DIST=guile-gnome-test
+EXTRA_DIST=$(TESTS)
