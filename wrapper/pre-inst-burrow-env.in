@@ -6,7 +6,7 @@ export GUILE_LOAD_PATH;
 
 LTDL_LIBRARY_PATH=@abs_top_builddir@/src/gw:$LTDL_LIBRARY_PATH;
 LTDL_LIBRARY_PATH=@abs_top_builddir@/src/canvas/gw:$LTDL_LIBRARY_PATH;
-LTDL_LIBRARY_PATH=@abs_top_builddir@/src/model/gw:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=@abs_top_builddir@/src/models/gw:$LTDL_LIBRARY_PATH;
 LTDL_LIBRARY_PATH=@GUILE_GNOME_LIB_DIR@:$LTDL_LIBRARY_PATH;
 export LTDL_LIBRARY_PATH;
 
