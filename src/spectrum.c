@@ -124,7 +124,7 @@ gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(spec);
-  g_object_ref(spec); /* ??? FIXME */
+  g_object_ref(spec);
   spectrum_traverse_internal(spec);
   g_mutex_lock(priv->traversal_lock);
   if (priv->status != COMPLETE)
@@ -132,7 +132,9 @@ spectrum_traverse_blocking(HosSpectrum *spec)
   g_mutex_unlock(priv->traversal_lock);
 
   g_assert(spec->buf != NULL);
-  return spec->buf;
+  gdouble *result = spec->buf;
+  g_object_unref(spec);
+  return result;
 }
 
 

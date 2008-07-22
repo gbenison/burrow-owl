@@ -111,7 +111,11 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
 
   if (self->spectrum != spectrum)
     {
+      if (self->spectrum != NULL)
+	g_object_unref(self->spectrum);
+
       self->spectrum = spectrum;
+      g_object_ref(self->spectrum);
 
       int np = spectrum_np(spectrum, 0);
       double x[np];
