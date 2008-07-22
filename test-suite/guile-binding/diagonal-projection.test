@@ -1,0 +1,13 @@
+; -*-scheme-*-
+(use-modules (burrow spectrum))
+
+(define (example-spectrum-path str)
+  (string-append (getenv "EXAMPLE_DIR") "/" str))
+
+(define spec-hsqc (spectrum-nih-from-file (example-spectrum-path "hsqc.DAT")))
+(define spec-diagonal (spectrum-convolute spec-hsqc spec-hsqc))
+
+(if (not (= (spectrum-ndim spec-diagonal)
+	    (* 2 (spectrum-ndim spec-hsqc))))
+    (error "diagonal test"))
+

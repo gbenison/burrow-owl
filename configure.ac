@@ -89,8 +89,6 @@ AC_CONFIG_FILES([Makefile
 		 test-suite/Makefile
 		 test-suite/guile-binding/Makefile])
 
-AC_CONFIG_FILES([test-suite/run-tests], [chmod +x test-suite/run-tests])
-
 AC_OUTPUT
 
 prog_name=burrow;

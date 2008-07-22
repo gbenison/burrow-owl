@@ -1,17 +1,22 @@
-;
+;-*-scheme-*-
 ; Is the functionality from 1.2 still around?
 ; This script was created by looking through the scripts released with 1.2,
 ; and taking out the interactive parts
 ;
 
-(use-modules (gnome gobject))
+(use-modules (oop goops)
+	     (burrow spectrum)
+	     (gnome gtk)
+	     (burrow canvas))
 
-(define (regression-test)
-  (let* ((spec     (spectrum-nih-from-file (example-spectrum-path "hsqc.DAT")))
-	 (spec-1   (spectrum-transpose spec 1))
-	 (np       (spectrum-np spec-1 1))
-	 (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
-	 (canv     (make <hos-canvas>
+(define (example-spectrum-path str)
+  (string-append (getenv "EXAMPLE_DIR") "/" str))
+
+(let* ((spec (spectrum-nih-from-file (example-spectrum-path "hsqc.DAT")))
+       (spec-1   (spectrum-transpose spec 1))
+       (np       (spectrum-np spec-1 1))
+       (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
+       (canv     (make <hos-canvas>
   		     #:width-request 300	
 		     #:height-request 300)))
     (spectrum-orig-ppm spec 0)
@@ -37,7 +42,7 @@
 		      (format #f "~a, ~a~%" x y))
 		 #f))
       (ornaments-allow-simultaneous-grab cursor-horiz cursor-vert)
-      #t)))
+      #t))
 
-(pass-if "1.2 regression" (regression-test))
+
 
