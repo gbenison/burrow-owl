@@ -44,6 +44,7 @@ enum
   NO_STATUS = 0,
   LATENT,
   TRAVERSING,
+  FINALIZING,
   COMPLETE
 };
 
@@ -86,7 +87,6 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static void          spectrum_invalidate_cache  (HosSpectrum *self);
 static void          spectrum_traverse_internal (HosSpectrum* self);
 static gboolean      spectrum_signal_ready      (HosSpectrum* self);
 static gboolean      spectrum_is_ready          (HosSpectrum *self);
@@ -306,23 +306,6 @@ spectrum_copy_dimensions(HosSpectrum *self)
   return result;
 }
 
-/*
- * Destroy spectrum's cached contents, forcing
- * subsequent traversals to access the underlying data source.
- */
-static void
-spectrum_invalidate_cache(HosSpectrum *self)
-{
-  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  g_mutex_lock(priv->traversal_lock);
-  gdouble *old_buf = self->buf;
-  g_atomic_pointer_set(&self->buf, NULL);
-  if (old_buf != NULL)
-    g_free(old_buf);
-  priv->status = LATENT;
-  g_mutex_unlock(priv->traversal_lock);
-}
-
 static void
 check_dim_count(HosSpectrum* spec, const guint dim)
 {
@@ -444,9 +427,15 @@ static void
 hos_spectrum_finalize(GObject *object)
 {
   HosSpectrum *spectrum = HOS_SPECTRUM(object);
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(object);
+  g_mutex_lock(priv->traversal_lock);
+  priv->status = FINALIZING;
+  g_mutex_unlock(priv->traversal_lock);
 
-  /* FIXME is this appropriate? clearly the spectrum's buffer must be freed... */
-  //  spectrum_invalidate_cache(spectrum);
+  gpointer buf = spectrum->buf;
+  g_atomic_pointer_set(&spectrum->buf, NULL);
+  if (buf != NULL)
+    g_free(buf);
 
   G_OBJECT_CLASS(hos_spectrum_parent_class)->finalize (object);
 
