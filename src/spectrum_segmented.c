@@ -121,14 +121,6 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->iterators_lock         = g_mutex_new();
   priv->iterators_pending_cond = g_cond_new();
 
-  GError  *error  = NULL;
-  GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
-				    self,
-				    FALSE,
-				    &error);
-  g_assert(error == NULL);
-  priv->io_thread = thread;
-
   spectrum_segmented_set_cache_size(self, 32);
 }
 
@@ -287,8 +279,14 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
   cache_slot_t *active_slot = NULL;
 
+  /* FIXME die when 'self' is traversed! */
+
   while (1)
     {
+      /* check if 'self' is traversed already */
+      if (HOS_SPECTRUM(self)->buf != NULL)
+	break;
+
       /* maintainance on all active iterators */
       CONFESS("IO (0x%x): lock iterators (0x%x)", self, priv->iterators_lock);
       CONFESS("IO (0x%x): acquired lock", self);
@@ -391,6 +389,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  g_usleep(5000);
 	}
     }
+  g_object_unref(self);
 }
 
 static cache_slot_t*
@@ -416,9 +415,22 @@ static struct spectrum_iterator*
 spectrum_segmented_construct_iterator(HosSpectrum *self)
 {
 
-  struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
 
+
+  struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
+
+  /* ensure existence of traversal thread. */
+  GError  *error  = NULL;
+  GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
+				    self,
+				    FALSE,
+				    &error);
+
+  g_object_ref(self); /* for the IO thread. */
+  g_assert(error == NULL);
+  priv->io_thread = thread;
+
   result->priv          = priv;
   result->class         = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
   result->traversal_env = HOS_SPECTRUM_SEGMENTED(self)->traversal_env;
