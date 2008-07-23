@@ -415,21 +415,24 @@ static struct spectrum_iterator*
 spectrum_segmented_construct_iterator(HosSpectrum *self)
 {
 
-
-
   struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
 
   /* ensure existence of traversal thread. */
-  GError  *error  = NULL;
-  GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
-				    self,
-				    FALSE,
-				    &error);
-
-  g_object_ref(self); /* for the IO thread. */
-  g_assert(error == NULL);
-  priv->io_thread = thread;
+  g_mutex_lock(priv->iterators_lock);
+  if (priv->io_thread == NULL)
+    {
+      GError  *error  = NULL;
+      GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
+					self,
+					FALSE,
+					&error);
+      
+      g_object_ref(self); /* for the IO thread. */
+      g_assert(error == NULL);
+      priv->io_thread = thread;
+    }
+  g_mutex_unlock(priv->iterators_lock);
 
   result->priv          = priv;
   result->class         = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);

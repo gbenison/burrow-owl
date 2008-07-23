@@ -65,8 +65,11 @@ model_gaussian_iterator_free(model_iterator_t* self)
 {
   struct gaussian_data* data = (struct gaussian_data*)(self->data);
   model_iterator_free(data->src);
+  data->src = NULL;
   model_iterator_free(data->center);
+  data->center = NULL;
   model_iterator_free(data->sigma);
+  data->sigma = NULL;
 }
 
 HosModel*
@@ -167,9 +170,13 @@ model_sum_iterator_free(model_iterator_t *self)
 {
   struct pair_data *data = (struct pair_data*)(self->data);
   g_free(data->buffer[0]);
+  data->buffer[0] = NULL;
   g_free(data->buffer[1]);
+  data->buffer[1] = NULL;
   model_iterator_free(data->iterator[0]);
+  data->iterator[0] = NULL;
   model_iterator_free(data->iterator[1]);
+  data->iterator[0] = NULL;
   g_free(data);
   self->data = NULL;
 }
@@ -234,9 +241,13 @@ model_product_iterator_free(model_iterator_t *self)
 {
   struct pair_data *data = (struct pair_data*)(self->data);
   g_free(data->buffer[0]);
+  data->buffer[0] = NULL;
   g_free(data->buffer[1]);
+  data->buffer[1] = NULL;
   model_iterator_free(data->iterator[0]);
+  data->iterator[0] = NULL;
   model_iterator_free(data->iterator[1]);
+  data->iterator[1] = NULL;
   g_free(data);
   self->data = NULL;
 }
@@ -340,6 +351,7 @@ static void
 model_projection_iterator_free(model_iterator_t *self)
 {
   model_iterator_free((model_iterator_t*)(self->data));
+  self->data = NULL;
 }
 
 HosModel*
@@ -443,6 +455,7 @@ static void
 model_transposition_iterator_free(model_iterator_t *self)
 {
   model_iterator_free((model_iterator_t*)(self->data));
+  self->data = NULL;
 }
 
 HosModel*
