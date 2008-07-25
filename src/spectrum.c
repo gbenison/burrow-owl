@@ -133,7 +133,7 @@ spectrum_traverse_blocking(HosSpectrum *spec)
 
   g_assert(spec->buf != NULL);
   gdouble *result = spec->buf;
-  g_object_unref(spec);
+
   return result;
 }
 
@@ -617,6 +617,7 @@ idle_spectra_ready(gpointer not_used)
   if (next == NULL)
     return FALSE;
 
+  g_assert(HOS_IS_SPECTRUM(next));
   spectrum_signal_ready(next);
   g_object_unref(G_OBJECT(next));
 
@@ -748,7 +749,6 @@ spectrum_traverse_internal(HosSpectrum* self)
       /* FIXME can I just emit a signal from this thread? */
       queue_ready_push(self);
       iterator_free(iterator);
-
     }
 }
 
