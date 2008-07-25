@@ -68,7 +68,7 @@ endian.h \
 version.c \
 version.h
 
-libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm -module
+libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm
 libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd
