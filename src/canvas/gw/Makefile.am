@@ -28,7 +28,7 @@ $(headers_dir)/marker_text.h \
 $(headers_dir)/contourplot.h
 # $(headers_dir)/box.h
 
-H2DEF=@srcdir@/h2def.py
+H2DEF=@top_srcdir@/utils/h2def.py
 
 canvas.defs: $(HEADERS_1)
 	$(H2DEF) --all $(HEADERS_1) > $@
