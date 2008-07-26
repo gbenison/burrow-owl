@@ -6,6 +6,7 @@ TESTS=guile-gnome.test   \
       transpose.test     \
       diagonal-projection.test \
       regression-1.2.test \
-      spectrum-gc.test
+      spectrum-gc.test    \
+      model-spectrum.test
 
 EXTRA_DIST=$(TESTS)

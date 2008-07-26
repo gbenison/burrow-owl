@@ -46,6 +46,8 @@ struct _HosSolverAnnealClass
 
 int solver_anneal_sample(HosSolverAnneal *self, int n_step, double step_scale, double temperature);
 
+GType hos_solver_anneal_get_type(void);
+
 G_END_DECLS
 
 #endif /* not _HAVE_SOLVER_ANNEAL_H */

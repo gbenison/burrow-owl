@@ -19,13 +19,18 @@
 
 #include "spectrum_model.h"
 #include "spectrum_priv.h"
+#include "utils.h"
+
+static void spectrum_model_dispose (GObject *object);
 
 G_DEFINE_TYPE (HosSpectrumModel, hos_spectrum_model, HOS_TYPE_SPECTRUM)
 
 static void
 hos_spectrum_model_class_init(HosSpectrumModelClass *klass)
 {
-  GObjectClass *gobject_class;
+  GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
+
+  gobject_class->dispose = spectrum_model_dispose;
 }
 
 static void
@@ -58,6 +63,7 @@ spectrum_from_model(HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint
   spectrum_set_dimensions(result, dimensions);
 
   spectrum_model->model = model;
+  g_object_ref(spectrum_model->model);
   int total_np = spectrum_np_total(result);
   gdouble *buf = g_new(gdouble, total_np);
 
@@ -65,6 +71,7 @@ spectrum_from_model(HosModel *model, gdouble *orig, gdouble *sw, guint *np, gint
   gdouble delta[ndim];
   for (i = 0; i < ndim; ++i)
     delta[i] = sw[i] / np[i];
+
   model_iterator_t *model_iterator = model_iterator_new(model, orig, delta, np);
   model_iterator_fill(model_iterator, buf);
   model_iterator_free(model_iterator);
@@ -80,13 +87,21 @@ spectrum_1d_from_model(HosModel *model, gdouble orig, gdouble sw, guint np)
   return spectrum_from_model(model, &orig, &sw, &np, 1);
 }
 
-HosSpectrum* CONSTRUCTOR spectrum_2d_from_model (HosModel *model,
-						 gdouble orig1, gdouble sw1, guint np1,
-						 gdouble orig2, gdouble sw2, guint np2)
+HosSpectrum*
+spectrum_2d_from_model (HosModel *model,
+			gdouble orig1, gdouble sw1, guint np1,
+			gdouble orig2, gdouble sw2, guint np2)
 {
   gdouble orig[2] = {orig1, orig2};
   gdouble sw[2]   = {sw1, sw2};
   guint   np[2]   = {np1, np2};
 
-  return spectrum_from_model(model, &orig, &sw, &np, 2);
+  return spectrum_from_model(model, orig, sw, np, 2);
+}
+
+static void
+spectrum_model_dispose (GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_SPECTRUM_MODEL(object)->model);
+  G_OBJECT_CLASS(hos_spectrum_model_parent_class)->dispose(object);
 }

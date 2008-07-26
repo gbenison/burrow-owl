@@ -50,6 +50,8 @@ struct _HosParameterClass
 
 HosParameter* CONSTRUCTOR parameter_new(gdouble value, gdouble prior_mean, gdouble prior_stddev);
 
+GType hos_parameter_get_type(void);
+
 G_END_DECLS
 
 #endif /* not _HAVE_PARAMETER_H */
