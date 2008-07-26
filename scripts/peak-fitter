@@ -18,12 +18,12 @@
 (connect window 'destroy (lambda args (gtk-main-quit)))
 
 (define profile-canvas (make <hos-canvas> #:height-request 100))
-(display "made canvas\n")
+(confess "made canvas\n")
 (define contour-canvas (make <hos-canvas> #:width-request 300 #:height-request 300))
 
 (define profile-grid (canvas-add-item profile-canvas (make <hos-grid>)))
 (define contour-grid (canvas-add-item contour-canvas (make <hos-grid>)))
-(display "made grid\n")
+(confess "made grid\n")
 
 ;; test 1D spectrum plots.
 (define spec-2d (spectrum-nih-from-file spectrum-file-name))
@@ -104,10 +104,11 @@
 		      (+ y1 (* wy f))
 		      (- xn (* wx f))
 		      (- yn (* wy f)))
-    (write-line (get canvas 'x1))
-    (write-line (get canvas 'xn))
-    (write-line (get canvas 'y1))
-    (write-line (get canvas 'yn))))
+    (confess "zoomed to: "
+	     (get canvas 'x1)
+	     (get canvas 'xn)
+	     (get canvas 'y1)
+	     (get canvas 'yn))))
 		      
 (define (center!)
   (let ((x (get cursor-x 'position))
@@ -132,8 +133,7 @@
 	 (wy (/ (- yn y1) factor 2.0))
 	 (x (get cursor-x 'position))
 	 (y (get cursor-y 'position)))
-    (write-line wx)
-    (write-line wy)
+    (confess "zoom-to!: " wx wy)
     (canvas-set-world contour-canvas
 		      (- x wx)
 		      (- y wy)
@@ -211,11 +211,11 @@
 
     (profile-display-fit!)
 
-    (format #t "x = ~,2f~%" (get x 'value))
-    (format #t "wx = ~,2f~%" (get wx 'value))
-    (format #t "y = ~,2f~%" (get y 'value))
-    (format #t "wy = ~,2f~%" (get wy 'value))
-    (format #t "intensity = ~,2f (~,2f)~%" (get intensity 'value)(get intensity 'prior-mean))
+    (confess (format #f "x = ~,2f~%" (get x 'value)))
+    (confess (format #f "wx = ~,2f~%" (get wx 'value)))
+    (confess (format #f "y = ~,2f~%" (get y 'value)))
+    (confess (format #f "wy = ~,2f~%" (get wy 'value)))
+    (confess (format #f "intensity = ~,2f (~,2f)~%" (get intensity 'value)(get intensity 'prior-mean)))
     'ok))
 
 (define fit-button (make <gtk-button> #:label "Fit peak"))
