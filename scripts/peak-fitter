@@ -64,7 +64,7 @@
 
 (define line-plot
   (canvas-add-item profile-canvas (make <hos-spectrum-profile>)))
-(set line-plot 'color (gdk-rgb 0.8 0.2 1.0))
+(set line-plot 'color #(#xffff #x00ff #xefff))
 
 ; display the fit in the profile window
 (define (profile-display-fit! . args)

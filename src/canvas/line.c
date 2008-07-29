@@ -18,7 +18,7 @@
  */
 
 #include "line.h"
-#include <string.h>
+// #include <string.h>
 
 /* signals & properties */
 enum {
@@ -63,7 +63,10 @@ hos_line_init(HosLine *self)
 {
   self->points = g_array_new(FALSE, FALSE, sizeof(hos_line_point_t));
   self->width  = 1.0;
-  line_set_color(self, gdk_rgb(1.0, 1.0, 1.0));
+  self->color  = g_new0(GdkColor, 1);
+  self->color->red   = 0xffff;
+  self->color->blue  = 0xffff;
+  self->color->green = 0xffff;
 }
 
 static void
@@ -81,16 +84,12 @@ hos_line_class_init (HosLineClass *klass)
 
   klass->paint      = line_paint_default;
 
-  /* grab the type ID of gdk color, assuming it is already registered */
-  GType gdk_color_type = g_type_from_name("GdkColor");
-  g_assert(gdk_color_type > 0);
-
   g_object_class_install_property (gobject_class,
 				   PROP_COLOR,
 				   g_param_spec_boxed ("color",
 						       "color",
 						       "foreground color of the line",
-						       gdk_color_type,
+						       GDK_TYPE_COLOR,
 						       G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   g_object_class_install_property (gobject_class,
@@ -358,10 +357,12 @@ line_append_point(HosLine* line, double x, double y)
 static void
 line_set_color(HosLine* line, GdkColor *color)
 {
-  if (line->color == NULL)
-    line->color = g_new0(GdkColor, 1);
+  g_return_if_fail(HOS_IS_LINE(line));
+  g_return_if_fail(color != NULL);
 
-  memcpy(line->color, color, sizeof(GdkColor));
+  line->color->red = color->red;
+  line->color->blue = color->blue;
+  line->color->green = color->green;
 
   canvas_item_configure(HOS_CANVAS_ITEM(line));
 }
