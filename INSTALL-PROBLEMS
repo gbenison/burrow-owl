@@ -10,17 +10,20 @@ Workaround:    In your guile script, load the module 'burrow hacks' first, i.e.
                (use-modules (burrow hacks)
                             (guile gnome))
 Cause:         Some versions of guile-gnome (2.15.95 -- ?) expect the root guile
-               module to contain a binding for 'connect', but some guiles do not.
+               module to contain a binding for 'connect', but some guiles do
+               not.
 
 ========== srfi-35 bug =============
 11jan08
 
 Symptom:     ERROR: Wrong type argument in position 1 (expecting class): #<condition-type &error b7ed0dc0>
-Cause:       g-wrap provides its own version of file srfi-35.scm, which is incompatible with the
-             srfi-35.scm distributed with guile-1.8.3.
-Workaround:  Verify that you can reproduce the error with "guile -c '(use-modules (g-wrap))'
-             apply the patch 'srfi-35.diff' in the g-wrap source directory:
+Cause:       g-wrap provides its own version of file srfi-35.scm, which
+	     is incompatible with the srfi-35.scm distributed with
+	     guile-1.8.3.
+Workaround:  Verify that you can reproduce the error with
+	     "guile -c '(use-modules (g-wrap))'"
+             then apply patches/srfi-35.patch:
              cd somewhere/g-wrap-1.9.x
-             patch -p0 < srfi-35.diff
+             patch -p0 < srfi-35.patch
              make && make install
 
