@@ -36,3 +36,13 @@ Workaround:  Apply patches/gdk-color.patch to guile-gnome-platform sources:
              cd guile-gnome-platform-2.16.1/gtk
              patch -p0 < gdk-color.patch
              make && make install
+
+========== LIBFFI_CFLAGS_INSTALLED bug =============
+28jul08
+
+Symptom:     guile-gnome fails to build with errors about
+             @LIBFFI_CFLAGS_INSTALLED@
+Workaround:  Apply patches/libffi-cflags.patch in g-wrap source dir
+             cd g-wrap-1.9.11
+             patch -p0 < libffi-cflags.patch
+             make && make install
