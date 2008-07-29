@@ -1,0 +1,19 @@
+
+(use-modules (burrow spectrum))
+
+(sleep-if-requested)
+
+(do ((i 0 (+ i 1)))
+    ((> i 40))
+  (let ((spectrum
+	 (spectrum-nih-from-file
+	  (string-append (getenv "EXAMPLE_DIR") "/hsqc.DAT"))))
+    (if (not (= (spectrum-ndim spectrum) 2))
+	(error "wrong number of dimensions."))
+    (spectrum-peek spectrum 0))
+  (display "."))
+(newline)
+    
+
+
+

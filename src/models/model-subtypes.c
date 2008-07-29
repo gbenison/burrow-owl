@@ -21,6 +21,7 @@
 #include <gsl/gsl_randist.h>
 #include "model-subtypes.h"
 #include "model-subtypes-gen.c"
+#include "utils.h"
 
 /*** model_gaussian ***/
 
@@ -65,8 +66,11 @@ model_gaussian_iterator_free(model_iterator_t* self)
 {
   struct gaussian_data* data = (struct gaussian_data*)(self->data);
   model_iterator_free(data->src);
+  data->src = NULL;
   model_iterator_free(data->center);
+  data->center = NULL;
   model_iterator_free(data->sigma);
+  data->sigma = NULL;
 }
 
 HosModel*
@@ -75,11 +79,25 @@ model_gaussian(HosModel *src, HosModel *center, HosModel *sigma)
   HosModel *result = g_object_new(HOS_TYPE_MODEL_GAUSSIAN, NULL);
   g_return_if_fail(center->ndim == 0);
   g_return_if_fail(sigma->ndim == 0);
+
   HOS_MODEL_GAUSSIAN(result)->src = src;
   HOS_MODEL_GAUSSIAN(result)->center = center;
   HOS_MODEL_GAUSSIAN(result)->sigma = sigma;
+
+  g_object_ref(src);
+  g_object_ref(center);
+  g_object_ref(sigma);
+
   result->ndim = src->ndim;
   return result;
+}
+
+static void
+model_gaussian_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_GAUSSIAN(object)->src);
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_GAUSSIAN(object)->center);
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_GAUSSIAN(object)->sigma);
 }
 
 /** model_dimension **/
@@ -114,6 +132,7 @@ model_dimension_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *de
 }
 
 static void model_dimension_iterator_free(model_iterator_t *self) { }
+static void model_dimension_dispose(GObject *object) { }
 
 /** model_sum **/
 
@@ -122,7 +141,6 @@ struct pair_data
   model_iterator_t *iterator[2];
   gdouble          *buffer[2];
 };
-
 
 static void
 model_sum_iterator_fill(model_iterator_t* self, gdouble *dest)
@@ -167,9 +185,13 @@ model_sum_iterator_free(model_iterator_t *self)
 {
   struct pair_data *data = (struct pair_data*)(self->data);
   g_free(data->buffer[0]);
+  data->buffer[0] = NULL;
   g_free(data->buffer[1]);
+  data->buffer[1] = NULL;
   model_iterator_free(data->iterator[0]);
+  data->iterator[0] = NULL;
   model_iterator_free(data->iterator[1]);
+  data->iterator[0] = NULL;
   g_free(data);
   self->data = NULL;
 }
@@ -177,14 +199,26 @@ model_sum_iterator_free(model_iterator_t *self)
 HosModel*
 model_sum(HosModel *A, HosModel *B)
 {
+  g_return_val_if_fail(HOS_IS_MODEL(A), NULL);
+  g_return_val_if_fail(HOS_IS_MODEL(B), NULL);
+
   HosModel    *result    = g_object_new(HOS_TYPE_MODEL_SUM, NULL);
   HosModelSum *model_sum = HOS_MODEL_SUM(result);
   model_sum->A = A;
+  g_object_ref(A);
   model_sum->B = B;
+  g_object_ref(B);
 
   result->ndim = MAX(A->ndim, B->ndim);
 
   return result;
+}
+
+static void
+model_sum_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_SUM(object)->A);
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_SUM(object)->B);
 }
 
 /** model_product **/
@@ -234,9 +268,13 @@ model_product_iterator_free(model_iterator_t *self)
 {
   struct pair_data *data = (struct pair_data*)(self->data);
   g_free(data->buffer[0]);
+  data->buffer[0] = NULL;
   g_free(data->buffer[1]);
+  data->buffer[1] = NULL;
   model_iterator_free(data->iterator[0]);
+  data->iterator[0] = NULL;
   model_iterator_free(data->iterator[1]);
+  data->iterator[1] = NULL;
   g_free(data);
   self->data = NULL;
 }
@@ -244,14 +282,26 @@ model_product_iterator_free(model_iterator_t *self)
 HosModel*
 model_product(HosModel *A, HosModel *B)
 {
+  g_return_val_if_fail(HOS_IS_MODEL(A), NULL);
+  g_return_val_if_fail(HOS_IS_MODEL(B), NULL);
   HosModel        *result    = g_object_new(HOS_TYPE_MODEL_PRODUCT, NULL);
   HosModelProduct *model_product = HOS_MODEL_PRODUCT(result);
   model_product->A = A;
   model_product->B = B;
+
+  g_object_ref(A);
+  g_object_ref(B);
   
   result->ndim = A->ndim + B->ndim;
 
   return result;
+}
+
+static void
+model_product_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_PRODUCT(object)->A);
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_PRODUCT(object)->B);
 }
 
 /** model_noise **/
@@ -291,10 +341,17 @@ model_add_noise(HosModel *src, gdouble noise)
   HosModelNoise *model_noise = HOS_MODEL_NOISE(result);
   
   model_noise->argument = src;
+  g_object_ref(src);
   model_noise->noise = noise;
   result->ndim = src->ndim;
 
   return result;
+}
+
+static void
+model_noise_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_NOISE(object)->argument);
 }
 
 /** model_projection **/
@@ -340,6 +397,7 @@ static void
 model_projection_iterator_free(model_iterator_t *self)
 {
   model_iterator_free((model_iterator_t*)(self->data));
+  self->data = NULL;
 }
 
 HosModel*
@@ -351,11 +409,18 @@ model_project(HosModel *src, gdouble coordinate)
   g_return_if_fail(src->ndim > 0);
 
   model_projection->argument   = src;
+  g_object_ref(src);
   model_projection->coordinate = coordinate;
 
   result->ndim = src->ndim - 1;
 
   return result;
+}
+
+static void
+model_projection_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_PROJECTION(object)->argument);
 }
 
 /*** model_transposition ***/
@@ -395,7 +460,8 @@ model_transposition_iterator_fill(model_iterator_t* self, gdouble *dest)
 static void
 model_transposition_iterator_init(model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np)
 {
-
+  g_assert(HOS_IS_MODEL(self->root));
+  g_assert(HOS_IS_MODEL_TRANSPOSITION(self->root));
   HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(self->root);
   gint ndim = HOS_MODEL(self->root)->ndim;
   guint idx = model_transposition->idx;
@@ -443,26 +509,33 @@ static void
 model_transposition_iterator_free(model_iterator_t *self)
 {
   model_iterator_free((model_iterator_t*)(self->data));
+  self->data = NULL;
 }
 
 HosModel*
 model_transpose(HosModel *src, guint idx)
 {
-  HosModel           *result           = g_object_new(HOS_TYPE_MODEL_TRANSPOSITION, NULL);
-  HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(result);
-
   g_return_if_fail(HOS_IS_MODEL(src));
-
   if (idx == 0)
     return src;
+
+  HosModel           *result           = g_object_new(HOS_TYPE_MODEL_TRANSPOSITION, NULL);
+  HosModelTransposition *model_transposition = HOS_MODEL_TRANSPOSITION(result);
 
   g_return_if_fail(src->ndim > 0);
 
   model_transposition->argument = src;
+  g_object_ref(src);
   model_transposition->idx      = idx;
 
   result->ndim = src->ndim;
 
+  g_assert(HOS_IS_MODEL_TRANSPOSITION(result));
   return result;
 }
 
+static void
+model_transposition_dispose(GObject *object)
+{
+  G_OBJECT_UNREF_AND_CLEAR(HOS_MODEL_TRANSPOSITION(object)->argument);
+}

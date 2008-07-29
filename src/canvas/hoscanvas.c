@@ -390,13 +390,3 @@ adjustment_for_canvas_y(HosCanvas* canvas)
 					   0, 0));
 }
 
-GdkColor*
-gdk_rgb(gdouble red, gdouble green, gdouble blue)
-{
-  GdkColor *result = g_new0(GdkColor, 1);
-  result->red   = CLAMP(red, 0, 1)   * G_MAXUINT16;
-  result->blue  = CLAMP(blue, 0, 1)  * G_MAXUINT16;
-  result->green = CLAMP(green, 0, 1) * G_MAXUINT16;
-
-  return result;
-}

@@ -54,6 +54,8 @@ void    solver_set_noise        (HosSolver *self, HosSpectrum *spectrum, gdouble
 void    solver_append_parameter (HosSolver *self, HosParameter *parameter);
 gdouble solver_square_error     (HosSolver *self);
 
+GType hos_solver_get_type(void);
+
 G_END_DECLS
 
 #endif /* not _HAVE_SOLVER_H */

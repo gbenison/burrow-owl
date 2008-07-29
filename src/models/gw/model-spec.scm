@@ -9,7 +9,7 @@
   #:use-module (gnome gw support defs))
 
 (define-class <model-wrapset> (<gobject-wrapset-base>)
-  #:id 'model
+  #:id 'burrowmodel
   #:dependencies '(standard gnome-glib gnome-gobject))
 
 (define-method (global-declarations-cg (self <model-wrapset>))
@@ -28,7 +28,7 @@
    (next-method)))
 
 (define-method (initialize (ws <model-wrapset>) initargs)
-  (next-method ws (cons #:module (cons '(burrow model) initargs)))
+  (next-method ws (cons #:module (cons '(burrow model-gw) initargs)))
   (load-defs ws "spectrum-type.defs")
   (load-defs ws "model.defs"))
 

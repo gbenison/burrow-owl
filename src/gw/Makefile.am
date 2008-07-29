@@ -5,8 +5,14 @@ headers_dir=@top_srcdir@/src
 
 lib_LTLIBRARIES=libgw-guile-spectrum.la
 
-libgw_guile_spectrum_la_LDFLAGS=-L.. -lburrow @GLIB_LIBS@ @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
-                                @GUILE_LDFLAGS@ -module
+preinstalldir=$(abs_top_builddir)/@pre_install_path@
+all-local:
+	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
+	$(INSTALL_DATA) $(srcdir)/spectrum.scm spectrum-gw.scm $(preinstalldir)/share/guile/burrow
+
+libgw_guile_spectrum_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ \
+                                @GUILE_GNOME_LIBS@ \
+                                @GUILE_LDFLAGS@ -L.. -lburrow -module
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \

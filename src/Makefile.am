@@ -15,6 +15,13 @@ nobase_data_DATA=guile/spec-extra.scm \
                  guile/burrow/chemical-shift-distributions.scm \
                  guile/burrow/amino-codes.scm
 
+## copy modules to pre-install directory
+srcmoddir=$(srcdir)/guile/burrow
+preinstalldir=$(abs_top_builddir)/@pre_install_path@
+all-local:
+	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
+	$(INSTALL_DATA) $(srcmoddir)/hacks.scm $(srcmoddir)/assignments.scm $(preinstalldir)/share/guile/burrow
+
 BUILT_SOURCES=marshal.c marshal.h
 
 burrowincludedir=$(includedir)/burrow
@@ -61,7 +68,7 @@ endian.h \
 version.c \
 version.h
 
-libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm -module
+libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm
 libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd

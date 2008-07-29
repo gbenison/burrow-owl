@@ -68,11 +68,15 @@ static void    model_@name@_iterator_fill (model_iterator_t *self, gdouble *dest
 static void    model_@name@_iterator_init (model_iterator_t *self, gdouble *orig, gdouble *delta, guint *np);
 static void    model_@name@_iterator_free (model_iterator_t *self);
 
+static void    model_@name@_dispose (GObject *object);
+
 static void
 hos_model_@name@_class_init(HosModel@Name@Class *klass)
 {
   GObjectClass  *gobject_class = G_OBJECT_CLASS(klass);
   HosModelClass *model_class   = HOS_MODEL_CLASS(klass);
+
+  gobject_class->dispose = model_@name@_dispose;
 
   model_class->iterator_fill = model_@name@_iterator_fill;
   model_class->iterator_init = model_@name@_iterator_init;
@@ -95,8 +99,7 @@ hos_model_@name@_init(HosModel@Name@ *self)
 (generate-derived-type "gaussian")
 (generate-derived-type "dimension")
 (generate-derived-type "noise")
-(generate-derived-type "projection")
 (generate-derived-type "transposition")
-
+(generate-derived-type "projection")
 
 

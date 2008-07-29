@@ -111,11 +111,15 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
 
   if (self->spectrum != spectrum)
     {
+      if (self->spectrum != NULL)
+	g_object_unref(self->spectrum);
+
       self->spectrum = spectrum;
+      g_object_ref(self->spectrum);
 
       int np = spectrum_np(spectrum, 0);
-      double x[np];
-      double y[np];
+      double *x = g_new0(gdouble, np);
+      double *y = g_new0(gdouble, np);
 
       /* FIXME add support for deferred drawing? */
       gdouble *data = spectrum_traverse_blocking(spectrum);
@@ -132,6 +136,8 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
 	}
 
       line_set_points(HOS_LINE(self), x, y, np);
+      g_free(x);
+      g_free(y);
     }
 }
 

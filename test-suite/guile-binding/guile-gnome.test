@@ -1,16 +1,8 @@
-#!/bin/sh
-# -*-scheme-*-
-
-(source ../wrapper/burrow $0) && exit 0
-exit 1
-
-!#
-
 ;
 ; Do we have a working guile-gnome?
 ;
-
 (use-modules (oop goops)
+	     (burrow hacks)
 	     (gnome gtk))
 
 (connect (make <gtk-window>)
