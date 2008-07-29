@@ -10,8 +10,8 @@
              (oop goops)
 	     (gnome gobject)
 	     (gnome gtk)
-             (spectrum)
-	     (spec-extra)
+             (burrow spectrum)
+             (burrow canvas)
 	     (burrow assignments))
 
 (sleep-if-requested)

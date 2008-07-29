@@ -5,7 +5,8 @@ check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_diagonal_project t_extract t_transpose t_unfold  \
                t_cache \
                t_collision
-TESTS = $(check_PROGRAMS) guile-gnome-test run-tests
+TESTS = $(check_PROGRAMS)
+SUBDIRS=. guile-binding
 
 noinst_LTLIBRARIES=libburrowtest.la
 libburrowtest_la_SOURCES=spectrum-ramp.c      spectrum-ramp.h \
@@ -16,5 +17,7 @@ libburrowtest_la_SOURCES=spectrum-ramp.c      spectrum-ramp.h \
 AM_CPPFLAGS=-I@top_srcdir@/src @GTK_CFLAGS@ @GTHREAD_CFLAGS@
 AM_LDFLAGS=-L../src -lburrow -lburrowtest
 
-EXTRA_DIST = tests guile-test guile-gnome-test lib.scm data
+EXTRA_DIST =  data
 DISTCLEANFILES = check-guile.log
+
+

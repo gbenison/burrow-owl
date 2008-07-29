@@ -3,13 +3,12 @@
 ; convert a 3D triple-resonance spectrum (e.g. CBCACONH)
 ; to amino-acid-type filtered planes.
 
-(use-modules (burrow hacks)
-	     (oop goops)
+(use-modules (oop goops)
 	     (srfi srfi-1)
-	     (gnome gtk)
+	     (burrow spectrum)
 	     (burrow model)
-	     (spectrum)
-	     (spec-extra)
+	     (burrow canvas)
+             (gnome gtk)
 	     (burrow assignments)
 	     (burrow chemical-shift-distributions))
 

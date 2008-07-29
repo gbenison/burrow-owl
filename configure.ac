@@ -34,11 +34,13 @@ PKG_CHECK_MODULES(GUILE_GNOME, guile-gnome-glib-$GUILE_GNOME_API >= 2.15);
 
 guile_gnome_prefix=`${PKG_CONFIG} --variable=prefix guile-gnome-glib-$GUILE_GNOME_API`;
 GUILE_GNOME_MODULE_DIR=${guile_gnome_prefix}/share/guile-gnome-$GUILE_GNOME_API;
+GUILE_GNOME_LIB_DIR=${guile_gnome_prefix}/lib/guile-gnome-$GUILE_GNOME_API;
 
 AC_SUBST(guile_gnome_prefix)
 AC_SUBST(GUILE_GNOME_CFLAGS)
 AC_SUBST(GUILE_GNOME_LIBS)
 AC_SUBST(GUILE_GNOME_MODULE_DIR)
+AC_SUBST(GUILE_GNOME_LIB_DIR)
 
 AM_INIT_AUTOMAKE
 
@@ -68,10 +70,14 @@ AC_C_CONST
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset pow sqrt])
 
+# define a location for the pre-installed package.
+AC_SUBST([pre_install_path], [pre-install])
+
 AC_CONFIG_FILES([Makefile
                  burrow-owl.pc
                  doc/Makefile
                  wrapper/burrow
+		 wrapper/pre-inst-burrow-env
                  src/Makefile
                  src/gw/Makefile
 		 src/finite-state-machine/Makefile
@@ -80,9 +86,8 @@ AC_CONFIG_FILES([Makefile
 		 src/models/Makefile
 		 src/models/gw/Makefile
 		 benchmarks/Makefile
-		 test-suite/Makefile])
-
-AC_CONFIG_FILES([test-suite/run-tests], [chmod +x test-suite/run-tests])
+		 test-suite/Makefile
+		 test-suite/guile-binding/Makefile])
 
 AC_OUTPUT
 

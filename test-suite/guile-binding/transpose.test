@@ -1,3 +1,8 @@
+; -*-scheme-*-
+(use-modules (burrow spectrum))
+
+(define (example-spectrum-path str)
+  (string-append (getenv "EXAMPLE_DIR") "/" str))
 
 (define (spectrum-grab-point spec x y z)
   (spectrum-peek
@@ -12,23 +17,21 @@
   (and (= (spectrum-grab-point spec x y z)
 	  (spectrum-grab-point spec-zyx z y x))))
 
-(expect-fail "untransposed indices with transposed spectra"
- (= (spectrum-grab-point spec 13 20 5)
-    (spectrum-grab-point spec-zyx 13 20 5)))
+(if (= (spectrum-grab-point spec 13 20 5)
+       (spectrum-grab-point spec-zyx 13 20 5))
+    (error "untransposed indices with transposed spectra"))
 
-(pass-if "transposed indices matching transposed data"
-	 (and (test-point 22 15 9)
+(if (not (and (test-point 22 15 9)
 	      (test-point 3 19 20)
 	      (test-point 1 24 2)))
-
-
+    (error "transposed indices matching transposed data"))
 
 (define (parameter-test name op)
-  (pass-if name
-    (and
-     (= (op spec 0)(op spec-zyx 2))
-     (= (op spec 1)(op spec-zyx 1))
-     (= (op spec 2)(op spec-zyx 0)))))
+  (if (not (and
+	    (= (op spec 0)(op spec-zyx 2))
+	    (= (op spec 1)(op spec-zyx 1))
+	    (= (op spec 2)(op spec-zyx 0))))
+      (error name)))
 
 (parameter-test "transposed sweep width"        spectrum-sw)
 (parameter-test "transposed carrier frequency"  spectrum-sf)

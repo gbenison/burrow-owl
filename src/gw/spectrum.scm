@@ -2,6 +2,7 @@
 (define-module (burrow spectrum))
 
 (use-modules (oop goops)
+             (burrow hacks)
 	     (gnome gobject)
 	     (burrow spectrum-gw))
 
