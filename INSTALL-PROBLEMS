@@ -27,3 +27,12 @@ Workaround:  Verify that you can reproduce the error with
              patch -p0 < srfi-35.patch
              make && make install
 
+========== GdkColor bug =============
+28jul08
+
+Symptom:     gdk-color.test fails; random crashes due to (set foo 'color ...)
+Cause:       conflict between guile-gnome <= 2.16.1, gtk+ >= 2.10
+Workaround:  Apply patches/gdk-color.patch to guile-gnome-platform sources:
+             cd guile-gnome-platform-2.16.1/gtk
+             patch -p0 < gdk-color.patch
+             make && make install
