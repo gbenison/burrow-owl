@@ -1,0 +1,12 @@
+;
+; Can we crash guile-gnome by setting color properties?
+;
+(use-modules (oop goops)
+	     (burrow hacks)
+	     (gnome gtk))
+
+(define n-gc 0)
+(add-hook! after-gc-hook (lambda ()(set! n-gc (+ n-gc 1))))
+
+(while (< n-gc 5)
+       (set (make <gtk-color-button>) 'color "red"))
