@@ -42,16 +42,16 @@ struct _filebuf_struct
   char *buf;
 
   /* the position pointer; offset in bytes from start of file */
-  unsigned long position_pointer;
+  unsigned int position_pointer;
 
   /* the first byte of the buffer corresponds to this position in the file. */
-  unsigned long buffer_start_index;
+  unsigned int buffer_start_index;
 
   /* maximum buffer size; will attempt to read this many bytes on each read */
   int buffer_max;
 
   /* number of bytes that have actually been read into the buffer. */
-  unsigned long n_in_buffer;
+  unsigned int n_in_buffer;
 
 
 };
@@ -119,7 +119,7 @@ check_sync(FileBuf *self, int length)
     fread(self->buf, 1, self->buffer_max, self->channel);
 
   /* FIXME handle errors */
-  assert(self->n_in_buffer >= length);
+  assert((int)self->n_in_buffer >= length);
 
   return 1;
 
@@ -141,13 +141,13 @@ filebuf_peek(FileBuf *fb, void *dest, int n)
 }
 
 void
-filebuf_seek_set(FileBuf *fb, unsigned long offset)
+filebuf_seek_set(FileBuf *fb, unsigned int offset)
 {
   fb->position_pointer = offset;
 }
 
 void
-filebuf_seek_cur(FileBuf *fb, long offset)
+filebuf_seek_cur(FileBuf *fb, int offset)
 {
   fb->position_pointer += offset;
 }
