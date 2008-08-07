@@ -6,9 +6,8 @@ scriptdir=$(pkgdatadir)/scripts
 preinstalldir=$(abs_top_builddir)/@pre_install_path@
 
 all-local:
-	test -f $(abs_top_builddir)/burrow-owl.pc || { echo 'wtf?' && exit 1; }
-	$(INSTALL) -d $(preinstalldir)/bin
-	$(INSTALL) wrapper/pre-inst-burrow-env $(preinstalldir)/bin
+	$(INSTALL) -d $(preinstalldir)
+	$(INSTALL) wrapper/pre-inst-burrow-env $(preinstalldir)
 
 ## FIXME perhaps this should be done using more of automake's native
 ## abilities
