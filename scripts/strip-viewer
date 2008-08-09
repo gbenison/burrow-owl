@@ -3,8 +3,8 @@
 (use-modules (burrow hacks)
 	     (oop goops)
              (gnome gtk)
-	     (spectrum)
-	     (spec-extra)
+	     (burrow spectrum)
+	     (burrow canvas)
 	     (burrow assignments)
 	     (srfi srfi-1)
 	     (ice-9 format)
@@ -55,22 +55,6 @@
 ; ---------------
 ; Spectra
 ; ---------------
-
-;; note: for bruker, dimension order is HNC
-;; transform: HNC->CHN->HCN
-(define (bruker-transpose spec)  ;; HNC
-  (set! spec (spectrum-transpose spec 2))  ;; CHN
-  (set! spec (spectrum-transpose spec 1))  ;; HCN
-  spec)
-
-;; Assume input spectrum is a triple-resonance in either
-;; Bruker (HNC) or Varian (HCN) order; output in
-;; Varian order (HCN)
-(define (normalize-hcn spec)
-  (let ((ratio (/ (spectrum-sf spec 0)(spectrum-sf spec 1))))
-    (if (> ratio 8)
-	(bruker-transpose spec)
-	spec)))
 
 (define (get-assign-with-default asg name default)
   (or (false-if-exception
@@ -134,7 +118,7 @@
 	    (else (error "zoom canvas: unknown request " req))))))
 
 
-(define spec-3d (normalize-hcn (spectrum-nih-from-file 3d-file-name)))
+(define spec-3d (spectrum-normalize-order (spectrum-nih-from-file 3d-file-name)))
 
 
 ;; default width for strips with xdim = H
