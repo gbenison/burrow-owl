@@ -19,9 +19,6 @@ nobase_data_DATA=guile/spec-extra.scm \
 srcmoddir=$(srcdir)/guile/burrow
 preinstalldir=$(abs_top_builddir)/@pre_install_path@
 all-local:
-        ## test automake behavior.
-	## older versions of automake appear not to set abs_top_builddir.
-	@test -f $(abs_top_builddir)/burrow-owl.pc || { echo "!!!!!!!!!!!!!!! CHECK AUTOMAKE VERSION >= 1.10 !!!!!!!!!!!!!!" && exit 1; }
 	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
 	$(INSTALL_DATA) $(srcmoddir)/hacks.scm \
                         $(srcmoddir)/assignments.scm \
