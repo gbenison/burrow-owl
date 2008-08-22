@@ -28,14 +28,10 @@
 #define _HAVE_CONTOUR_H
 
 #include <glib-object.h>
-#include <gtk/gtk.h>
 
-/* peace in our time */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+G_BEGIN_DECLS
 
-#define HOS_TYPE_CONTOUR              (contour_get_type())
+#define HOS_TYPE_CONTOUR              (hos_contour_get_type())
 #define HOS_CONTOUR(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_CONTOUR, HosContour))
 #define HOS_CONTOUR_CLASS(klass)      (G_TYPE_CHECK_CLASS_CAST ((klass), HOS_TYPE_CONTOUR, HosContourClass))
 #define HOS_IS_CONTOUR(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_CONTOUR))
@@ -66,9 +62,9 @@ struct _HosContour
 {
   GObject parent_instance;
 
-  GtkAdjustment* thres_adjustment;
-  GtkAdjustment* factor_adjustment;
-  GtkAdjustment* nlvl_adjustment;
+  gdouble  threshold;
+  gdouble  factor;
+  guint    number_of_levels;
   gboolean draw_negative;
 
   guint16 red_min_pos;
@@ -99,13 +95,6 @@ struct _HosContour
 guint contour_get_n_contours(HosContour *contour);
 gdouble* contour_get_levels(HosContour *contour);
 void contour_set_draw_negative(HosContour *self, gboolean draw_negative);
-gdouble contour_get_thres(HosContour* contour);
-gdouble contour_get_factor(HosContour* contour);
-guint contour_get_nlvl(HosContour* contour);
-
-void contour_set_thres_adjustment(HosContour *self, GtkAdjustment *adjustment);
-void contour_set_factor_adjustment(HosContour *self, GtkAdjustment *adjustment);
-void contour_set_nlvl_adjustment(HosContour *self, GtkAdjustment *adjustment);
 
 void contour_set_color_positive(HosContour* self,
 				guint16 red_min,   guint16 red_max,
@@ -117,10 +106,8 @@ void contour_set_color_negative(HosContour* self,
 				guint16 green_min, guint16 green_max,
 				guint16 blue_min,  guint16 blue_max);
 
-GtkAdjustment* contour_get_thres_adjustment(HosContour *self);
-GtkAdjustment* contour_get_factor_adjustment(HosContour *self);
-GtkAdjustment* contour_get_nlvl_adjustment(HosContour *self);
+GType hos_contour_get_type(void);
 
-GType contour_get_type(void);
+G_END_DECLS
 
 #endif  /* _HAVE_CONTOUR_H */

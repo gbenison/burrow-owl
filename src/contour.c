@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,53 +27,41 @@ enum {
 
 enum {
   PROP_0,
-  PROP_THRES_ADJUSTMENT
+  PROP_THRESHOLD,
+  PROP_FACTOR,
+  PROP_NLVL,
+  PROP_DRAW_NEGATIVE
 };
 
 static void contour_configuration_changed (HosContour *contour);
-static void contour_adjustment_changed(GtkAdjustment *adjustment, gpointer data);
 static void sync_params(HosContour* self);
 static void hos_contour_class_init(HosContourClass *klass);
 static void hos_contour_init(HosContour *contour);
 
-static GObjectClass *parent_class = NULL;
+static gdouble contour_get_threshold(HosContour* contour);
+
 static guint contour_signals[LAST_SIGNAL] = { 0 };
 
-GType
-contour_get_type (void)
-{
-  static GType type = 0;
+static void hos_contour_set_property (GObject         *object,
+				      guint            prop_id,
+				      const GValue    *value,
+				      GParamSpec      *pspec);
+static void hos_contour_get_property (GObject         *object,
+				      guint            prop_id,
+				      GValue          *value,
+				      GParamSpec      *pspec);
 
-  if (!type)
-    {
-      static const GTypeInfo _info =
-      {
-	sizeof (HosContourClass),
-	NULL,		/* base_init */
-	NULL,		/* base_finalize */
-	(GClassInitFunc) hos_contour_class_init,
-	NULL,		/* class_finalize */
-	NULL,		/* class_data */
-	sizeof (HosContour),
-	16,		/* n_preallocs */
-	(GInstanceInitFunc) hos_contour_init,
-      };
-
-      type = g_type_register_static (G_TYPE_OBJECT,
-				     "HosContour",
-				     &_info,
-				     0 /* flags */ );
-
-    }
-
-  return type;
-}
+G_DEFINE_TYPE (HosContour, hos_contour, G_TYPE_OBJECT)
 
 static void
 hos_contour_class_init(HosContourClass *klass)
 {
-  parent_class = g_type_class_peek_parent(klass);
+  GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
+
   klass->configuration_changed = contour_configuration_changed;
+
+  gobject_class->set_property = hos_contour_set_property;
+  gobject_class->get_property = hos_contour_get_property;
 
   contour_signals[CONFIGURATION_CHANGED] =
     g_signal_new ("configuration-changed",
@@ -84,33 +72,121 @@ hos_contour_class_init(HosContourClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
+  g_object_class_install_property
+    (gobject_class,
+     PROP_THRESHOLD,
+     g_param_spec_double ("thres",
+			  "Threshold",
+			  "Level of lowest contour line",
+			  0,
+			  G_MAXDOUBLE,
+			  0.0,
+			  G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_FACTOR,
+     g_param_spec_double ("factor",
+			  "Factor",
+			  "ratio between successive contour levels",
+			  1.0,
+			  G_MAXDOUBLE,
+			  1.2,
+			  G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_NLVL,
+     g_param_spec_uint ("nlvl",
+			"nlvl",
+			"number of contour levels",
+			0,
+			G_MAXINT,
+			20,
+			G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_DRAW_NEGATIVE,
+     g_param_spec_boolean ("draw-negative",
+			   "draw-negative",
+			   "true: include both positive and negative levels",
+			   FALSE,
+			   G_PARAM_READWRITE));
 }
 
 static void
-hos_contour_init(HosContour *contour)
+hos_contour_init(HosContour *self)
 {
-  contour->levels = NULL;
-  contour->lines = NULL;
+  self->levels = NULL;
+  self->lines = NULL;
 
   /* set some reasonable default contouring parameters */
-  contour_set_thres_adjustment(contour,
-			       GTK_ADJUSTMENT(gtk_adjustment_new(6.0,  /* value */
-								 0.0,  /* lower */
-								 12.0, /* upper */
-								 0.1,  /* step_increment */
-								 0.0,  /* page_increment */
-								 0.0))); /* page_size */
-  contour_set_factor_adjustment(contour,
-				GTK_ADJUSTMENT(gtk_adjustment_new(1.2, 1.0, 5.0, 0.01, 0.0, 0.0)));
-  contour_set_nlvl_adjustment(contour,
-			      GTK_ADJUSTMENT(gtk_adjustment_new(20.0, 0.0, 100.0, 1.0, 0.0, 0.0)));
+  self->threshold        = 6.0;
+  self->factor           = 1.2;
+  self->number_of_levels = 20;
 
   /* set some default pleasing hues */
-  contour_set_color_positive(contour, 5000, 65000,  0, 0,  40000, 60000);
-  contour_set_color_negative(contour, 30000, 60000, 5000, 40000, 0, 0);
+  contour_set_color_positive(self, 5000, 65000,  0, 0,  40000, 60000);
+  contour_set_color_negative(self, 30000, 60000, 5000, 40000, 0, 0);
 
-  sync_params(contour);
+  sync_params(self);
+}
 
+static void
+hos_contour_set_property (GObject         *object,
+			  guint            prop_id,
+			  const GValue    *value,
+			  GParamSpec      *pspec)
+{
+  switch (prop_id)
+    {
+    case PROP_NLVL:
+      HOS_CONTOUR(object)->number_of_levels = g_value_get_uint(value);
+      sync_params(HOS_CONTOUR(object));
+      break;
+    case PROP_FACTOR:
+      HOS_CONTOUR(object)->factor = g_value_get_double(value);
+      sync_params(HOS_CONTOUR(object));
+      break;
+    case PROP_THRESHOLD:
+      HOS_CONTOUR(object)->threshold = g_value_get_double(value);
+      sync_params(HOS_CONTOUR(object));
+      break;
+    case PROP_DRAW_NEGATIVE:
+      HOS_CONTOUR(object)->draw_negative = g_value_get_boolean(value);
+      sync_params(HOS_CONTOUR(object));
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+static void
+hos_contour_get_property (GObject         *object,
+			  guint            prop_id,
+			  GValue          *value,
+			  GParamSpec      *pspec)
+{
+  switch (prop_id)
+    {
+    case PROP_NLVL:
+      g_value_set_uint(value, HOS_CONTOUR(object)->number_of_levels);
+      break;
+    case PROP_THRESHOLD:
+      g_value_set_double(value, HOS_CONTOUR(object)->threshold);
+      break;
+    case PROP_FACTOR:
+      g_value_set_double(value, HOS_CONTOUR(object)->factor);
+      break;
+    case PROP_DRAW_NEGATIVE:
+      g_value_set_boolean(value, HOS_CONTOUR(object)->draw_negative);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 void
@@ -152,14 +228,6 @@ contour_configuration_changed (HosContour *contour)
 {
 }
 
-static void
-contour_adjustment_changed(GtkAdjustment *adjustment,
-			   gpointer data)
-{
-  HosContour *contour = HOS_CONTOUR(data);
-  sync_params(contour);
-}
-
 /*
  * Make contour drawing parameters internally consistent;
  * usually called after a parameter changes.
@@ -176,7 +244,7 @@ sync_params(HosContour* self)
 
   g_return_if_fail(HOS_IS_CONTOUR(self));
 
-  n_lvl = contour_get_nlvl(self);
+  n_lvl = self->number_of_levels;
   if (n_lvl <= 0)
     return;
 
@@ -193,14 +261,14 @@ sync_params(HosContour* self)
 
       index = n_lvl - 1;
 
-      self->levels[index] = -contour_get_thres(self);
+      self->levels[index] = -contour_get_threshold(self);
       self->lines[index].red = self->red_min_neg;
       self->lines[index].blue = self->blue_min_neg;
       self->lines[index].green = self->green_min_neg;
 
       for (; index > 0; --index)
 	{
-	  self->levels[index - 1] = self->levels[index] * contour_get_factor(self);
+	  self->levels[index - 1] = self->levels[index] * self->factor;
 	  self->lines[index - 1].red = self->lines[index].red + delta_red;
 	  self->lines[index - 1].blue = self->lines[index].blue + delta_blue;
 	  self->lines[index - 1].green = self->lines[index].green + delta_green;
@@ -215,14 +283,14 @@ sync_params(HosContour* self)
     
     index = self->draw_negative ? n_lvl : 0;
 
-    self->levels[index] = contour_get_thres(self);
+    self->levels[index] = contour_get_threshold(self);
     self->lines[index].red = self->red_min_pos;
     self->lines[index].blue = self->blue_min_pos;
     self->lines[index].green = self->green_min_pos;
 
     for (; index < n_contours - 1; index++)
       {
-	self->levels[index + 1] = self->levels[index] * contour_get_factor(self);
+	self->levels[index + 1] = self->levels[index] * self->factor;
 	self->lines[index + 1].red = self->lines[index].red + delta_red;
 	self->lines[index + 1].blue = self->lines[index].blue + delta_blue;
 	self->lines[index + 1].green = self->lines[index].green + delta_green;
@@ -244,31 +312,10 @@ contour_set_draw_negative(HosContour *self, gboolean draw_negative)
 }
 
 static gdouble
-adjustment_value_if_set(GtkAdjustment* adj)
-{
-  return GTK_IS_ADJUSTMENT(adj) ?
-    gtk_adjustment_get_value(adj) : 0;
-}
-
-gdouble
-contour_get_thres(HosContour* contour)
+contour_get_threshold(HosContour* contour)
 {
   g_return_val_if_fail(HOS_IS_CONTOUR(contour), 0);
-  return (pow (10, (adjustment_value_if_set(contour->thres_adjustment))));
-}
-
-gdouble
-contour_get_factor(HosContour* contour)
-{
-  g_return_val_if_fail(HOS_IS_CONTOUR(contour), 0);
-  return adjustment_value_if_set(contour->factor_adjustment);
-}
-
-guint
-contour_get_nlvl(HosContour* contour)
-{
-  g_return_val_if_fail(HOS_IS_CONTOUR(contour), 0);
-  return adjustment_value_if_set(contour->nlvl_adjustment);
+  return (pow (10, contour->threshold));
 }
 
 gdouble*
@@ -281,115 +328,12 @@ contour_get_levels(HosContour* contour)
 guint
 contour_get_n_contours(HosContour *contour)
 {
-  guint result = contour_get_nlvl(contour);
+  g_return_if_fail(HOS_IS_CONTOUR(contour));
+  guint result = contour->number_of_levels;
   if (contour->draw_negative)
     result *= 2;
   return result;
 }
 
-GtkAdjustment*
-contour_get_thres_adjustment(HosContour *self)
-{
-  return self->thres_adjustment;
-}
-
-GtkAdjustment*
-contour_get_factor_adjustment(HosContour *self)
-{
-  return self->factor_adjustment;
-}
-
-GtkAdjustment*
-contour_get_nlvl_adjustment(HosContour *self)
-{
-  return self->nlvl_adjustment;
-}
-
-void
-contour_set_thres_adjustment(HosContour *self, GtkAdjustment *adjustment)
-{
-  g_return_if_fail(HOS_IS_CONTOUR(self));
-  if (!adjustment)
-    adjustment = (GtkAdjustment*) gtk_adjustment_new (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-  else
-    g_return_if_fail (GTK_IS_ADJUSTMENT (adjustment));
-
-  if (self->thres_adjustment != adjustment)
-    {
-      if (self->thres_adjustment)
-	{
-	  g_signal_handlers_disconnect_by_func (self->thres_adjustment,
-						contour_adjustment_changed,
-						self);
-	  g_object_unref(self->thres_adjustment);
-	}
-      self->thres_adjustment = adjustment;
-      g_object_ref(adjustment);
-
-      g_signal_connect(adjustment, "value_changed",
-		       G_CALLBACK(contour_adjustment_changed),
-		       self);
-
-      sync_params(self);
-    }
-}
-
-void
-contour_set_factor_adjustment(HosContour *self, GtkAdjustment *adjustment)
-{
-  g_return_if_fail(HOS_IS_CONTOUR(self));
-  if (!adjustment)
-    adjustment = (GtkAdjustment*) gtk_adjustment_new (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-  else
-    g_return_if_fail (GTK_IS_ADJUSTMENT (adjustment));
-
-  if (self->factor_adjustment != adjustment)
-    {
-      if (self->factor_adjustment)
-	{
-	  g_signal_handlers_disconnect_by_func (self->factor_adjustment,
-						contour_adjustment_changed,
-						self);
-	  g_object_unref(self->factor_adjustment);
-	}
-      self->factor_adjustment = adjustment;
-      g_object_ref(adjustment);
-
-      g_signal_connect(adjustment, "value_changed",
-		       G_CALLBACK(contour_adjustment_changed),
-		       self);
-
-      sync_params(self);
-    }
-}
-
-void
-contour_set_nlvl_adjustment(HosContour *self, GtkAdjustment *adjustment)
-{
-  g_return_if_fail(HOS_IS_CONTOUR(self));
-  if (!adjustment)
-    adjustment = (GtkAdjustment*) gtk_adjustment_new (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-  else
-    g_return_if_fail (GTK_IS_ADJUSTMENT (adjustment));
-
-  if (self->nlvl_adjustment != adjustment)
-    {
-      if (self->nlvl_adjustment)
-	{
-	  g_signal_handlers_disconnect_by_func (self->nlvl_adjustment,
-						contour_adjustment_changed,
-						self);
-	  g_object_unref(self->nlvl_adjustment);
-	}
-      self->nlvl_adjustment = adjustment;
-      g_object_ref(adjustment);
-
-      g_signal_connect(adjustment, "value_changed",
-		       G_CALLBACK(contour_adjustment_changed),
-		       self);
-
-      sync_params(self);
-    }
-}
 
 

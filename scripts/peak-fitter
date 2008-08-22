@@ -1,0 +1,236 @@
+; -*-scheme-*-
+(use-modules (oop goops)
+	     (ice-9 format)
+             (burrow spectrum)
+	     (gnome gtk)
+             (burrow canvas)
+	     (burrow model))
+
+(sleep-if-requested)
+
+(define-usage
+  "Display a 2D spectrum and fit a solitary peak to a Gaussian model"
+  '(<spectrum>))
+
+(define spectrum-file-name (command-line-argument 1))
+
+(define window (make <gtk-window> #:title "line test"))
+(connect window 'destroy (lambda args (gtk-main-quit)))
+
+(define profile-canvas (make <hos-canvas> #:height-request 100))
+(confess "made canvas\n")
+(define contour-canvas (make <hos-canvas> #:width-request 300 #:height-request 300))
+
+(define profile-grid (canvas-add-item profile-canvas (make <hos-grid>)))
+(define contour-grid (canvas-add-item contour-canvas (make <hos-grid>)))
+(confess "made grid\n")
+
+;; test 1D spectrum plots.
+(define spec-2d (spectrum-nih-from-file spectrum-file-name))
+(define contour-plot (canvas-add-item
+		      contour-canvas
+		      (make <hos-contour-plot> #:spectrum spec-2d)))
+(canvas-sync-world contour-canvas spec-2d)
+
+
+(define profile (canvas-add-item profile-canvas (make <hos-spectrum-profile>)))
+
+(define (profile-sync! . args)
+  (let ((spectrum (get profile 'spectrum)))
+    (if spectrum
+	(let* ((x1 (get contour-canvas 'x1))
+	       (xn (get contour-canvas 'xn))
+	       (mini-spec (spectrum-extract-ppm spectrum x1 xn))
+	       (max (spectrum-get-max mini-spec)))
+	  (canvas-set-world profile-canvas x1 (* max 1.1) xn (* max -0.1)))))
+  #f)
+
+;; FIXME adjust for the height
+(connect contour-canvas 'world-configure profile-sync!)
+
+(profile-sync! spec-2d)
+
+(define (floor->int x)
+  (inexact->exact (floor x)))
+
+(define profile-horiz-pt 0)
+(define profile-horiz-ppm 0)
+(define (profile-set-ppm ppm)
+  (set! profile-horiz-pt (floor->int (spectrum-ppm2pt spec-2d 1 ppm)))
+  (set! profile-horiz-ppm (spectrum-pt2ppm spec-2d 1 profile-horiz-pt))
+  (set profile 'spectrum
+       (spectrum-project (spectrum-transpose spec-2d 1) profile-horiz-pt))
+  (profile-display-fit!))
+
+(define line-plot
+  (canvas-add-item profile-canvas (make <hos-spectrum-profile>)))
+(set line-plot 'color #(#xffff #x00ff #xefff))
+
+; display the fit in the profile window
+(define (profile-display-fit! . args)
+  (let* ((x1 (get profile-canvas 'x1))
+	 (xn (get profile-canvas 'xn))
+	 (profile-spectrum
+	  (spectrum-1d-from-model
+	   (model-project (model-transpose model 1) profile-horiz-ppm)
+	   (max x1 xn)
+	   (abs (- x1 xn))
+	   512)))
+    (set line-plot 'spectrum profile-spectrum))
+  #f)
+
+(connect profile-canvas 'world-configure profile-display-fit!)
+
+(define cursor-y (canvas-add-cursor-horizontal contour-canvas))
+(connect cursor-y 'moved
+	 (lambda (c y)
+	   (profile-set-ppm y)))
+
+(define cursor-x (canvas-add-cursor-vertical contour-canvas))
+(define cursor-2 (canvas-add-cursor-vertical profile-canvas))
+(set cursor-2 'adjustment (get cursor-x 'adjustment))
+(connect cursor-x 'dropped (lambda args (center!) #f))
+
+(define (zoom! canvas factor)
+  (let ((x1 (get canvas 'x1))
+	(y1 (get canvas 'y1))
+	(xn (get canvas 'xn))
+	(yn (get canvas 'yn))
+	(wx (- (get canvas 'xn)(get canvas 'x1)))
+	(wy (- (get canvas 'yn)(get canvas 'y1)))
+	(f (* 0.5 (- 1.0 factor))))
+    (canvas-set-world canvas
+		      (+ x1 (* wx f))
+		      (+ y1 (* wy f))
+		      (- xn (* wx f))
+		      (- yn (* wy f)))
+    (confess "zoomed to: "
+	     (get canvas 'x1)
+	     (get canvas 'xn)
+	     (get canvas 'y1)
+	     (get canvas 'yn))))
+		      
+(define (center!)
+  (let ((x (get cursor-x 'position))
+	(y (get cursor-y 'position))
+	(wx (- (get contour-canvas 'xn)(get contour-canvas 'x1)))
+	(wy (- (get contour-canvas 'yn)(get contour-canvas 'y1))))
+    (canvas-set-world contour-canvas
+		      (- x (* wx 0.5))
+		      (- y (* wy 0.5))
+		      (+ x (* wx 0.5))
+		      (+ y (* wy 0.5)))))
+
+(connect cursor-y 'dropped (lambda args (center!) #f))
+(ornaments-allow-simultaneous-grab cursor-y cursor-x)
+
+(define (zoom-to! factor)
+  (let* ((x1 (spectrum-orig-ppm spec-2d 0))
+	 (xn (spectrum-giro-ppm spec-2d 0))
+	 (wx (/ (- xn x1) factor 2.0))
+	 (y1 (spectrum-giro-ppm spec-2d 1))
+	 (yn (spectrum-orig-ppm spec-2d 1))
+	 (wy (/ (- yn y1) factor 2.0))
+	 (x (get cursor-x 'position))
+	 (y (get cursor-y 'position)))
+    (confess "zoom-to!: " wx wy)
+    (canvas-set-world contour-canvas
+		      (- x wx)
+		      (- y wy)
+		      (+ x wx)
+		      (+ y wy))))
+	
+(define zoom-scale (gtk-hscale-new-with-range 1.0 15.0 0.5))
+(connect (get zoom-scale 'adjustment) 'value-changed
+	 (lambda args
+	   (zoom-to! (get (get zoom-scale 'adjustment) 'value))
+	   #f))
+
+; ---- peak fitting -------
+(define (gaussian-profile-1d f sigma)
+  (model-gaussian (make <hos-model-dimension>) f sigma))
+
+(define (gaussian-2d x wx y wy intensity)
+  (model-product
+   (model-product
+    (gaussian-profile-1d x wx)
+    (gaussian-profile-1d y wy))
+   intensity))
+
+(define (parameter-adopt-mean par)
+  (set par 'prior-mean (get par 'value)))
+
+(define default-wx 0.02)
+(define default-wy 0.1)
+
+;; The model to fit
+(define x         (make <hos-parameter> #:value 9 #:prior-mean 9 #:prior-stddev 0.1))
+(define wx        (make <hos-parameter>
+		    #:value default-wx #:prior-mean default-wx #:prior-stddev (* default-wx 0.5)))
+(define y         (make <hos-parameter> #:value 115 #:prior-mean 115 #:prior-stddev 0.3))
+(define wy        (make <hos-parameter>
+		    #:value default-wy #:prior-mean default-wy #:prior-stddev (* default-wy 0.5)))
+(define intensity (make <hos-parameter> #:value 10 #:prior-mean 10 #:prior-stddev 5))
+(define model     (gaussian-2d x wx y wy intensity))
+
+(define fit-radius-x 0.1)
+(define fit-radius-y 0.3)
+
+
+(define (perform-fit! . args)
+  (let ((solver (make <hos-solver-anneal>))
+	(spectrum (spectrum-extract-2d-ppm
+		   spec-2d
+		   (- (get cursor-x 'position) fit-radius-x)
+		   (- (get cursor-y 'position) fit-radius-y)
+		   (+ (get cursor-x 'position) fit-radius-x)
+		   (+ (get cursor-y 'position) fit-radius-y))))
+    (solver-set-model solver spectrum model)
+    (solver-append-parameter solver x)
+    (solver-append-parameter solver wx)
+    (solver-append-parameter solver y)
+    (solver-append-parameter solver wy)
+    (solver-append-parameter solver intensity)
+
+    (set x 'value (get cursor-x 'position))
+    (parameter-adopt-mean x)
+    (set y 'value (get cursor-y 'position))
+    (parameter-adopt-mean y)
+    (set wx 'value default-wx)
+    (parameter-adopt-mean wx)
+    (set wy 'value default-wy)
+    (parameter-adopt-mean wy)
+    (set intensity 'value (* 20 (spectrum-get-max spectrum) default-wx default-wy))
+    (parameter-adopt-mean intensity)
+    (set intensity 'prior-stddev (* (get intensity 'value) 0.9))
+
+    ; minimize the model
+    (do ((t 1000 (/ t 1.1)))
+	((< t 0.001))
+      (solver-anneal-sample solver 100 1.0 t))
+
+    (profile-display-fit!)
+
+    (confess (format #f "x = ~,2f~%" (get x 'value)))
+    (confess (format #f "wx = ~,2f~%" (get wx 'value)))
+    (confess (format #f "y = ~,2f~%" (get y 'value)))
+    (confess (format #f "wy = ~,2f~%" (get wy 'value)))
+    (confess (format #f "intensity = ~,2f (~,2f)~%" (get intensity 'value)(get intensity 'prior-mean)))
+    'ok))
+
+(define fit-button (make <gtk-button> #:label "Fit peak"))
+(connect fit-button 'clicked perform-fit!)
+  
+(let ((vbox (make <gtk-vbox>))
+      (button-hbox (make <gtk-hbox>)))
+  (add window vbox)
+  (pack-start button-hbox fit-button #f 5 5)
+  (pack-start vbox button-hbox #f 5 5)
+  (pack-start vbox zoom-scale #f 5 5)
+  (pack-start vbox contour-canvas #t 0 0)
+  (pack-start vbox profile-canvas #f 5 5))
+
+
+(show-all window)
+
+(gtk-main)

@@ -1,0 +1,48 @@
+;-*-scheme-*-
+; Is the functionality from 1.2 still around?
+; This script was created by looking through the scripts released with 1.2,
+; and taking out the interactive parts
+;
+
+(use-modules (oop goops)
+	     (burrow spectrum)
+	     (gnome gtk)
+	     (burrow canvas))
+
+(define (example-spectrum-path str)
+  (string-append (getenv "EXAMPLE_DIR") "/" str))
+
+(let* ((spec (spectrum-nih-from-file (example-spectrum-path "hsqc.DAT")))
+       (spec-1   (spectrum-transpose spec 1))
+       (np       (spectrum-np spec-1 1))
+       (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
+       (canv     (make <hos-canvas>
+  		     #:width-request 300	
+		     #:height-request 300)))
+    (spectrum-orig-ppm spec 0)
+    (spectrum-giro-ppm spec 0)
+    (canvas-set-spectrum canv spec)
+    (canvas-set-thres canv thres)
+    (canvas-set-draw-negative canv #t)
+    (if (> (spectrum-ndim spec) 2) 'ok)
+    (let* ((shift-label (make <gtk-label>))
+	   (marker (canvas-add-marker canv))
+	   (marker-2 (canvas-add-marker canv))
+	   (marker-text (canvas-add-marker-text canv "hello, world!"))
+	   (cursor-horiz (canvas-add-cursor-horizontal canv))
+	   (cursor-vert (canvas-add-cursor-vertical canv)))
+      (marker-text-set-color marker-text #xFFFF #x2000 #x2000)
+      (marker-set-movable marker-2 #f)
+      (cursor-set-movable cursor-vert #t)
+      (cursor-set-adjustment cursor-horiz (cursor-get-adjustment cursor-vert))
+      (connect marker 'acquire (lambda args 'ok))
+      (connect marker 'dropped
+	       (lambda (m x y)
+		 (set shift-label 'label
+		      (format #f "~a, ~a~%" x y))
+		 #f))
+      (ornaments-allow-simultaneous-grab cursor-horiz cursor-vert)
+      #t))
+
+
+

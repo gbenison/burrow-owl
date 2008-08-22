@@ -1,0 +1,39 @@
+# Bazaar merge directive format 2 (Bazaar 0.90)
+# revision_id: greg@gblaptop-20080729055553-gs167m4emzlo9x8l
+# target_branch: http://bazaar.launchpad.net/%7Erotty/g-wrap/dev/
+# testament_sha1: c95e79f8bf43b905d61316b14cb6735e49e3d1b5
+# timestamp: 2008-07-28 22:55:58 -0700
+# base_revision_id: a.rottmann@gmx.at-20080330160743-tnf8guox8t5qbvk3
+# 
+# Begin patch
+=== modified file 'guile/g-wrap-2.0-guile.pc.in'
+--- guile/g-wrap-2.0-guile.pc.in	2007-08-14 13:24:41 +0000
++++ guile/g-wrap-2.0-guile.pc.in	2008-07-29 05:55:53 +0000
+@@ -11,5 +11,5 @@
+ Name: G-Wrap
+ Description: A Guile wrapper generator
+ Version: @VERSION@
+-Libs: -L${libdir} -lgwrap-guile-runtime -lgwrap-core-runtime @GUILE_LDFLAGS@ @LIBFFI_LIBS_INSTALLED@
+-Cflags: @STD_CFLAGS@ -I${includedir} @GUILE_CFLAGS@ @LIBFFI_CFLAGS_INSTALLED@
++Libs: -L${libdir} -lgwrap-guile-runtime -lgwrap-core-runtime @GUILE_LDFLAGS@ @LIBFFI_LIBS@
++Cflags: @STD_CFLAGS@ -I${includedir} @GUILE_CFLAGS@ @LIBFFI_CFLAGS@
+
+# Begin bundle
+IyBCYXphYXIgcmV2aXNpb24gYnVuZGxlIHY0CiMKQlpoOTFBWSZTWQ2cTw0AAYBfgEAQVWP//3+l
+DgC/7//6UAOZ7oFzucu1ghJIk9FDE9J6TGKPKYgeobRAeoZAAlKYqeU8yZJ6JPSHplDEGh6gAGg0
+BoVPIaJo0MgyAAAGgaAAHMABMmABMJgmEMARgASSJpkAJiTAUzUYTQMCaNGQEAJ+NIxy2cBUUTYM
+mGdFximlkVaFIm1KldZJL+qCVwzObiO6nTnIkAcY8HkYc0/5MiGndBXMFgix1VvLxKkQ6WUJ2Nzx
+HZ2/jiUO2AwsN5uLdsT7UF4+iWYnXznnsILAnlXtB8rgnLbmYoZoYzIO6lPRB6VyFaYij4LygCFL
+C4JyCvXxqnKh1RI2HP6U3olfL3WUVmcpdxE1k7GC9RVzsaZaToJFhMchaV24HI87ZMIn5PQ0Zwrj
+SKIcCJaP6foKSlSmGHFE8lAtLSJAzkZXlBWZEQnbOBqtWoxIYlm9WECggeon4ipx32Gm44VF2qWk
+yKwU4sR5MdCfLCpPMnCzHqhaKDaWbYRcOFJk0JJnGIn1P2GcU9hZEJ31zERxOSJ3XUJoQKliUG7O
+Urc9Kh4wVSdomAyEUU3IkUW0gF6Yu1ljC2MVYInQJXRNp64gr8yzG+NxBnv3IoR2pQDUj4hKyY1h
+79IPdCD3LQtq2rM21HoaYw+S/IojIIp8NUjU5PX4fMvLaQgxnJqCmi0SEobRgJXmjWMWyyxA6BjW
+fPie8+J/YdXTgqTrMDqDu8szKbvBgglN2VCh4gxzeBmZHaMSuMDSX/JLY7u8l0rvNHgXHeX7DBZ+
+RteqRWN9hCBMeZrtJ0lTMKiOQoIj21i2ZeAvzl8g24s1C2Q5Jy8dvDpmA000GnbOXX3EePlUgZxJ
+JJkR0X8+sNxmspATp+29t5zDjG7WpzWVnny8fGLlkky+rktiWETBFu9hybSK99uNSnMZSGDEp6IX
+OmuRuGBv6yQWFvZ/bAp/c6pcgDTUBoXGwYlQRyiSpitSzhazTk1OXqFySy2ioCVXzeKszzj4dEKy
+0HihBmXsBg2nfKCJrE7OYJZDKZkMuTEVOFWrKIGmFiTAwTULreroBjan3MJk+wzzzXNAiFVEYjUA
+dabJRDb/gdw2AdURU8cK2T6pV0rF9wYBOQY2jlqLhYNCgZtZmqiIDTKM6gjBHKqNzzf2lcnU4kbd
+hImIBetCVIQFOywkDz202m6Ycpc8aFcBMsEY1tQahSKmwr31hxszeGefIXxR/xGf4u5IpwoSAbOJ
+4aA=

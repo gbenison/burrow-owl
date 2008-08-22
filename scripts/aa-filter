@@ -1,0 +1,174 @@
+; -*-scheme-*-
+;
+; convert a 3D triple-resonance spectrum (e.g. CBCACONH)
+; to amino-acid-type filtered planes.
+
+(use-modules (oop goops)
+	     (srfi srfi-1)
+	     (burrow spectrum)
+	     (burrow model)
+	     (burrow canvas)
+             (gnome gtk)
+	     (burrow assignments)
+	     (burrow chemical-shift-distributions))
+
+(sleep-if-requested)
+
+(define-usage
+  "Present amino-acid type filtered planes of a 3D triple resonance spectrum."
+  '(<spectrum>))
+
+(define spec-name (command-line-argument 1))
+(define spec-3d (spectrum-normalize-order (spectrum-nih-from-file spec-name)))
+
+(if (< (spectrum-ndim spec-3d) 3)
+    (error (format #f "~a is not a 3D spectrum" spec-name)))
+
+; -----  utilities --------
+
+(define (gtk-combo-box-get-selected combo)
+  (let* ((active (gtk-combo-box-get-active combo))
+	 (model (get-model combo))
+	 (iter (get-iter model active)))
+    (get-value model iter 0)))
+
+(define (apply-to arg1 proc)
+  (lambda (arg2)
+    (proc arg1 arg2)))
+
+; ---------------------------------
+
+; create a simulated 1D carbon spectrum containing a single
+; gaussian peak of chemical shift 'c' and standard deviation 'sigma'
+(define (sim-c-spec c sigma)
+  (spectrum-1d-from-model
+   (model-gaussian (make <hos-model-dimension>)
+		   (make <hos-parameter> #:value c)
+		   (make <hos-parameter> #:value sigma))
+   85.0 80.0 512))
+
+;; expects triple resonance spectrum in HCN order
+(define (make-filtered-spec spec-triple-res aa)
+  (let ((ca-shift (shift-lookup aa 'CA))
+	(cb-shift (shift-lookup aa 'CB)))
+    (define (hncacb->conv shift)
+      (let* ((mean (shift-mean shift))
+	     (stddev (shift-stddev shift))
+	     (sim-spec (sim-c-spec mean stddev))
+	     (s0 (spectrum-transpose spec-triple-res 1))
+	     (s1 (spectrum-extract-ppm
+		  s0
+		  (+ mean (* 2 stddev))
+		  (- mean (* 2 stddev))))
+	     (s2 (spectrum-diagonal-project
+		  (spectrum-convolute sim-spec s1)))
+	     (s3 (spectrum-integrate s2)))
+	(confess "made conv spec with " (spectrum-ndim s3) " dims")
+	s3))
+    (let ((tmp-result
+	   (if (and ca-shift cb-shift)
+	       (spectrum-plane-multiply (spectrum-cache (hncacb->conv ca-shift))
+					(spectrum-cache (hncacb->conv cb-shift)))
+	       (hncacb->conv ca-shift))))
+      (spectrum-cache tmp-result))))
+
+(confess "sim table done")
+
+;; make a whole filtered spectrum table
+(define filtered-spec-retrieve
+  (let ((table (list)))
+    (lambda (aa)
+      (confess "retrieving filtered spectrum " aa)
+      (let ((result (assoc-ref table aa)))
+	(or result
+	    (let ((result (make-filtered-spec spec-3d aa)))
+	      (set! table (cons (cons aa result) table))
+	      result))))))
+
+(define (canvas-add-assignment canv name assignments)
+  (define (lookup name)
+    (find (assignment-predicate 'atom-name name) assignments))
+  (let ((H (lookup 'H))
+	(N (lookup 'N)))
+    (if (and H N)
+	(let ((marker (canvas-add-marker-text canv (format #f "~a" name))))
+	  (marker-set-pos marker
+			  (assignment:shift H)
+			  (assignment:shift N))
+	  (set marker 'sensitive #f)))))
+
+(define w (make <gtk-window> #:default-height 300 #:default-width 300))
+(confess "making canvas...")
+(define canv (make <hos-canvas>))
+
+(define spec (filtered-spec-retrieve 'ALA))
+(define thres (make <gtk-adjustment> #:lower 2 #:upper 20 #:value 15.0 #:step-increment 0.1))
+(define thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+(canvas-set-thres canv thres)
+(canvas-set-spectrum canv spec)
+(let ((assignments (false-if-exception
+		    (or (assignments-from-file "assignments.scm")
+			(assignments-from-file "assignments.str")))))
+  (if assignments
+      (hash-fold
+       (lambda (key value seed)
+	 (canvas-add-assignment canv key value))
+       '()
+       (assignments->residue-table assignments))))
+(define shift-label (make <gtk-label>))
+(define marker (canvas-add-marker canv))
+(let ((refresh!
+       (lambda (m x y)
+	 (set shift-label 'label
+	      (format #f "~a, ~a~%" x y))
+	 #f)))
+  (connect marker 'dropped refresh!))
+
+(define aa-combo
+  (let ((combo (gtk-combo-box-new-text)))
+    (for-each (apply-to combo gtk-combo-box-append-text)
+	      (map symbol->string amino-acids))
+    combo))
+
+;; FIXME now put in something to actually set the spectrum!
+(connect aa-combo 'changed
+	 (lambda args
+	   (write-line (gtk-combo-box-get-selected aa-combo))
+	   (canvas-set-spectrum canv
+				(filtered-spec-retrieve
+				 (string->symbol (gtk-combo-box-get-selected aa-combo))))
+	   (canvas-set-draw-negative canv #t)
+	   #f))
+
+(define plot-button (make <gtk-button> #:label "plot"))
+(connect plot-button 'clicked
+	 (lambda args
+	   (let ((painter (painter-bwps-new-file "result.ps")))
+	     (painter-set-spectrum painter (canvas-get-spectrum canv))
+	     (let ((contour (painter-get-contour painter)))
+	       (contour-set-thres-adjustment contour thres))
+	     (painter-view-ppm painter spec)
+	     (painter-redraw painter 0 0 10000000 10000000))
+	   #f))
+
+(define main-window
+  (let ((main-window (make <gtk-window> #:title "NMR"))
+	(vbox (make <gtk-vbox>))
+	(spec-frame (make <gtk-frame> #:label spec-name)))
+    (add spec-frame canv)
+    (pack-start vbox shift-label #f #f 10)
+    (let ((hbox (make <gtk-hbox>)))
+      (pack-start hbox (make <gtk-label> #:label "threshold:"))
+      (pack-start hbox thres-spin #f #f 5)
+      (pack-start hbox (make <gtk-label> #:label "factor:"))
+      (pack-start hbox aa-combo #f #f 5)
+      (pack-start hbox plot-button #f #f 5)
+      (pack-start vbox hbox #f #f 10))
+    (pack-start vbox spec-frame #t #t 0)
+    (add main-window vbox)
+    main-window))
+
+(show-all main-window)
+(connect main-window 'destroy (lambda args (gtk-main-quit)))
+(gtk-main)
+

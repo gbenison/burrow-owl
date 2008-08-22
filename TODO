@@ -1,2 +1,7 @@
+
+- change traversal queue into a LIFO
+- traversal objects should _weakly reference_ spectra
 - throw exceptions when bmrb files fail to read
+- asynchronous traversal: can 'ready' signal just be sent from another thread,
+  rather than using the 'ready queue' mechanism?
 

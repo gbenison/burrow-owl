@@ -11,17 +11,17 @@
 	     (oop goops)
              (gnome gtk)
 	     (gnome gobject)
-	     (spectrum)
-	     (spec-extra)
+	     (burrow spectrum)
+	     (burrow canvas)
 	     (burrow assignments)
 	     (ice-9 getopt-long)
 	     (srfi srfi-1)
 	     (srfi srfi-19)
 	     (burrow chemical-shift-distributions))
 
-(define (confess . args) 'ok)
+'(define (confess . args) 'ok)
 ; to debug use this:
-'(define (confess . args)
+(define (confess . args)
    (apply format (cons #t args))
    (newline))
 (define (assert condition . args)
@@ -151,21 +151,6 @@
 ; Spectra
 ; ---------------
 
-;; note: for bruker, dimension order is HNC
-;; transform: HNC->CHN->HCN
-(define (bruker-transpose spec)  ;; HNC
-  (set! spec (spectrum-transpose spec 2))  ;; CHN
-  (set! spec (spectrum-transpose spec 1))  ;; HCN
-  spec)
-
-;; Assume input spectrum is a triple-resonance in either
-;; Bruker (HNC) or Varian (HCN) order; output in
-;; Varian order (HCN)
-(define (normalize-hcn spec)
-  (let ((ratio (/ (spectrum-sf spec 0)(spectrum-sf spec 1))))
-    (if (> ratio 8)
-	(bruker-transpose spec)
-	spec)))
 
 ; --------------
 ; Convoluted search spectra
@@ -204,18 +189,18 @@
 (define spectra
   (let ((data (list)))
     (define (grab x)(assoc-ref data x))
-    (push cbcaconh (normalize-hcn (spectrum-nih-from-file "cbcaconh.DAT")))
-    (push hncacb (normalize-hcn (spectrum-nih-from-file "hncacb.DAT")))
-    (push hnca (normalize-hcn (spectrum-nih-from-file "hnca.DAT")))
-    (push hsqc (spectrum-nih-2d-from-file "hsqc.DAT"))
-    (push noesy (bruker-transpose (spectrum-nih-from-file "noesy.DAT")))
+    (push cbcaconh (spectrum-normalize-order (spectrum-nih-from-file "cbcaconh.DAT")))
+    (push hncacb   (spectrum-normalize-order (spectrum-nih-from-file "hncacb.DAT")))
+    (push hnca     (spectrum-normalize-order (spectrum-nih-from-file "hnca.DAT")))
+    (push hsqc     (spectrum-nih-from-file "hsqc.DAT"))
+    (push noesy    (spectrum-normalize-order (spectrum-nih-from-file "noesy.DAT")))
     (push noesy-diagonal (grab 'noesy))
     (push noesy-convoluted (make-noesy-convoluted (grab 'noesy)))
     (push hncacb-convoluted (make-convoluted-4d (grab 'hncacb)))
     (push cbcaconh-convoluted (make-convoluted-4d (grab 'cbcaconh)))
     data))
 
-(define strippers
+(define strip-plot-names
   (filter (lambda(x)(assoc-ref spectra x))
 	  '(cbcaconh hncacb hnca noesy)))
 
@@ -583,7 +568,7 @@
 		    new-adjustment))))
     (define (make-strip-entry-for name)
       (cons name (make-strip-frame name (get-adj 'H)(get-adj 'N))))
-    (let ((frames (map make-strip-entry-for strippers))
+    (let ((frames (map make-strip-entry-for strip-plot-names))
 	  (hbox (make <gtk-hbox>))
 	  (vbox (make <gtk-vbox>))
 	  (name-label (make <gtk-label> #:label name))
@@ -802,11 +787,18 @@
   </menubar>
 </ui>"))
     ;; add some spectrum actions to the toggle entries:
-    (add-toggle-actions actions
-			(map
-			 (lambda (name)
-			   (let ((text (symbol->string name)))
-			     (list text #f text #f text (strip-toggler name) #t))) strippers))
+    (confess "strip-plot-names: ~a" strip-plot-names)
+    (for-each
+     (lambda (name)
+       (confess "adding toggle for ~a" name)
+       (let ((toggle-action (make <gtk-toggle-action>
+			      #:name (symbol->string name)
+			      #:label (symbol->string name)))
+	     (toggle-op (strip-toggler name)))
+	 (connect toggle-action 'toggled toggle-op)
+	 (set toggle-action 'active #t)
+	 (add-action actions toggle-action)))
+     strip-plot-names)
     (add-actions actions '(("Show" #f "Show")))
     (add-actions actions '(("Actions" #f "Actions")))
     (add-toggle-actions actions toggle-entries)
@@ -820,7 +812,7 @@
 				    (symbol->string name)
 				    (symbol->string name)
 				    '(auto) #f))))
-      (for-each add-spec-toggler strippers))
+      (for-each add-spec-toggler strip-plot-names))
     (let ((strip-names (map strip-name residues)))
       (define (name->action name)
 	(list name #f name #f name (lambda args (strip-jump-to-name name))))

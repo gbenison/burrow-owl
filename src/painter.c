@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <gdk/gdk.h>
 
 #include "finite-state-machine/contour-fsm.h"
 

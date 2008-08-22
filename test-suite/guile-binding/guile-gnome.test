@@ -1,0 +1,10 @@
+;
+; Do we have a working guile-gnome?
+;
+(use-modules (oop goops)
+	     (burrow hacks)
+	     (gnome gtk))
+
+(connect (make <gtk-window>)
+	 'destroy
+	 (lambda args (gtk-main-quit)))

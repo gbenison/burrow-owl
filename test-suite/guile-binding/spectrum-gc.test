@@ -1,0 +1,26 @@
+;-*-scheme-*-
+;
+; stress garbage collection of transposed and projected spectra
+;
+(use-modules (burrow spectrum))
+
+(sleep-if-requested)
+
+(define spec-2d
+  (spectrum-nih-from-file
+   (string-append (getenv "EXAMPLE_DIR") "/hsqc.DAT")))
+
+(define spec #f)
+
+(define (go!)
+  (set! spec (spectrum-project (spectrum-transpose spec-2d 1) 0))
+  (spectrum-peek spec 0))
+
+(do ((i 0 (+ i 1)))
+    ((> i 10000))
+  (go!)
+  (if (= 0 (remainder i 500))
+      (display ".")))
+(newline)
+
+

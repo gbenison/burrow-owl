@@ -1,8 +1,13 @@
 
-SUBDIRS = src test-suite doc
+SUBDIRS = src test-suite doc benchmarks
 bin_SCRIPTS=wrapper/burrow
 
 scriptdir=$(pkgdatadir)/scripts
+preinstalldir=$(abs_top_builddir)/@pre_install_path@
+
+all-local:
+	$(INSTALL) -d $(preinstalldir)
+	$(INSTALL) wrapper/pre-inst-burrow-env $(preinstalldir)
 
 ## FIXME perhaps this should be done using more of automake's native
 ## abilities
@@ -17,7 +22,7 @@ uninstall-hook:
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=burrow-owl.pc
 
-EXTRA_DIST=scripts suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 srfi-35.diff ChangeLog INSTALL-PROBLEMS
+EXTRA_DIST=scripts patches suppress_guile.vg THANKS y2k.txt burrow-owl.mp3 ChangeLog INSTALL-PROBLEMS utils
 DISTCLEANFILES=ChangeLog
 MAINTAINERCLEANFILES = ChangeLog
 .PHONY: ChangeLog

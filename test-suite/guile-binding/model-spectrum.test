@@ -1,0 +1,52 @@
+;-*-scheme-*-
+;
+; stress creation and garbage collection
+; of <hos-spectrum-model> objects
+;
+(use-modules (oop goops)
+	     (burrow spectrum)
+	     (burrow model))
+
+(sleep-if-requested)
+
+(define (gaussian-profile-1d f sigma)
+  (model-gaussian (make <hos-model-dimension>) f sigma))
+
+(define (gaussian-2d x wx y wy intensity)
+  (model-product
+   (model-product
+    (gaussian-profile-1d x wx)
+    (gaussian-profile-1d y wy))
+   intensity))
+
+(define spec #f)
+
+(define model
+  (let ((x (make <hos-parameter> #:value 9))
+	(wx (make <hos-parameter> #:value 2))
+	(y (make <hos-parameter> #:value 120))
+	(wy (make <hos-parameter> #:value 2))
+	(intensity (make <hos-parameter> #:value 10)))
+    (gaussian-2d x wx y wy intensity)))
+
+(define (go! . args)
+  (set! spec
+	(spectrum-1d-from-model 
+	 (model-project
+	  (model-transpose model 1)
+	  120)
+	 20 20 256))
+  (let ((factor (+ 1 (/ (random 50) 100.0)))
+	(max (spectrum-get-max spec)))
+    (spectrum-peek spec 0)))
+
+(add-hook! after-gc-hook (lambda ()(display 'X)))
+
+(do ((i 0 (+ i 1)))
+    ((> i 100000))
+  (go!)
+  (if ( = 0 (remainder i 2000))
+      (display ".")))
+(newline)
+
+

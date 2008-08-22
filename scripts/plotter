@@ -17,7 +17,7 @@ exec burrow $0 "$@"
 
 (define (main)
   (let* ((spec-name (command-line-argument 1))
-	 (spec (spectrum-nih-2d-from-file spec-name))
+	 (spec (spectrum-nih-from-file spec-name))
 	 (painter (painter-bwps-new-file "result.ps"))
 	 (threshold
 	  (let ((spec (spectrum-extract-ppm spec 8.8 9.0)))
