@@ -293,7 +293,8 @@
 	(set! group (cons (cons (ensure-star-v2.1 name) value) group))))
     (with-parse-trap
      (lambda ()
-       (star-parse fname #f process-entry)))
+       (star-parse fname #f process-entry)
+       (append-assignment!)))
     (reverse result)))
 
 (define (bmrb:write assignments)
