@@ -1,5 +1,6 @@
 
-EXTRA_DIST= model.defs
+EXTRA_DIST= model.defs spectrum-type.defs run-g-wrap.scm model-spec.scm model.scm
+
 CLEANFILES=
 
 lib_LTLIBRARIES=libgw-guile-burrowmodel.la
@@ -42,4 +43,3 @@ guile_DATA=model.scm model-gw.scm
 CLEANFILES += model.defs model-gw.c model-gw.h model-gw.scm
 CLEANFILES += model.log
 
-EXTRA_DIST += run-g-wrap.scm model-spec.scm

@@ -1,5 +1,5 @@
 
-EXTRA_DIST= canvas.defs
+EXTRA_DIST= canvas.defs run-g-wrap.scm canvas-spec.scm canvas.scm
 lib_LTLIBRARIES=libgw-guile-burrowcanvas.la
 libgw_guile_burrowcanvas_la_LDFLAGS=-L.. -lburrow-canvas @GTK_LIBS@ \
                                     @GTHREAD_LIBS@ @GUILE_GNOME_LIBS@ \
@@ -33,7 +33,7 @@ H2DEF=@top_srcdir@/utils/h2def.py
 canvas.defs: $(HEADERS_1)
 	$(H2DEF) --all $(HEADERS_1) > $@
 
-canvas-gw.c canvas-gw.h: canvas.defs
+canvas-gw.c canvas-gw.h canvas-gw.scm: canvas.defs
 	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
 INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I$(srcdir)/../..
@@ -42,5 +42,5 @@ moduledir=$(datadir)/guile/burrow
 module_DATA=canvas-gw.scm canvas.scm
 
 CLEANFILES = spectrum.log gnome-atk.log gnome-gdk.log gnome-gtk.log \
-           	    gnome-glib.log gnome-pango.log
+           	    gnome-glib.log gnome-pango.log canvas-gw.c canvas-gw.h canvas-gw.scm
 

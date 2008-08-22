@@ -40,7 +40,7 @@ module_DATA=spectrum-gw.scm spectrum.scm
 CLEANFILES += hosspectrum.defs spectrum-gw.c spectrum-gw.h spectrum-gw.scm
 CLEANFILES += spectrum.log gnome-glib.log
 
-EXTRA_DIST += run-g-wrap.scm h2def.py spectrum-spec.scm
+EXTRA_DIST += run-g-wrap.scm spectrum-spec.scm spectrum.scm
 
 
 

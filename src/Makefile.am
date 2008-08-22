@@ -81,6 +81,10 @@ marshal.c: marshal.cmd
 	glib-genmarshal --body @srcdir@/marshal.cmd > $@
 
 CLEANFILES += marshal.c marshal.h
+
+clean-local:
+	rm -rf $(preinstalldir)
+
 EXTRA_DIST += marshal.cmd guile
 
 

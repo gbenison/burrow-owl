@@ -25,3 +25,6 @@ libburrow_model_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ @GSL_LIBS@ -L.. -lburrow
 
 model-subtypes-gen.c model-subtypes-gen.h: model-generate.scm
 	@GUILE@ -s $<
+
+EXTRA_DIST = model-generate.scm
+CLEANFILES = model-subtypes-gen.h model-subtypes-gen.c
