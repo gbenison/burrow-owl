@@ -23,7 +23,10 @@ all-local:
 	## older versions of automake appear not to set abs_top_builddir.
 	@test -f $(abs_top_builddir)/burrow-owl.pc || { echo "!!!!!!!!!!!!!!! CHECK AUTOMAKE VERSION >= 1.10 !!!!!!!!!!!!!!" && exit 1; }
 	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
-	$(INSTALL_DATA) $(srcmoddir)/hacks.scm $(srcmoddir)/assignments.scm $(preinstalldir)/share/guile/burrow
+	$(INSTALL_DATA) $(srcmoddir)/hacks.scm \
+                        $(srcmoddir)/assignments.scm \
+                        $(srcmoddir)/chemical-shift-distributions.scm \
+                        $(preinstalldir)/share/guile/burrow
 
 BUILT_SOURCES=marshal.c marshal.h
 
