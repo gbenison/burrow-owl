@@ -509,7 +509,7 @@
 	     (let ((candidates (shift-top-probabilities 'CA ca 'CB cb)))
 	       (confess "update in progress!!")
 	       (confess "probably: ~a~%" (car candidates))
-	       (let ((store (gtk-list-store-new (list gtype:gchararray gtype:gdouble))))
+	       (let ((store (gtk-list-store-new (list <gchararray> <gdouble>))))
 		 (for-each (lambda (candidate)
 			     (let ((iter (gtk-list-store-append store)))
 			       (set-value store iter 0 (symbol->string (car candidate)))
