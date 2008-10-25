@@ -1,6 +1,0 @@
-(define-object Spectrum
-  (in-module "Hos")
-  (parent "GObject")
-  (c-name "HosSpectrum")
-  (gtype-id "HOS_TYPE_SPECTRUM")
-)
