@@ -1,0 +1,42 @@
+
+;
+; 1) read a list of assignments in .scm format;
+; 2) write to a file in BMRB format
+; 3) read the BMRB file
+; 4) verify equivalence
+;
+
+(use-modules (burrow assignments)
+	     (srfi srfi-1))
+
+(define input-file-name
+  (string-append (getenv "EXAMPLE_DIR") "/assignments.scm"))
+(define tmp-file-name
+  (let* ((port (mkstemp! "/tmp/burrow-XXXXXX"))
+	 (name (port-filename port))
+	 (name.str (string-append name ".str")))
+    (close port)
+    (delete-file name)
+    name.str))
+
+(define asg1 (assignments-from-file input-file-name))
+(format #t "Read ~a assignments~%" (length asg1))
+(assignments-to-file asg1 tmp-file-name)
+(define asg2 (assignments-from-file tmp-file-name))
+
+(if (not (= (length asg1)
+	    (length asg2)))
+    (error "assignment-file conversion: assignment list length mismatch."))
+
+(define (test-for-equal-elements op)
+  (reduce equal? #f
+	  (map equal?
+	       (map op asg1)
+	       (map op asg2))))
+
+(if (not (test-for-equal-elements assignment:residue-name))
+    (error "assignment-file conversion: residue id's mismatch."))
+
+(delete-file tmp-file-name)
+
+
