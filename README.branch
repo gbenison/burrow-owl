@@ -1,0 +1,79 @@
+
+Cleaning up the C API
+(e.g. installed header files)
+
+Comparison with GTK+
+====================
+
+Source tree structure
+---------------------
+
+gtk+-2.12.1/gtk/gtkitem.h
+gtk+-2.12.1/gtk/gtklabel.h
+
+Source file dependencies
+------------------------
+
+gtklabel.h --> gtk/gtkmenu.h
+               gtk/gtkwindow.h
+
+gtklabel.c --> "gtklabel.h"
+               "gtkwindow.h"
+
+
+Installed tree structure
+------------------------
+
+/usr/include/gtk-2.0/gtk/gtk.h
+/usr/include/gtk-2.0/gtk/gtkitem.h
+/usr/include/gtk-2.0/gtk/gtklabel.h
+
+Installed file dependencies
+---------------------------
+
+/usr/include/gtk-2.0/gtk/gtk.h --> ./gtk/gtklabel.h
+
+
+
+Current State of Burrow
+=======================
+
+Source tree structure
+---------------------
+
+src/burrow/spectrum.h
+src/spectrum_priv.h
+src/spectrum_segmented.h
+src/skiplist.h
+
+src/canvas/canvas.h
+src/canvas/hoscanvas.h
+src/canvas/marker.h
+
+
+Source file dependencies
+------------------------
+
+
+
+Installed tree structure
+------------------------
+
+
+Installed file dependencies
+---------------------------
+
+
+Target state of Burrow
+======================
+
+Installed tree structure
+------------------------
+
+* FIXME consider names *
+burrow/burrow-spectrum.h    -- non-graphical components
+burrow/burrow-canvas.h      -- all graphical components
+burrow/burrow-model.h       -- models
+
+
+
