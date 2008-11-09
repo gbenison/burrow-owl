@@ -1,5 +1,5 @@
 
-INCLUDES=@GTK_CFLAGS@ @GTHREAD_CFLAGS@ -I$(srcdir)/..
+INCLUDES=@GTK_CFLAGS@ @GTHREAD_CFLAGS@ -I@top_srcdir@
 lib_LTLIBRARIES=libburrow-canvas.la
 CLEANFILES=
 EXTRA_DIST=
@@ -19,6 +19,8 @@ libburrow_canvas_la_SOURCES=\
 @builddir@/marshal.h \
 contourplot.c \
 contourplot.h \
+boomerang.c \
+boomerang.h \
 canvas.c  \
 canvas.h  \
 canvasitem.c \
@@ -44,7 +46,7 @@ painter_gdk.h  \
 painter_cairo.c \
 painter_cairo.h
 
-libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L.. -lburrow
+libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L../spectrum -lburrow
 
 marshal.h: marshal.cmd
 	glib-genmarshal --header @srcdir@/marshal.cmd > $@

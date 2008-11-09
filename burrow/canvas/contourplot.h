@@ -21,7 +21,7 @@
 #define HAVE_CONTOUR_PLOT_H
 
 #include "canvasitem.h"
-#include "painter.h"
+#include "burrow/spectrum.h"
 #include "painter_cairo.h"
 
 G_BEGIN_DECLS

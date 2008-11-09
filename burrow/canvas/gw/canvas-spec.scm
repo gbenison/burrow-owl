@@ -15,7 +15,7 @@
 
 (define-method (global-declarations-cg (self <canvas-wrapset>))
   (list (next-method)
-        "#include \"spectrum.h\"\n"
+        "#include \"burrow/spectrum.h\"\n"
         "#include \"canvas.h\"\n"
         "#include \"canvasitem.h\"\n"
         "#include \"marker.h\"\n"

@@ -1,5 +1,5 @@
 
-#include <burrow.h>
+#include "burrow/spectrum.h"
 #include <math.h>
 #include "spectrum-ramp.h"
 #include "spectrum-test-cube.h"

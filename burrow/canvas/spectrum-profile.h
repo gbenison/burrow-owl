@@ -21,7 +21,7 @@
 #define _HAVE_SPECTRUM_PROFILE_H
 
 #include <glib-object.h>
-#include "spectrum.h"
+#include "burrow/spectrum.h"
 #include "line.h"
 
 typedef struct _HosSpectrumProfile       HosSpectrumProfile;

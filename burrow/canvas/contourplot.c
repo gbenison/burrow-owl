@@ -23,7 +23,7 @@
 #include "painter_cairo.h"
 #include "cairo_shapes.h"
 #include "boomerang.h"
-#include "debug.h"
+#include "burrow/spectrum/debug.h"
 
 enum {
   PROP_0,

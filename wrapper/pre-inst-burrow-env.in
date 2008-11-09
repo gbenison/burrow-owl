@@ -4,7 +4,7 @@ GUILE_LOAD_PATH=@abs_top_builddir@/@pre_install_path@/share/guile:$GUILE_LOAD_PA
 GUILE_LOAD_PATH=@GUILE_GNOME_MODULE_DIR@:$GUILE_LOAD_PATH;
 export GUILE_LOAD_PATH;
 
-LTDL_LIBRARY_PATH=@abs_top_builddir@/src/gw:$LTDL_LIBRARY_PATH;
+LTDL_LIBRARY_PATH=@abs_top_builddir@/src/spectrum/gw:$LTDL_LIBRARY_PATH;
 LTDL_LIBRARY_PATH=@abs_top_builddir@/src/canvas/gw:$LTDL_LIBRARY_PATH;
 LTDL_LIBRARY_PATH=@abs_top_builddir@/src/models/gw:$LTDL_LIBRARY_PATH;
 LTDL_LIBRARY_PATH=@GUILE_GNOME_LIB_DIR@:$LTDL_LIBRARY_PATH;

@@ -1,29 +1,8 @@
 
-EXTRA_DIST=
 AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw canvas burrow
-CLEANFILES=
+SUBDIRS=finite-state-machine . gw
 
 lib_LTLIBRARIES=libburrow.la
-
-CLEANFILES += $(bin_SCRIPTS)
-
-nobase_data_DATA=guile/spec-extra.scm \
-                 guile/spectrum.scm \
-                 guile/burrow/assignments.scm \
-                 guile/burrow/hacks.scm \
-                 guile/burrow/chemical-shift-distributions.scm \
-                 guile/burrow/amino-codes.scm
-
-## copy modules to pre-install directory
-srcmoddir=$(srcdir)/guile/burrow
-preinstalldir=$(abs_top_builddir)/@pre_install_path@
-all-local:
-	$(INSTALL) -d $(preinstalldir)/share/guile/burrow
-	$(INSTALL_DATA) $(srcmoddir)/hacks.scm \
-                        $(srcmoddir)/assignments.scm \
-                        $(srcmoddir)/chemical-shift-distributions.scm \
-                        $(preinstalldir)/share/guile/burrow
 
 BUILT_SOURCES=marshal.c marshal.h
 
@@ -33,8 +12,6 @@ libburrow_la_SOURCES=\
 debug.h \
 debug.c \
 utils.h \
-boomerang.c  \
-boomerang.h  \
 skiplist.c \
 skiplist.h \
 burrow.h  \
@@ -76,12 +53,5 @@ marshal.h: marshal.cmd
 marshal.c: marshal.cmd
 	glib-genmarshal --body @srcdir@/marshal.cmd > $@
 
-CLEANFILES += marshal.c marshal.h
-
-clean-local:
-	rm -rf $(preinstalldir)
-
-EXTRA_DIST += marshal.cmd guile
-
-
-
+CLEANFILES = marshal.c marshal.h
+EXTRA_DIST = marshal.cmd

@@ -1,7 +1,7 @@
 
 EXTRA_DIST= hosspectrum.defs
 CLEANFILES=
-headers_dir=@top_srcdir@/src
+headers_dir=$(srcdir)/..
 
 lib_LTLIBRARIES=libgw-guile-spectrum.la
 

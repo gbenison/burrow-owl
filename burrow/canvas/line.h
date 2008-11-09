@@ -22,7 +22,7 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
-#include "spectrum.h"
+#include "burrow/spectrum.h"
 #include "canvasitem.h"
 
 typedef struct _HosLine       HosLine;

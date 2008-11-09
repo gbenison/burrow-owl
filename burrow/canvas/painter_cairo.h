@@ -28,7 +28,7 @@
 
 #include <stdio.h>
 #include <gdk/gdk.h>
-#include "painter.h"
+#include "burrow/spectrum.h"
 
 G_BEGIN_DECLS
 
