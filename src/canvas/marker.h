@@ -23,7 +23,7 @@
 #include <glib-object.h>
 #include <gtk/gtkadjustment.h>
 #include "ornament.h"
-#include "hoscanvas.h"
+#include "canvas.h"
 
 G_BEGIN_DECLS
 

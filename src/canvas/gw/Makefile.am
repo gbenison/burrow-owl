@@ -15,7 +15,7 @@ all-local:
 
 
 HEADERS_1= \
-$(headers_dir)/hoscanvas.h \
+$(headers_dir)/canvas.h \
 $(headers_dir)/canvasitem.h \
 $(headers_dir)/ornament.h \
 $(headers_dir)/painter_gdk.h \

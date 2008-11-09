@@ -18,7 +18,7 @@
  */
 
 #include <assert.h>
-#include "hoscanvas.h"
+#include "canvas.h"
 #include "marshal.h"
 
 #define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \

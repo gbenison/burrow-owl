@@ -5,8 +5,8 @@ CLEANFILES=
 EXTRA_DIST=
 SUBDIRS=. gw
 
-burrowincludedir=$(includedir)/burrow
-burrowinclude_HEADERS=canvas.h
+## burrowincludedir=$(includedir)/burrow/canvas
+## burrowinclude_HEADERS=canvas.h
 
 BUILT_SOURCES=marshal.c marshal.h
 
@@ -19,8 +19,8 @@ libburrow_canvas_la_SOURCES=\
 @builddir@/marshal.h \
 contourplot.c \
 contourplot.h \
-hoscanvas.c  \
-hoscanvas.h  \
+canvas.c  \
+canvas.h  \
 canvasitem.c \
 canvasitem.h \
 marker.c  \

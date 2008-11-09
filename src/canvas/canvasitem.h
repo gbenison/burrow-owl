@@ -26,7 +26,7 @@
 typedef struct _HosCanvasItem      HosCanvasItem;
 typedef struct _HosCanvasItemClass HosCanvasItemClass;
 
-#include "hoscanvas.h"
+#include "canvas.h"
 
 G_BEGIN_DECLS
 

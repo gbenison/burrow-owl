@@ -22,7 +22,7 @@
 
 #include <glib-object.h>
 #include <gtk/gtkadjustment.h>
-#include "hoscanvas.h"
+#include "canvas.h"
 #include "ornament.h"
 
 G_BEGIN_DECLS

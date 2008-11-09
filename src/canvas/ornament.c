@@ -19,7 +19,7 @@
 
 #include "ornament.h"
 #include "marshal.h"
-#include "hoscanvas.h"
+#include "canvas.h"
 
 /* signals & properties */
 enum {
