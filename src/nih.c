@@ -17,9 +17,11 @@
  *
  */
 
-#include "nih.h"
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
+#include "nih.h"
+#include "spectrum_transpose.h"
+#include "spectrum_project.h"
 #include "endian.h"
 #include <unistd.h>
 #include <sys/stat.h>

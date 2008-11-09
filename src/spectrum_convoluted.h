@@ -20,7 +20,7 @@
 #ifndef HAVE_SPECTRUM_CONVOLUTED_H
 #define HAVE_SPECTRUM_CONVOLUTED_H
 
-#include <burrow/spectrum.h>
+#include "spectrum.h"
 
 G_BEGIN_DECLS
 
@@ -45,6 +45,8 @@ struct _HosSpectrumConvolutedClass
 };
 
 GType hos_spectrum_convoluted_get_type (void);
+
+HosSpectrum* CONSTRUCTOR spectrum_convolute        (HosSpectrum *A, HosSpectrum *B);
 
 G_END_DECLS
 

@@ -20,7 +20,7 @@
 #ifndef HAVE_SPECTRUM_SEGMENTED
 #define HAVE_SPECTRUM_SEGMENTED
 
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 
 G_BEGIN_DECLS
 

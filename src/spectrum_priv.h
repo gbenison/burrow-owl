@@ -4,7 +4,7 @@
 #ifndef _HOS_HAVE_SPECTRUM_PRIV_H
 #define _HOS_HAVE_SPECTRUM_PRIV_H
 
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 
 /*
  * 'spectrum->buf' contains the spectral data.

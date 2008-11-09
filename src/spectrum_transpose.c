@@ -18,16 +18,10 @@
  */
 
 #include <string.h>
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
+#include "spectrum_transpose.h"
 #include "utils.h"
-
-/* no new public fields */
-typedef HosSpectrum      HosSpectrumTransposed;
-typedef HosSpectrumClass HosSpectrumTransposedClass;
-
-#define HOS_TYPE_SPECTRUM_TRANSPOSED              (hos_spectrum_transposed_get_type())
-#define HOS_IS_SPECTRUM_TRANSPOSED(obj)  (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_SPECTRUM_TRANSPOSED))
 
 #define SPECTRUM_TRANSPOSED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_TRANSPOSED, HosSpectrumTransposedPrivate))
 #define SPECTRUM_TRANSPOSED_PRIVATE(o, field) ((SPECTRUM_TRANSPOSED_GET_PRIVATE(o))->field)

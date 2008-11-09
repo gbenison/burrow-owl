@@ -18,15 +18,11 @@
  */
 
 #include <string.h>
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
+#include "spectrum_unfold.h"
 #include "utils.h"
 
-/* no new public fields */
-typedef HosSpectrum      HosSpectrumUnfolded;
-typedef HosSpectrumClass HosSpectrumUnfoldedClass;
-
-#define HOS_TYPE_SPECTRUM_UNFOLDED              (hos_spectrum_unfolded_get_type())
 
 #define SPECTRUM_UNFOLDED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_UNFOLDED, HosSpectrumUnfoldedPrivate))
 #define SPECTRUM_UNFOLDED_PRIVATE(o, field) ((SPECTRUM_UNFOLDED_GET_PRIVATE(o))->field)

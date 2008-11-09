@@ -17,15 +17,10 @@
  *
  */
 
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
+#include "spectrum_extract.h"
 #include "utils.h"
-
-/* no new public fields */
-typedef HosSpectrum      HosSpectrumExtracted;
-typedef HosSpectrumClass HosSpectrumExtractedClass;
-
-#define HOS_TYPE_SPECTRUM_EXTRACTED              (hos_spectrum_extracted_get_type())
 
 #define SPECTRUM_EXTRACTED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_EXTRACTED, HosSpectrumExtractedPrivate))
 #define SPECTRUM_EXTRACTED_PRIVATE(o, field) ((SPECTRUM_EXTRACTED_GET_PRIVATE(o))->field)
@@ -214,4 +209,12 @@ spectrum_extract(HosSpectrum *self, guint start, guint stop)
   
   g_assert_not_reached();
 
+}
+
+HosSpectrum*
+spectrum_extract_ppm(HosSpectrum* self, const gdouble A, const gdouble B)
+{
+  return spectrum_extract(self,
+			  spectrum_ppm2pt(self, 0, A),
+			  spectrum_ppm2pt(self, 0, B));
 }

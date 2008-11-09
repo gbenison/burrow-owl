@@ -1,7 +1,7 @@
 
 EXTRA_DIST=
 AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
-SUBDIRS=finite-state-machine . gw canvas
+SUBDIRS=finite-state-machine . gw canvas burrow
 CLEANFILES=
 
 lib_LTLIBRARIES=libburrow.la
@@ -26,10 +26,6 @@ all-local:
                         $(preinstalldir)/share/guile/burrow
 
 BUILT_SOURCES=marshal.c marshal.h
-
-burrowincludedir=$(includedir)/burrow
-burrowinclude_HEADERS=burrow/spectrum.h
-include_HEADERS=burrow.h
 
 libburrow_la_SOURCES=\
 @builddir@/marshal.c \

@@ -20,9 +20,8 @@
 #ifndef _HAVE_NIH_H
 #define _HAVE_NIH_H
 
+#include "spectrum.h"
 #include "spectrum_segmented.h"
-
-
 
 G_BEGIN_DECLS
 
@@ -49,6 +48,8 @@ struct _HosSpectrumNihClass
 };
 
 GType hos_spectrum_nih_get_type (void);
+
+HosSpectrum* CONSTRUCTOR spectrum_nih_from_file(gchar* fname);
 
 G_END_DECLS
 

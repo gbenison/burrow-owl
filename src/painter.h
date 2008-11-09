@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #define _HAVE_PAINTER_H
 
 #include <glib-object.h>
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "finite-state-machine/contour-fsm.h"
 #include "contour.h"
 

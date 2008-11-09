@@ -31,7 +31,7 @@
 #include <string.h>
 #include <math.h>
 #include <glib.h>
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
 #include "debug.h"
 
@@ -409,20 +409,6 @@ spectrum_pt2ppm(HosSpectrum* spec, guint dim, gdouble pt)
     dimen->orig - (dimen->sw * ((gdouble)pt / (gdouble)(dimen->np)));
 
   return hz / dimen->sf;
-}
-
-HosSpectrum*
-spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
-{
-  return spectrum_project(self, spectrum_ppm2pt(self, 0, ppm));
-}
-
-HosSpectrum*
-spectrum_extract_ppm(HosSpectrum* self, const gdouble A, const gdouble B)
-{
-  return spectrum_extract(self,
-			  spectrum_ppm2pt(self, 0, A),
-			  spectrum_ppm2pt(self, 0, B));
 }
 
 static void

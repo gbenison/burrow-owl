@@ -18,15 +18,10 @@
  */
 
 #include <string.h>
-#include "burrow/spectrum.h"
+#include "spectrum_project.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
 #include "utils.h"
-
-/* no new public fields */
-typedef HosSpectrum      HosSpectrumProjected;
-typedef HosSpectrumClass HosSpectrumProjectedClass;
-
-#define HOS_TYPE_SPECTRUM_PROJECTED              (hos_spectrum_projected_get_type())
 
 #define SPECTRUM_PROJECTED_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_PROJECTED, HosSpectrumProjectedPrivate))
 #define SPECTRUM_PROJECTED_PRIVATE(o, field) ((SPECTRUM_PROJECTED_GET_PRIVATE(o))->field)
@@ -59,7 +54,6 @@ static void                      spectrum_projected_free_iterator      (struct s
 
 static void   spectrum_projected_dispose  (GObject *object);
 static void   spectrum_projected_finalize (GObject *object);
-
 
 G_DEFINE_TYPE (HosSpectrumProjected, hos_spectrum_projected, HOS_TYPE_SPECTRUM)
 
@@ -193,4 +187,10 @@ spectrum_projected_free_iterator(struct spectrum_iterator* self)
 {
   iterator_free(((struct projected_iterator*)self)->base);
   g_free(self);
+}
+
+HosSpectrum*
+spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
+{
+  return spectrum_project(self, spectrum_ppm2pt(self, 0, ppm));
 }

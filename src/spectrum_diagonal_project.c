@@ -17,15 +17,10 @@
  *
  */
 
-#include "burrow/spectrum.h"
+#include "spectrum.h"
 #include "spectrum_priv.h"
+#include "spectrum_diagonal_project.h"
 #include "utils.h"
-
-/* no new public fields */
-typedef HosSpectrum      HosSpectrumDiagonal;
-typedef HosSpectrumClass HosSpectrumDiagonalClass;
-
-#define HOS_TYPE_SPECTRUM_DIAGONAL              (hos_spectrum_diagonal_get_type())
 
 #define SPECTRUM_DIAGONAL_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM_DIAGONAL, HosSpectrumDiagonalPrivate))
 #define SPECTRUM_DIAGONAL_PRIVATE(o, field) ((SPECTRUM_DIAGONAL_GET_PRIVATE(o))->field)

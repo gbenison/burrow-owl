@@ -20,7 +20,7 @@
 #ifndef HAVE_SPECTRUM_INTEGRATE_H
 #define HAVE_SPECTRUM_INTEGRATE_H
 
-#include <burrow/spectrum.h>
+#include "spectrum.h"
 
 G_BEGIN_DECLS
 
@@ -45,6 +45,8 @@ struct _HosSpectrumIntegratedClass
 };
 
 GType hos_spectrum_integrated_get_type (void);
+
+HosSpectrum* CONSTRUCTOR spectrum_integrate (HosSpectrum* self);
 
 G_END_DECLS
 
