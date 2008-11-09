@@ -2,7 +2,7 @@
 #ifndef HAVE_TEST_CUBE_H
 #define HAVE_TEST_CUBE_H
 
-#include "burrow.h"
+#include "burrow/spectrum.h"
 
 G_BEGIN_DECLS
 
