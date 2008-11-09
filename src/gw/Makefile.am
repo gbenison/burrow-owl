@@ -16,7 +16,7 @@ libgw_guile_spectrum_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ \
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
 HEADERS_1= \
-$(headers_dir)/burrow/spectrum.h \
+$(headers_dir)/spectrum.h \
 $(headers_dir)/contour.h \
 $(headers_dir)/painter.h \
 $(headers_dir)/painter_bwps.h \
