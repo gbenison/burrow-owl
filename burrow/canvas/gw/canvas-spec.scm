@@ -16,16 +16,7 @@
 (define-method (global-declarations-cg (self <canvas-wrapset>))
   (list (next-method)
         "#include \"burrow/spectrum.h\"\n"
-        "#include \"canvas.h\"\n"
-        "#include \"canvasitem.h\"\n"
-        "#include \"marker.h\"\n"
-        "#include \"marker_text.h\"\n"
-        "#include \"cursor.h\"\n"
-        "#include \"contourplot.h\"\n"
-	"#include \"grid.h\"\n"
-	"#include \"line.h\"\n"
-	"#include \"spectrum-profile.h\"\n"
-        "#include \"painter_gdk.h\"\n"
+        "#include \"burrow/canvas.h\"\n"
         "\n"))
 
         ; couple of disabled sources
