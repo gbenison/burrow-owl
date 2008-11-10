@@ -5,46 +5,53 @@ CLEANFILES=
 EXTRA_DIST=
 SUBDIRS=. gw
 
-## burrowincludedir=$(includedir)/burrow/canvas
-## burrowinclude_HEADERS=canvas.h
-
-BUILT_SOURCES=marshal.c marshal.h
-
 # disabled sources -- awaiting updating
 # box.c 
 # box.h 
 
-libburrow_canvas_la_SOURCES=\
-@builddir@/marshal.c \
-@builddir@/marshal.h \
-contourplot.c \
-contourplot.h \
-boomerang.c \
-boomerang.h \
-canvas.c  \
-canvas.h  \
-canvasitem.c \
-canvasitem.h \
-marker.c  \
-marker.h  \
-grid.c \
-grid.h \
-line.c \
-line.h \
-spectrum-profile.c \
-spectrum-profile.h \
-cursor.c \
-cursor.h \
-marker_text.c \
-marker_text.h \
-cairo_shapes.c \
-cairo_shapes.h \
-ornament.c  \
-ornament.h  \
-painter_gdk.c  \
-painter_gdk.h  \
-painter_cairo.c \
-painter_cairo.h
+canvas_c_built_sources= marshal.c
+
+canvas_c_sources=        \
+contourplot.c 		 \
+boomerang.c 		 \
+canvas.c  		 \
+canvasitem.c 		 \
+marker.c  		 \
+grid.c 			 \
+line.c 			 \
+spectrum-profile.c 	 \
+cursor.c 		 \
+marker_text.c 		 \
+cairo_shapes.c 		 \
+ornament.c  		 \
+painter_gdk.c  		 \
+painter_cairo.c 	 
+
+canvas_private_built_headers= marshal.h
+
+canvas_private_headers=  \
+boomerang.h 		 \
+cairo_shapes.h 		 \
+painter_gdk.h  		 \
+painter_cairo.h          \
+$(canvas_private_built_headers)
+
+canvas_public_headers=   \
+canvas.h		 \
+canvasitem.h		 \
+contourplot.h		 \
+cursor.h		 \
+grid.h			 \
+line.h			 \
+marker.h		 \
+marker_text.h		 \
+ornament.h		 \
+spectrum-profile.h       
+
+BUILT_SOURCES=$(canvas_c_built_sources) $(canvas_private_built_headers)
+
+libburrow_canvas_la_SOURCES=$(canvas_c_sources) $(canvas_c_built_sources) \
+                            $(canvas_public_headers) $(canvas_private_headers)
 
 libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L../spectrum -lburrow
 
@@ -57,4 +64,5 @@ marshal.c: marshal.cmd
 CLEANFILES += marshal.c marshal.h
 EXTRA_DIST += marshal.cmd
 
-
+burrowincludedir=$(includedir)/burrow/canvas
+burrowinclude_HEADERS=$(canvas_public_headers)
