@@ -15,12 +15,20 @@ libgw_guile_spectrum_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ \
                                 @GUILE_LDFLAGS@ -L.. -lburrow -module
 libgw_guile_spectrum_la_SOURCES=spectrum-gw.c
 
-HEADERS_1= \
-$(headers_dir)/spectrum.h \
-$(headers_dir)/contour.h \
-$(headers_dir)/painter.h \
-$(headers_dir)/painter_bwps.h \
-$(headers_dir)/version.h
+HEADERS_1=                                     \
+$(headers_dir)/spectrum.h             	       \
+$(headers_dir)/contour.h		       \
+$(headers_dir)/nih.h			       \
+$(headers_dir)/painter.h		       \
+$(headers_dir)/painter_bwps.h		       \
+$(headers_dir)/spectrum_convoluted.h	       \
+$(headers_dir)/spectrum_diagonal_project.h     \
+$(headers_dir)/spectrum_extract.h	       \
+$(headers_dir)/spectrum_integrated.h	       \
+$(headers_dir)/spectrum_project.h	       \
+$(headers_dir)/spectrum_transpose.h	       \
+$(headers_dir)/spectrum_unfold.h	       \
+$(headers_dir)/version.h                      
 
 H2DEF=@top_srcdir@/utils/h2def.py
 
@@ -30,7 +38,7 @@ hosspectrum.defs: $(HEADERS_1)
 spectrum-gw.c spectrum-gw.h: hosspectrum.defs
 	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
-INCLUDES=@GLIB_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir)
+INCLUDES=@GLIB_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I@top_srcdir@
 
 BUILT_SOURCES=spectrum-gw.c spectrum-gw.h hosspectrum.defs
 

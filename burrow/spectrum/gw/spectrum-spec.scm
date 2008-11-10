@@ -15,13 +15,7 @@
 
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)
-        "#include \"spectrum.h\"\n"
-        "#include \"spectrum_integrated.h\"\n"
-        "#include \"spectrum_convoluted.h\"\n"
-        "#include \"version.h\"\n"
-        "#include \"contour.h\"\n"
-        "#include \"painter.h\"\n"
-        "#include \"painter_bwps.h\"\n"
+        "#include \"burrow/spectrum.h\"\n"
         "\n"))
 
 #!
