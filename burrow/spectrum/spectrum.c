@@ -17,6 +17,21 @@
  *
  */
 
+/**
+@defgroup HosSpectrum Spectrum Objects
+@ingroup burrow
+@brief spectrum objects
+
+All NMR spectra in burrow-owl are represented by 'HosSpectrum' objects.
+For example- opening a spectrum data file results in a 'HosSpectrum' object;
+transposing one 'HosSpectrum' object results in another 'HosSpectrum' object;
+convoluting two spectrum objects results in a third spectrum object; etc.
+
+#include <burrow/spectrum.h>
+
+ */
+
+
 /*
  * this is a compatibility macro; it must come before any header
  * includes.  It defines which features of the C library will be
@@ -48,15 +63,24 @@ enum
   COMPLETE
 };
 
-enum {
-  READY,
+/**
+ * @ingroup HosSpectrum
+ * @brief   Signals
+ */
+enum signals {
+  READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
   LAST_SIGNAL
 };
 
-enum {
+/**
+ * @ingroup HosSpectrum
+ * @brief   Properties
+ */
+enum properties {
   PROP_0,
-  PROP_READY
+  PROP_READY  /**< True if buffer contents are available */
 };
+
 
 #define SPECTRUM_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
 #define SPECTRUM_PRIVATE(o, field) ((SPECTRUM_GET_PRIVATE(o))->field)
@@ -114,12 +138,23 @@ G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 static gboolean iterator_bump        (struct spectrum_iterator *self);
 static gboolean iterator_check_cache (struct spectrum_iterator *self, gdouble *dest);
 
+
 gsize
 spectrum_ndim(HosSpectrum *spec)
 {
   return g_list_length(SPECTRUM_PRIVATE(spec, dimensions));
 }
 
+/**
+ * \brief Blocking version of spectrum_traverse()
+ * \ingroup HosSpectrum
+ *
+ * Returns a buffer containing the contents of 'spec'.
+ * Will block the caller during traversal.
+ *
+ * @param   spec  the spectrum object to traverse
+ * @return  pointer to a buffer containing the contents of 'spec'
+ */
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
@@ -832,11 +867,15 @@ spectrum_push_cached(HosSpectrum *self, guint *idx, gdouble value)
     }
 }
 
-/*
- * Instantiate 'spec', asynchronously.
+/**
+ * \brief   Instantiate 'spec', asynchronously.
+ * \ingroup HosSpectrum
+ *
  * Returns either the spectral data or 'NULL' if not ready yet.
+ * 'spec' will emit the 'ready' signal when instantiated.
  * Does not block.
- * Spectrum will emit the 'ready' signal when instantiated.
+ *
+ * @return  pointer to buffer or NULL
  */
 gdouble*
 spectrum_traverse(HosSpectrum *spec)
@@ -1161,3 +1200,6 @@ spectrum_iterator_cached(HosSpectrum *self)
 
   return result;
 }
+
+
+

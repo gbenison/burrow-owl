@@ -31,7 +31,11 @@ G_BEGIN_DECLS
 #define HOS_IS_SPECTRUM(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_SPECTRUM))
 #define HOS_IS_SPECTRUM_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_SPECTRUM))
 #define HOS_SPECTRUM_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_SPECTRUM, HosSpectrumClass))
-					
+
+/** 
+ * @ingroup HosSpectrum
+ * @brief  The base spectrum object type.
+ */
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
 
@@ -86,6 +90,7 @@ gdouble* spectrum_traverse           (HosSpectrum *spec);
 gdouble* spectrum_traverse_blocking  (HosSpectrum *spec);
 
 GType hos_spectrum_get_type (void);
+
 
 G_END_DECLS
 

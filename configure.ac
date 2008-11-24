@@ -15,6 +15,8 @@ AC_PROG_LIBTOOL
 
 AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 
+AC_PATH_PROG(DOXYGEN, doxygen, no)
+
 PKG_CHECK_MODULES(GLIB,      gobject-2.0)
 PKG_CHECK_MODULES(GTK,       gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD,   gthread-2.0)
@@ -75,6 +77,7 @@ AC_SUBST([pre_install_path], [pre-install])
 AC_CONFIG_FILES([Makefile
                  burrow-owl.pc
                  doc/Makefile
+                 doc/Doxyfile
                  wrapper/burrow
 		 wrapper/pre-inst-burrow-env
                  burrow/Makefile

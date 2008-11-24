@@ -93,9 +93,15 @@ spectrum_integrated_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->finalize (object);
 }
 
-/*
- * Returns:
- *  S' where S'(j, k) = Sum_i(self(i, j, k))
+/**
+ * @ingroup HosSpectrum
+ * @brief   Calculate the integration of a spectrum
+ *
+ * The argument spectrum is integrated along the leading dimension:
+ *
+ *  S'(j, k) = Sum_i(S(i, j, k))
+ *
+ * @returns integration of 'self'
  */
 HosSpectrum*
 spectrum_integrate (HosSpectrum* self)

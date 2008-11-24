@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,6 +15,20 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
+ */
+
+/**
+ * \defgroup HosCanvas  Canvas Widget
+ * \brief    Canvas Widgets
+ *
+ * The principal way to display spectra on screen using
+ * burrow-owl is with the @HosCanvas widget.
+ * It displays two-dimensional spectra as contour plots,
+ * along with ornaments such as labels, cursors, and grids.
+ * Ornaments are generally responsive to user input (e.g.
+ * mouse clicks), and so can be used, together with standard
+ * GTK+ widgets like buttons and scroll bars, for creating
+ * interactive user interfaces.
  */
 
 #include <assert.h>
@@ -257,6 +271,13 @@ hos_canvas_get_property (GObject         *object,
     }
 }
 
+/**
+ * \brief  Add an item to a canvas widget
+ * \ingroup HosCanvas
+ *
+ * Append #canvasitem to #self.
+ * Returns #canvasitem.
+ */
 HosCanvasItem*
 canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
 {

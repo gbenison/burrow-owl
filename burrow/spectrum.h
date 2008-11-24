@@ -17,6 +17,21 @@
  *
  */
 
+/**
+ * @mainpage
+ *
+ * This manual documents the public C API of burrow-owl.
+ *
+ * Other bindings:
+ * The C API maps fairly directly to the Scheme api, for example:
+ * spectrum_traverse(my_spec) --> (spectrum-traverse my-spec)
+ *
+ * The API can be divided into two parts--
+ *
+ * @ref HosSpectrum   non-graphical components: opening, querying, and manipulating spectrum objects
+ * @ref HosCanvas     graphical components: contour plots, line plots, and ornaments
+ */
+
 /* The public C api for the non-graphical part of burrow-owl. */
 
 #include <burrow/spectrum/spectrum.h>
