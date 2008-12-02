@@ -22,14 +22,19 @@
  *
  * This manual documents the public C API of burrow-owl.
  *
- * Other bindings:
+ * The core of the API is the @ref HosSpectrum object, which represents an NMR spectrum
+ * (data and metadata).
+ *
+ * The interactive graphical features of burrow-owl revolve around the
+ * @ref HosCanvas widget, a custom GTK+ widget for displaying spectra and annotations.
+ */
+
+/*
+ * FIXME
+ *
+ * Document other bindings:
  * The C API maps fairly directly to the Scheme api, for example:
  * spectrum_traverse(my_spec) --> (spectrum-traverse my-spec)
- *
- * The API can be divided into two parts--
- *
- * @ref HosSpectrum   non-graphical components: opening, querying, and manipulating spectrum objects
- * @ref HosCanvas     graphical components: contour plots, line plots, and ornaments
  */
 
 /* The public C api for the non-graphical part of burrow-owl. */

@@ -31,16 +31,34 @@
 
 /* #define _VERBOSE 1 */
 
+/** 
+ * @defgroup HosMarker
+ * @brief    Marker ornaments
+ *
+ * A HosMarker is a HosCanvasItem which marks an (X, Y) location on
+ * a HosCanvas.  For example, a HosMarker can be used to show the
+ * location of a chemical shift assignment.  HosMarkers are sensitive
+ * to mouse clicks and can be dragged.
+ *
+ * @{
+ */
+
+/**
+ * @brief   Properties
+ */
 enum {
-  PROP_0,
-  PROP_X,
-  PROP_Y,
-  PROP_SIZE
+  PROP_0,     
+  PROP_X,     /**< X position in world coordinates */
+  PROP_Y,     /**< Y position in world coordinates */
+  PROP_SIZE   /**< size in view coordinates */
 };
 
+/**
+ * @brief   Signals
+ */
 enum {
-  MOVED,
-  DROPPED,
+  MOVED,      /**< emitted when marker is moved */
+  DROPPED,    /**< emitted when marker loses cursor focus */
   LAST_SIGNAL
 };
 
@@ -66,6 +84,116 @@ static void     gtk_adjustment_increment_value (GtkAdjustment* adjustment, gdoub
 static gboolean marker_get_pos                 (HosMarker *self, gdouble *x, gdouble *y);
 
 G_DEFINE_TYPE (HosMarker, hos_marker, HOS_TYPE_ORNAMENT)
+
+/**
+ * @brief change a marker ornament's size
+ *
+ * The meaning of a marker's 'size' property depends on the
+ * specific type of marker; for example, it represents the length
+ * of the crosshairs in a cross-shaped marker.
+ *
+ * @param  marker  A HosMarker object
+ * @param  size    new size parameter in view coordinates
+ */
+void
+marker_set_size(HosMarker *marker, guint size)
+{
+  g_return_if_fail(HOS_IS_MARKER(marker));
+  if (size != marker->size)
+    {
+      marker->size = size;
+      canvas_item_configure(HOS_CANVAS_ITEM(marker));
+    }
+}
+
+/**
+ * @brief   Tie a marker's position to a pair of GtkAdjustments
+ *
+ * @param   marker        HosMarker for which to set adjustments
+ * @param   adjustment_x  The GtkAdjustment to tie to the X position of 'marker'
+ * @param   adjustment_y  The GtkAdjustment to tie to the Y position of 'marker'
+ */
+void
+marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjustment *adjustment_y)
+{
+  gdouble new_x;
+  gdouble new_y;
+
+  gboolean need_configure = FALSE;
+
+  new_x = GTK_IS_ADJUSTMENT(adjustment_x) ? gtk_adjustment_get_value(adjustment_x) : 0;
+  new_y = GTK_IS_ADJUSTMENT(adjustment_y) ? gtk_adjustment_get_value(adjustment_y) : 0;
+
+  g_return_if_fail(HOS_IS_MARKER(marker));
+  if (marker->adjustment_x != adjustment_x)
+    {
+      need_configure = TRUE;
+      if (marker->adjustment_x)
+        {
+	  g_signal_handlers_disconnect_by_func (marker->adjustment_x,
+						marker_adjustment_value_changed,
+						marker);
+	  g_object_unref (marker->adjustment_x);
+        }
+      marker->adjustment_x = adjustment_x;
+      if (adjustment_x)
+        {
+	  g_object_ref (adjustment_x);
+	  gtk_object_sink (GTK_OBJECT (adjustment_x));
+	  g_signal_connect (adjustment_x, "value_changed",
+			    G_CALLBACK (marker_adjustment_value_changed),
+			    marker);
+        }
+
+    }
+  if (marker->adjustment_y != adjustment_y)
+    {
+      need_configure = TRUE;
+      if (marker->adjustment_y)
+        {
+	  g_signal_handlers_disconnect_by_func (marker->adjustment_y,
+						marker_adjustment_value_changed,
+						marker);
+	  g_object_unref (marker->adjustment_y);
+        }
+      marker->adjustment_y = adjustment_y;
+      if (adjustment_y)
+        {
+	  g_object_ref (adjustment_y);
+	  gtk_object_sink (GTK_OBJECT (adjustment_y));
+	  g_signal_connect (adjustment_y, "value_changed",
+			    G_CALLBACK (marker_adjustment_value_changed),
+			    marker);
+        }
+    }
+  if (need_configure) canvas_item_configure(HOS_CANVAS_ITEM(marker));
+}
+
+/**
+ * @brief    Add a marker to a canvas
+ *
+ * Create a new HosMarker and add it to 'canvas'.
+ * The new marker will be tied to new GtkAdjustments appropriate for the canvas.
+ *
+ * @param canvas  The HosCanvas to which a HosMarker should be added
+ */
+HosMarker*
+canvas_add_marker(HosCanvas *canvas)
+{
+
+  HosMarker* result = g_object_new(HOS_TYPE_MARKER, NULL);
+  marker_set_adjustments(result,
+			 adjustment_for_canvas_x(canvas),
+			 adjustment_for_canvas_y(canvas));
+  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
+
+  return result;
+}
+
+/**
+ * @}
+ * End public API 
+ */
 
 static void
 hos_marker_class_init (HosMarkerClass *klass)
@@ -139,27 +267,6 @@ hos_marker_class_init (HosMarkerClass *klass)
 		 G_TYPE_DOUBLE);
 
 
-}
-
-static gboolean
-marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
-{
-  g_return_if_fail(HOS_IS_MARKER(self));
-  if (x)
-    {
-      if (GTK_IS_ADJUSTMENT(self->adjustment_x))
-	*x = gtk_adjustment_get_value(self->adjustment_x);
-      else
-	return FALSE;
-    }
-  if (y)
-    {
-      if (GTK_IS_ADJUSTMENT(self->adjustment_y))
-	*y = gtk_adjustment_get_value(self->adjustment_y);
-      else
-	return FALSE;
-    }
-  return TRUE;
 }
 
 gdouble
@@ -320,89 +427,27 @@ hos_marker_get_property (GObject         *object,
     }
 }
 
-void
-marker_set_size(HosMarker *marker, guint size)
+static gboolean
+marker_get_pos(HosMarker *self, gdouble *x, gdouble *y)
 {
-  g_return_if_fail(HOS_IS_MARKER(marker));
-  if (size != marker->size)
+  g_return_if_fail(HOS_IS_MARKER(self));
+  if (x)
     {
-      marker->size = size;
-      canvas_item_configure(HOS_CANVAS_ITEM(marker));
+      if (GTK_IS_ADJUSTMENT(self->adjustment_x))
+	*x = gtk_adjustment_get_value(self->adjustment_x);
+      else
+	return FALSE;
     }
+  if (y)
+    {
+      if (GTK_IS_ADJUSTMENT(self->adjustment_y))
+	*y = gtk_adjustment_get_value(self->adjustment_y);
+      else
+	return FALSE;
+    }
+  return TRUE;
 }
 
-void
-marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjustment *adjustment_y)
-{
-  gdouble new_x;
-  gdouble new_y;
-
-  gboolean need_configure = FALSE;
-
-  new_x = GTK_IS_ADJUSTMENT(adjustment_x) ? gtk_adjustment_get_value(adjustment_x) : 0;
-  new_y = GTK_IS_ADJUSTMENT(adjustment_y) ? gtk_adjustment_get_value(adjustment_y) : 0;
-
-  g_return_if_fail(HOS_IS_MARKER(marker));
-  if (marker->adjustment_x != adjustment_x)
-    {
-      need_configure = TRUE;
-      if (marker->adjustment_x)
-        {
-	  g_signal_handlers_disconnect_by_func (marker->adjustment_x,
-						marker_adjustment_value_changed,
-						marker);
-	  g_object_unref (marker->adjustment_x);
-        }
-      marker->adjustment_x = adjustment_x;
-      if (adjustment_x)
-        {
-	  g_object_ref (adjustment_x);
-	  gtk_object_sink (GTK_OBJECT (adjustment_x));
-	  g_signal_connect (adjustment_x, "value_changed",
-			    G_CALLBACK (marker_adjustment_value_changed),
-			    marker);
-        }
-
-    }
-  if (marker->adjustment_y != adjustment_y)
-    {
-      need_configure = TRUE;
-      if (marker->adjustment_y)
-        {
-	  g_signal_handlers_disconnect_by_func (marker->adjustment_y,
-						marker_adjustment_value_changed,
-						marker);
-	  g_object_unref (marker->adjustment_y);
-        }
-      marker->adjustment_y = adjustment_y;
-      if (adjustment_y)
-        {
-	  g_object_ref (adjustment_y);
-	  gtk_object_sink (GTK_OBJECT (adjustment_y));
-	  g_signal_connect (adjustment_y, "value_changed",
-			    G_CALLBACK (marker_adjustment_value_changed),
-			    marker);
-        }
-    }
-  if (need_configure) canvas_item_configure(HOS_CANVAS_ITEM(marker));
-}
-
-/*
- * Create a new marker with default adjustments appropriate
- * for this canvas; add to the canvas.
- */
-HosMarker*
-canvas_add_marker(HosCanvas *canvas)
-{
-
-  HosMarker* result = g_object_new(HOS_TYPE_MARKER, NULL);
-  marker_set_adjustments(result,
-			 adjustment_for_canvas_x(canvas),
-			 adjustment_for_canvas_y(canvas));
-  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
-
-  return result;
-}
 
 GtkAdjustment*
 marker_get_x_adjustment(HosMarker *marker)
@@ -443,5 +488,6 @@ marker_move_relative(HosOrnament *self, gdouble x, gdouble y)
   gtk_adjustment_increment_value(marker->adjustment_x, x);
   gtk_adjustment_increment_value(marker->adjustment_y, y);
 }
+
 
 

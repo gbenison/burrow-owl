@@ -25,12 +25,6 @@
 #include "boomerang.h"
 #include "burrow/spectrum/debug.h"
 
-enum {
-  PROP_0,
-  PROP_SPECTRUM,
-  PROP_CONTOUR,
-  PROP_SMOOTHED
-};
 
 #define HOS_CONTOUR_PLOT_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CONTOUR_PLOT, HosContourPlotPrivate))
 #define CONTOUR_PLOT_PRIVATE(o, field) ((HOS_CONTOUR_PLOT_GET_PRIVATE(o))->field)
@@ -51,6 +45,28 @@ struct _HosContourPlotPrivate
 
   GdkRectangle extent;
 
+};
+
+/**
+ * @defgroup HosContourPlot
+ * @brief    contour plots to display a HosSpectrum on a HosCanvas
+ *
+ * A HosContourPlot is associated with exactly one HosSpectrum object, and
+ * draws a contour plot on a HosCanvas.  The world coordinates of the canvas
+ * are interpreted as chemical shift values of the HosSpectrum, which must
+ * be two-dimensional.
+ * 
+ * @{
+ */
+
+/**
+ * @brief  Properties
+ */
+enum {
+  PROP_0,
+  PROP_SPECTRUM,  /**< The HosSpectrum that will be drawn */
+  PROP_CONTOUR,   /**< The HosContour object controlling appearance (threshold, interval, etc.) */
+  PROP_SMOOTHED   /**< If true: draw using smooth anti-aliased lines */
 };
 
 enum {
@@ -672,6 +688,9 @@ contour_plot_set_smoothed(HosContourPlot* self, gboolean smoothed)
     }
 }
 
+/**
+ * @brief Change the spectrum associated with a contour plot
+ */
 void
 contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
 {
@@ -708,3 +727,7 @@ contour_plot_get_contour(HosContourPlot *self)
 
   return painter_get_contour(self->painter);
 }
+
+/**
+ * @}
+ */

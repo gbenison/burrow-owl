@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,10 @@ G_BEGIN_DECLS
 #define HOS_IS_CANVAS_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CANVAS))
 #define HOS_CANVAS_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CANVAS, HosCanvasClass))
 
+/**
+ * @ingroup HosCanvas
+ * @brief   A GTK+ widget for displaying spectra and annotations
+ */
 typedef struct _HosCanvas      HosCanvas;
 typedef struct _HosCanvasClass HosCanvasClass;
 

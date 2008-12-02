@@ -17,21 +17,6 @@
  *
  */
 
-/**
-@defgroup HosSpectrum Spectrum Objects
-@ingroup burrow
-@brief spectrum objects
-
-All NMR spectra in burrow-owl are represented by 'HosSpectrum' objects.
-For example- opening a spectrum data file results in a 'HosSpectrum' object;
-transposing one 'HosSpectrum' object results in another 'HosSpectrum' object;
-convoluting two spectrum objects results in a third spectrum object; etc.
-
-#include <burrow/spectrum.h>
-
- */
-
-
 /*
  * this is a compatibility macro; it must come before any header
  * includes.  It defines which features of the C library will be
@@ -63,25 +48,6 @@ enum
   COMPLETE
 };
 
-/**
- * @ingroup HosSpectrum
- * @brief   Signals
- */
-enum signals {
-  READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
-  LAST_SIGNAL
-};
-
-/**
- * @ingroup HosSpectrum
- * @brief   Properties
- */
-enum properties {
-  PROP_0,
-  PROP_READY  /**< True if buffer contents are available */
-};
-
-
 #define SPECTRUM_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
 #define SPECTRUM_PRIVATE(o, field) ((SPECTRUM_GET_PRIVATE(o))->field)
 typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
@@ -98,6 +64,42 @@ struct _HosSpectrumPrivate
 
   gboolean  instantiable;
   gboolean  instantiable_known;
+};
+
+/**
+@defgroup HosSpectrum
+@brief    A GObject representing an NMR spectrum and its metadata
+
+@verbatim #include <burrow/spectrum.h> @endverbatim
+
+All NMR spectra in burrow-owl are represented by 'HosSpectrum' objects.
+There are many functions for manipulating HosSpectrum objects, for example:
+loading them from disk, extracting regions, projecting slices, and combining
+them into higher-order spectra.
+
+@{
+
+ */
+
+/*
+ * FIXME documentation:
+ * describe referential transparency and closure properties
+ */
+
+/**
+ * @brief   Properties
+ */
+enum {
+  PROP_0,
+  PROP_READY  /**< True if buffer contents are available */
+};
+
+/**
+ * @brief   Signals
+ */
+enum {
+  READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
+  LAST_SIGNAL
 };
 
 static guint spectrum_signals[LAST_SIGNAL] = { 0 };
@@ -138,22 +140,60 @@ G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 static gboolean iterator_bump        (struct spectrum_iterator *self);
 static gboolean iterator_check_cache (struct spectrum_iterator *self, gdouble *dest);
 
+/** Traversal pool **/
 
-gsize
-spectrum_ndim(HosSpectrum *spec)
+static GList*       spectra_ready        = NULL;
+static GMutex*      spectrum_queue_lock  = NULL;
+static GThreadPool* traversal_pool       = NULL;
+
+static gint compare_spectrum_priority(HosSpectrum *a, HosSpectrum *b);
+static void ensure_traversal_setup();
+
+
+static int      compare_gdoubles     (void* A_ptr, void* B_ptr);
+static void     check_dim_count      (HosSpectrum* spec, const guint dim);
+
+/**
+ * @brief   Instantiate 'spec', asynchronously.
+ *
+ * Returns either the spectral data or 'NULL' if not ready yet.
+ * 'spec' will emit the 'ready' signal when instantiated.
+ * Does not block.
+ *
+ * @param    spec   The HosSpectrum to traverse
+ * @returns  pointer to buffer or NULL
+ */
+gdouble*
+spectrum_traverse(HosSpectrum *spec)
 {
-  return g_list_length(SPECTRUM_PRIVATE(spec, dimensions));
+  gdouble* result = NULL;
+
+  static gint schedule_id = 1;
+
+  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
+  if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
+    result = spec->buf;
+  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
+
+  if (result == NULL)
+    {
+      ensure_traversal_setup();
+      g_object_ref(spec);
+      SPECTRUM_PRIVATE(spec, schedule_id) = schedule_id;
+      ++schedule_id;
+      g_thread_pool_push(traversal_pool, spec, NULL);
+    }
+  return result;
 }
 
 /**
  * \brief Blocking version of spectrum_traverse()
- * \ingroup HosSpectrum
  *
  * Returns a buffer containing the contents of 'spec'.
- * Will block the caller during traversal.
+ * Will block the calling thread until traversal is complete.
  *
- * @param   spec  the spectrum object to traverse
- * @return  pointer to a buffer containing the contents of 'spec'
+ * @param    spec  the spectrum object to traverse
+ * @returns  pointer to a buffer containing the contents of 'spec'
  */
 gdouble*
 spectrum_traverse_blocking(HosSpectrum *spec)
@@ -172,30 +212,58 @@ spectrum_traverse_blocking(HosSpectrum *spec)
   return result;
 }
 
-
-/*
- * Emit the 'ready' signal from spectrum 'self',
- * indicating that traversal is complete,
- * but only if 'self' really is ready
+/**
+ * @brief  Get the value of one point in a spectrum
+ *
+ * @param  spec  The spectrum from which the value is drawn
+ * @param  idx   Linearized index
+ *
+ * The linearized index is determined by lining up the spectrum points
+ * with the leading dimension incrementing fastest, i.e.
+ * (0, 0, 0, ...), (1, 0, 0, ...) etc.
+ *
+ * Will block the calling thread until the requested point value
+ * is available.
  */
-static gboolean
-spectrum_signal_ready(HosSpectrum* self)
+gdouble
+spectrum_peek(HosSpectrum *spec, guint idx)
 {
+  gdouble* buf  = spectrum_traverse_blocking(spec);
+  int spec_size = spectrum_np_total(spec);
 
-  if (spectrum_is_ready(self))
-    g_signal_emit(self, spectrum_signals[READY], 0);
+  g_return_if_fail(idx < spec_size);
 
+  return buf[idx];
 }
 
-static int
-compare_gdoubles(gdouble* A, gdouble* B)
+/**
+ * @brief    Query the number of dimensions of a spectrum object
+ * @returns  The number of dimensions of 'spec'
+ */
+gsize
+spectrum_ndim(HosSpectrum *spec)
 {
-  if (*A == *B) return 0;
-  return (*A < *B) ? -1 : 1;
+  return g_list_length(SPECTRUM_PRIVATE(spec, dimensions));
 }
 
-typedef int (*sortfunc)(const void*, const void*);
+/**
+ * @brief    The number of points in a dimension of a spectrum
+ * @returns  The number of points in dimension 'dim' of HosSpectrum 'spec'
+ */
+gsize
+spectrum_np(HosSpectrum* spec, const guint dim)
+{
+  g_return_val_if_fail(spec, 0);
+  check_dim_count(spec, dim);
+  return spectrum_fetch_dimension(spec, dim)->np;
+}
 
+/**
+ * @brief    The total number of points in a spectrum
+ *
+ * The total number of points is the product of the number of points
+ * in each dimension.
+ */
 gsize
 spectrum_np_total(HosSpectrum *spec)
 {
@@ -206,30 +274,134 @@ spectrum_np_total(HosSpectrum *spec)
   return result;
 }
 
-/*
- * Spectral points are sorted ascendingly;
- * from that list, return point number 'n',
- * starting from zero.
+/**
+ * @brief The sweep width (in Hz) of spectrum 'spec' in dimension 'dim'
  */
 gdouble
-spectrum_get_ranked(HosSpectrum *spec, guint n)
+spectrum_sw(HosSpectrum* spec, const guint dim)
 {
-  gint np_total = spectrum_np_total(spec);
-  gdouble* buf  = g_new(gdouble, np_total);
+  g_return_val_if_fail(spec, 0);
+  check_dim_count(spec, dim);
+  return spectrum_fetch_dimension(spec, dim)->sw;
+}
 
-  g_assert(n < np_total);
+/**
+ * @brief The sweep width (in ppm) of spectrum 'spec' in dimension 'dim'
+ */
+gdouble
+spectrum_sw_ppm(HosSpectrum* spec, const guint dim)
+{
+  g_return_val_if_fail(spec, 0);
+  check_dim_count(spec, dim);
+  return spectrum_sw(spec, dim) / spectrum_sf(spec, dim);
+}
 
-  gdouble result;
+/**
+ * @brief The carrier frequency (in MHz) of spectrum 'spec' in dimension 'dim'
+ */
+gdouble
+spectrum_sf(HosSpectrum* spec, const guint dim)
+{
+  g_return_val_if_fail(spec, 0);
+  check_dim_count(spec, dim);
+  return spectrum_fetch_dimension(spec, dim)->sf;
+}
 
-  memcpy(buf, spectrum_traverse_blocking(spec), np_total * sizeof(gdouble));
+/**
+ * @brief  Frequency (in Hz) of point 0 in dimension 'dim' of 'spec'
+ */
+gdouble
+spectrum_orig(HosSpectrum* spec, const guint dim)
+{
+  g_return_val_if_fail(spec, 0);
+  check_dim_count(spec, dim);
+  return spectrum_fetch_dimension(spec, dim)->orig;
+}
 
-  qsort(buf, np_total, sizeof(gdouble), (sortfunc)compare_gdoubles);
-  result = buf[n];
-  g_free(buf);
+/**
+ * @brief  Chemical shift (in ppm) of point 0 in dimension 'dim' of 'spec'
+ */
+gdouble
+spectrum_orig_ppm(HosSpectrum* spec, const guint dim)
+{
+  check_dim_count(spec, dim);
+  return spectrum_orig(spec, dim) / spectrum_sf(spec, dim);
+}
+
+/**
+ * @brief  Frequency (in Hz) of point (np - 1) of dimension 'dim' of 'spec'
+ */
+gdouble
+spectrum_giro(HosSpectrum* spec, const guint dim)
+{
+  check_dim_count(spec, dim);
+  return (spectrum_orig(spec, dim) -
+	  spectrum_sw(spec, dim));
+}
+
+/**
+ * @brief  Chemical shift (in ppm) of point (np - 1) of dimension 'dim' of 'spec'
+ */
+gdouble
+spectrum_giro_ppm(HosSpectrum* spec, const guint dim)
+{
+  check_dim_count(spec, dim);
+  return spectrum_giro(spec, dim) / spectrum_sf(spec, dim);
+}
+
+/**
+ * @brief  convert chemical shift in ppm to spectral points
+ *
+ * @param  spec  A HosSpectrum object
+ * @param  dim   A dimension number, < spectrum_ndim(spec)
+ * @param  ppm   A chemical shift in ppm
+ *
+ * @returns Spectral point corresponding to 'ppm'.  Can be fractional-- e.g.
+ *          if the value is '5.5', the requested ppm is midway between spectral
+ *          points 5 and 6.
+ */
+gdouble
+spectrum_ppm2pt(HosSpectrum* spec,
+		const guint dim,
+		const gdouble ppm)
+{
+  dimension_t* dimen = spectrum_fetch_dimension(spec, dim);
+
+  gdouble hz     = ppm * dimen->sf;
+  gdouble result = ((dimen->orig - hz) / dimen->sw) * dimen->np;
+
+  /* FIXME should clamping behavior be the default?? */
+  if (result < 0) result = 0;
+  if (result >= dimen->np) result = (dimen->np - 1);
 
   return result;
 }
 
+/**
+ * @brief  convert an index in spectral points to a chemical shift in ppm
+ *
+ * @param  spec  A HosSpectrum object
+ * @param  dim   A dimension index, < spectrum_ndim(spec)
+ * @param  pt    A spectral point index
+ *
+ * @returns Chemical shift in ppm of point 'pt' in dimension 'dim' of 'spec'
+ */
+gdouble
+spectrum_pt2ppm(HosSpectrum* spec, guint dim, gdouble pt)
+{
+  dimension_t* dimen = spectrum_fetch_dimension(spec, dim);
+
+  gdouble hz =
+    dimen->orig - (dimen->sw * ((gdouble)pt / (gdouble)(dimen->np)));
+
+  return hz / dimen->sf;
+}
+
+/**
+ * @brief   The mean value of a spectrum
+ *
+ * @returns The mean intensity, taken over all points in the spectrum
+ */
 gdouble
 spectrum_mean(HosSpectrum *spec)
 {
@@ -244,6 +416,11 @@ spectrum_mean(HosSpectrum *spec)
   return result / spec_size;
 }
 
+/**
+ * @brief    The standard deviation of a spectrum
+ *
+ * @returns  The standard deviation, taken over all points in a spectrum
+ */
 gdouble
 spectrum_stddev(HosSpectrum *spec)
 {
@@ -263,188 +440,86 @@ spectrum_stddev(HosSpectrum *spec)
 }
 
 /*
- * Return the value of 'spectrum' at index 'idx'
- * where the spectrum is considered a 1D array; dimension
- * zero is the fastest-incrementing
+ * Emit the 'ready' signal from spectrum 'self',
+ * indicating that traversal is complete,
+ * but only if 'self' really is ready
  */
-gdouble
-spectrum_peek(HosSpectrum *spec, guint idx)
+static gboolean
+spectrum_signal_ready(HosSpectrum* self)
 {
-  gdouble* buf  = spectrum_traverse_blocking(spec);
-  int spec_size = spectrum_np_total(spec);
 
-  g_return_if_fail(idx < spec_size);
-
-  return buf[idx];
+  if (spectrum_is_ready(self))
+    g_signal_emit(self, spectrum_signals[READY], 0);
 
 }
 
+static int
+compare_gdoubles(void* A_ptr, void* B_ptr)
+{
+  gdouble A = *(gdouble*)A_ptr;
+  gdouble B = *(gdouble*)B_ptr;
+
+  if (A == B) return 0;
+  return (A < B) ? -1 : 1;
+}
+
+/**
+ * @brief The maximum value of a spectrum
+ */
 gdouble
 spectrum_get_max(HosSpectrum *spec)
 {
   return spectrum_get_ranked(spec, spectrum_np_total(spec) - 1);
 }
 
+/**
+ * @brief  The minimum value of a spectrum
+ */
 gdouble
 spectrum_get_min(HosSpectrum *spec)
 {
   return spectrum_get_ranked(spec, 0);
 }
 
+/**
+ * @brief    The intensity cutoff for a percentile
+ *
+ * @param    spec        The spectrum object to examine
+ * @param    percentile  the cutoff value (0.0 -> 1.0)
+ * @returns  'percentile' fraction of all points in the spectrum are below the returned intensity
+ */
 gdouble
 spectrum_get_percentile(HosSpectrum *spec, gdouble percentile)
 {
-  assert((percentile >= 0) && (percentile < 1.0));
+  g_assert((percentile >= 0) && (percentile < 1.0));
   return spectrum_get_ranked(spec, percentile * spectrum_np_total(spec));
 }
 
-void
-spectrum_set_dimensions(HosSpectrum* self, GList *dimensions)
-{
-  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  priv->dimensions = dimensions;
-}
-
-/*
- * Set the buffer of 'self' to 'buf', disregarding any old
- * self->buf.
- * !! 'buf' must be appropriately sized for 'self' !!
- * !! callee (i.e. 'self') owns 'buf' after this call !!
+/**
+ * @brief  Return the n'th-lowest intensity in a spectrum
  */
-void
-spectrum_set_contents(HosSpectrum *self, gdouble *buf)
+gdouble
+spectrum_get_ranked(HosSpectrum *spec, guint n)
 {
-  /* FIXME free old buf? */
-  g_atomic_pointer_set(&self->buf, NULL);
-  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  priv->status = COMPLETE;
-  g_atomic_pointer_set(&self->buf, buf);
-}
+  gint np_total = spectrum_np_total(spec);
+  gdouble* buf  = g_new(gdouble, np_total);
 
-GList*
-spectrum_copy_dimensions(HosSpectrum *self)
-{
-  GList* result = NULL;
-  GList* dimen;
+  g_assert(n < np_total);
 
-  for (dimen = SPECTRUM_PRIVATE(self, dimensions); dimen != NULL; dimen = dimen->next)
-    {
-      dimension_t* dest = g_new0(dimension_t, 1);
-      dimension_t* src  = (dimension_t*)(dimen->data);
+  gdouble result;
 
-      dest->np   = src->np;
-      dest->sw   = src->sw;
-      dest->sf   = src->sf;
-      dest->orig = src->orig;
+  memcpy(buf, spectrum_traverse_blocking(spec), np_total * sizeof(gdouble));
 
-      result = g_list_append(result, dest);
-    }
+  qsort(buf, np_total, sizeof(gdouble), compare_gdoubles);
+  result = buf[n];
+  g_free(buf);
 
   return result;
 }
 
-static void
-check_dim_count(HosSpectrum* spec, const guint dim)
-{
-  g_assert(HOS_IS_SPECTRUM(spec));
-  g_assert(dim < g_list_length(SPECTRUM_PRIVATE(spec, dimensions)));
-}
-
-static dimension_t*
-spectrum_fetch_dimension(HosSpectrum* self, const guint dim)
-{
-  return (dimension_t*)(g_list_nth_data(SPECTRUM_PRIVATE(self, dimensions), dim));
-}
-
-gsize
-spectrum_np(HosSpectrum* spec, const guint dim)
-{
-  g_return_val_if_fail(spec, 0);
-  check_dim_count(spec, dim);
-  return spectrum_fetch_dimension(spec, dim)->np;
-}
-
-gdouble
-spectrum_sw(HosSpectrum* spec, const guint dim)
-{
-  g_return_val_if_fail(spec, 0);
-  check_dim_count(spec, dim);
-  return spectrum_fetch_dimension(spec, dim)->sw;
-}
-
-gdouble
-spectrum_sw_ppm(HosSpectrum* spec, const guint dim)
-{
-  g_return_val_if_fail(spec, 0);
-  check_dim_count(spec, dim);
-  return spectrum_sw(spec, dim) / spectrum_sf(spec, dim);
-}
-
-gdouble
-spectrum_sf(HosSpectrum* spec, const guint dim)
-{
-  g_return_val_if_fail(spec, 0);
-  check_dim_count(spec, dim);
-  return spectrum_fetch_dimension(spec, dim)->sf;
-}
-
-gdouble
-spectrum_orig(HosSpectrum* spec, const guint dim)
-{
-  g_return_val_if_fail(spec, 0);
-  check_dim_count(spec, dim);
-  return spectrum_fetch_dimension(spec, dim)->orig;
-}
-
-gdouble
-spectrum_giro_ppm(HosSpectrum* spec, const guint dim)
-{
-  check_dim_count(spec, dim);
-  return spectrum_giro(spec, dim) / spectrum_sf(spec, dim);
-}
-
-gdouble
-spectrum_orig_ppm(HosSpectrum* spec, const guint dim)
-{
-  check_dim_count(spec, dim);
-  return spectrum_orig(spec, dim) / spectrum_sf(spec, dim);
-}
-
-gdouble
-spectrum_giro(HosSpectrum* spec, const guint dim)
-{
-  check_dim_count(spec, dim);
-  return (spectrum_orig(spec, dim) -
-	  spectrum_sw(spec, dim));
-}
-
-gdouble
-spectrum_ppm2pt(HosSpectrum* spec,
-		const guint dim,
-		const gdouble ppm)
-{
-  dimension_t* dimen = spectrum_fetch_dimension(spec, dim);
-
-  gdouble hz     = ppm * dimen->sf;
-  gdouble result = ((dimen->orig - hz) / dimen->sw) * dimen->np;
-
-  /* FIXME should clamping behavior be the default?? */
-  if (result < 0) result = 0;
-  if (result >= dimen->np) result = (dimen->np - 1);
-
-  return result;
-}
-
-gdouble
-spectrum_pt2ppm(HosSpectrum* spec, guint dim, gdouble pt)
-{
-  dimension_t* dimen = spectrum_fetch_dimension(spec, dim);
-
-  gdouble hz =
-    dimen->orig - (dimen->sw * ((gdouble)pt / (gdouble)(dimen->np)));
-
-  return hz / dimen->sf;
-}
+/**
+ * @}
+ */
 
 static void
 hos_spectrum_finalize(GObject *object)
@@ -555,10 +630,6 @@ hos_spectrum_get_property (GObject         *object,
 }
 
 /******* the traversal thread *****/
-
-static GList*   spectra_ready          = NULL;
-static GMutex*  spectrum_queue_lock    = NULL;
-static GThreadPool* traversal_pool     = NULL;
 
 static gint
 compare_spectrum_priority(HosSpectrum *a, HosSpectrum *b)
@@ -867,39 +938,6 @@ spectrum_push_cached(HosSpectrum *self, guint *idx, gdouble value)
     }
 }
 
-/**
- * \brief   Instantiate 'spec', asynchronously.
- * \ingroup HosSpectrum
- *
- * Returns either the spectral data or 'NULL' if not ready yet.
- * 'spec' will emit the 'ready' signal when instantiated.
- * Does not block.
- *
- * @return  pointer to buffer or NULL
- */
-gdouble*
-spectrum_traverse(HosSpectrum *spec)
-{
-  gdouble* result = NULL;
-
-  static gint schedule_id = 1;
-
-  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-  if (SPECTRUM_PRIVATE(spec, status) == COMPLETE)
-    result = spec->buf;
-  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
-
-  if (result == NULL)
-    {
-      ensure_traversal_setup();
-      g_object_ref(spec);
-      SPECTRUM_PRIVATE(spec, schedule_id) = schedule_id;
-      ++schedule_id;
-      g_thread_pool_push(traversal_pool, spec, NULL);
-    }
-  return result;
-}
-
 /*********** The point cache ****************/
 
 static gsize default_point_cache_size = 1024 * 1024 * 8;
@@ -1199,6 +1237,64 @@ spectrum_iterator_cached(HosSpectrum *self)
   /* FIXME insert entries for result->tickle, etc. here */
 
   return result;
+}
+
+void
+spectrum_set_dimensions(HosSpectrum* self, GList *dimensions)
+{
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  priv->dimensions = dimensions;
+}
+
+/*
+ * Set the buffer of 'self' to 'buf', disregarding any old
+ * self->buf.
+ * !! 'buf' must be appropriately sized for 'self' !!
+ * !! callee (i.e. 'self') owns 'buf' after this call !!
+ */
+void
+spectrum_set_contents(HosSpectrum *self, gdouble *buf)
+{
+  /* FIXME free old buf? */
+  g_atomic_pointer_set(&self->buf, NULL);
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+  priv->status = COMPLETE;
+  g_atomic_pointer_set(&self->buf, buf);
+}
+
+GList*
+spectrum_copy_dimensions(HosSpectrum *self)
+{
+  GList* result = NULL;
+  GList* dimen;
+
+  for (dimen = SPECTRUM_PRIVATE(self, dimensions); dimen != NULL; dimen = dimen->next)
+    {
+      dimension_t* dest = g_new0(dimension_t, 1);
+      dimension_t* src  = (dimension_t*)(dimen->data);
+
+      dest->np   = src->np;
+      dest->sw   = src->sw;
+      dest->sf   = src->sf;
+      dest->orig = src->orig;
+
+      result = g_list_append(result, dest);
+    }
+
+  return result;
+}
+
+static void
+check_dim_count(HosSpectrum* spec, const guint dim)
+{
+  g_assert(HOS_IS_SPECTRUM(spec));
+  g_assert(dim < g_list_length(SPECTRUM_PRIVATE(spec, dimensions)));
+}
+
+static dimension_t*
+spectrum_fetch_dimension(HosSpectrum* self, const guint dim)
+{
+  return (dimension_t*)(g_list_nth_data(SPECTRUM_PRIVATE(self, dimensions), dim));
 }
 
 

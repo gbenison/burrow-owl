@@ -37,7 +37,11 @@ G_BEGIN_DECLS
 typedef struct _HosCursor       HosCursor;
 typedef struct _HosCursorClass  HosCursorClass;
 
-enum {
+/**
+ * @brief    HosCursor orientation
+ * @ingroup  HosCursor
+ */
+enum cursor_orientation {
   HORIZONTAL,
   VERTICAL
 };

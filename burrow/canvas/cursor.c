@@ -31,15 +31,32 @@
 
 #define CLICK_RADIUS 5
 
+/**
+ * @defgroup  HosCursor
+ * @brief     Cursor ornaments
+ *
+ * Cursors are horizontal or vertical movable bars on a HosCanvas that are
+ * used to mark a position in one dimension.  The cursor position is tied
+ * to a GtkAdjustment.
+ *
+ * @{
+ */
+
+/**
+ * @brief Properties
+ */
 enum {
   PROP_0,
-  PROP_POSITION,
-  PROP_ADJUSTMENT
+  PROP_POSITION,   /**< the position in world coordinates */
+  PROP_ADJUSTMENT  /**< the GtkAdjustment tied to the position */
 };
 
+/**
+ * @brief Signals
+ */
 enum {
-  MOVED,
-  DROPPED,
+  MOVED,        /**< emitted when the position changes */
+  DROPPED,      /**< emitted when the cursor loses mouse focus */
   LAST_SIGNAL
 };
 
@@ -231,6 +248,31 @@ cursor_release_method(HosOrnament *self)
 
 }
 
+/**
+ * @brief Add a cursor to a HosCanvas
+ */
+HosCursor*
+canvas_add_cursor(HosCanvas *canvas, guint orientation)
+{
+  HosCursor* result = g_object_new(HOS_TYPE_CURSOR, NULL);
+
+  cursor_set_orientation(result, orientation);
+
+  cursor_set_adjustment(result,
+			orientation == VERTICAL ?
+			adjustment_for_canvas_x(canvas) :
+			adjustment_for_canvas_y(canvas));
+
+  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
+
+  return result;
+
+}
+
+/**
+ * @}
+ */
+
 void
 cursor_set_orientation(HosCursor *cursor, guint orientation)
 {
@@ -350,23 +392,6 @@ cursor_get_position(HosCursor *cursor)
   return gtk_adjustment_get_value(cursor->adjustment);
 }
 
-HosCursor*
-canvas_add_cursor(HosCanvas *canvas, guint orientation)
-{
-  HosCursor* result = g_object_new(HOS_TYPE_CURSOR, NULL);
-
-  cursor_set_orientation(result, orientation);
-
-  cursor_set_adjustment(result,
-			orientation == VERTICAL ?
-			adjustment_for_canvas_x(canvas) :
-			adjustment_for_canvas_y(canvas));
-
-  canvas_add_item(canvas, HOS_CANVAS_ITEM(result));
-
-  return result;
-
-}
 
 HosCursor*
 canvas_add_cursor_horizontal(HosCanvas *canvas)

@@ -21,22 +21,46 @@
 #include "marshal.h"
 #include "canvas.h"
 
-/* signals & properties */
-enum {
-  ACQUIRE,
-  RELEASE,
-  ENTER,
-  LEAVE,
-  CONFIGURE,
-  LAST_SIGNAL
-};
+/**
+ * @defgroup HosOrnament
+ * @brief    Annotations for a HosCanvas
+ *
+ * Parent class -- ::HosCanvasItem
+ *
+ * Subclasses
+ * - ::HosMarker
+ * - ::HosCursor
+ *
+ * HosOrnaments are a class of ::HosCanvasItem which serve as annotations for
+ * a ::HosCanvas, for example, assignment labels and cursors.  A HosOrnament generally
+ * covers only a small portion of the canvas widget, is sensitive to mouse activity,
+ * and is movable.
+ *
+ * @{
+ *
+ */
 
+/**
+ * @brief Properties
+ */
 enum {
   PROP_0,
-  PROP_MOUSE_OVER,
-  PROP_GRABBED,
-  PROP_VISIBLE,
-  PROP_SENSITIVE
+  PROP_MOUSE_OVER,   /**< True if the pointer is over the ornament's visible area */
+  PROP_GRABBED,      /**< True if the ornament currently has mouse focus */
+  PROP_VISIBLE,      /**< True if the ornament should be drawn on-screen */
+  PROP_SENSITIVE     /**< True if the ornament can acquire mouse focus, i.e. it is clickable */
+};
+
+/**
+ * @brief Signals
+ */
+enum {
+  ACQUIRE,           /**< Emitted upon acquiring mouse focus */
+  RELEASE,           /**< Emitted upon losing mouse focus */
+  ENTER,             /**< The mouse pointer has entered the visible region */
+  LEAVE,             /**< The mouse pointer has left the visible region */
+  CONFIGURE,         /**< The state of the ornament has changed somehow (position, size, etc.) */
+  LAST_SIGNAL
 };
 
 static guint ornament_signals[LAST_SIGNAL] = { 0 };
@@ -335,6 +359,9 @@ ornament_calculate_region(HosOrnament *self)
     return gdk_region_new();
 }
 
+/**
+ * @brief Force ornament 'self' to acquire mouse focus.
+ */
 void
 ornament_acquire(HosOrnament* self)
 {
@@ -342,6 +369,9 @@ ornament_acquire(HosOrnament* self)
   ornament_set_grabbed(self, TRUE);
 }
 
+/**
+ * @brief Force ornament 'self' to release mouse focus.
+ */
 void
 ornament_release(HosOrnament* self)
 {
@@ -573,3 +603,8 @@ ornament_set_sensitive(HosOrnament *self, gboolean sensitive)
       g_object_notify(G_OBJECT(self), "sensitive");
     }
 }
+
+/**
+ * @}
+ */
+
