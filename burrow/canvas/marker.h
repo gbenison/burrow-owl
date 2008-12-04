@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@ G_BEGIN_DECLS
 #define HOS_IS_MARKER_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_MARKER))
 #define HOS_MARKER_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_MARKER, HosMarkerClass))
 					
+/**
+ * @ingroup HosMarker
+ * @brief   (X, Y) markers for a HosCanvas
+ */
 typedef struct _HosMarker       HosMarker;
 typedef struct _HosMarkerClass  HosMarkerClass;
 

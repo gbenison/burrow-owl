@@ -55,6 +55,9 @@ struct _HosContourPlotPrivate
  * draws a contour plot on a HosCanvas.  The world coordinates of the canvas
  * are interpreted as chemical shift values of the HosSpectrum, which must
  * be two-dimensional.
+ *
+ * Parent Class
+ * - ::HosCanvasItem
  * 
  * @{
  */

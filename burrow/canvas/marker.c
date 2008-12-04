@@ -33,36 +33,37 @@
 
 /** 
  * @defgroup HosMarker
- * @brief    Marker ornaments
+ * @brief    (X, Y) markers for a HosCanvas
  *
  * A HosMarker is a HosCanvasItem which marks an (X, Y) location on
- * a HosCanvas.  For example, a HosMarker can be used to show the
- * location of a chemical shift assignment.  HosMarkers are sensitive
+ * a HosCanvas.
+ * A marker's position is determined by a pair of GtkAdjustment objects.
+ * Changing the value of the GtkAdjustment moves the marker and vice versa.
+ * A typical use of a HosMarker is to show the
+ * location of a chemical shift assignment.
+ * HosMarkers are sensitive
  * to mouse clicks and can be dragged.
+ *
+ * Parent Class
+ * - ::HosOrnament
  *
  * @{
  */
 
-/**
- * @brief   Properties
- */
-enum {
+enum marker_properties {
   PROP_0,     
   PROP_X,     /**< X position in world coordinates */
   PROP_Y,     /**< Y position in world coordinates */
   PROP_SIZE   /**< size in view coordinates */
 };
 
-/**
- * @brief   Signals
- */
-enum {
+enum marker_signals {
   MOVED,      /**< emitted when marker is moved */
   DROPPED,    /**< emitted when marker loses cursor focus */
   LAST_SIGNAL
 };
 
-static guint marker_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void hos_marker_set_property (GObject         *object,
 				     guint            prop_id,
@@ -244,7 +245,7 @@ hos_marker_class_init (HosMarkerClass *klass)
 						      8,
 						      G_PARAM_READWRITE));
 
-  marker_signals[DROPPED] =
+  signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -255,7 +256,7 @@ hos_marker_class_init (HosMarkerClass *klass)
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
 
-  marker_signals[MOVED] =
+  signals[MOVED] =
     g_signal_new("moved",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -470,7 +471,7 @@ marker_adjustment_value_changed(GtkAdjustment *adjustment, HosMarker *marker)
     return;
 
   canvas_item_configure(HOS_CANVAS_ITEM(marker));
-  g_signal_emit(marker, marker_signals[MOVED], 0, x, y);
+  g_signal_emit(marker, signals[MOVED], 0, x, y);
 
 }
 

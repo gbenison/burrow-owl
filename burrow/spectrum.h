@@ -20,7 +20,8 @@
 /**
  * @mainpage
  *
- * This manual documents the public C API of burrow-owl.
+ * This manual documents the public C API of burrow-owl; for an overall description, see
+ * <a href="http://burrow-owl.sourceforge.net">burrow-owl.sourceforge.net</a>
  *
  * The core of the API is the @ref HosSpectrum object, which represents an NMR spectrum
  * (data and metadata).

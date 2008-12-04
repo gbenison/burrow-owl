@@ -33,28 +33,25 @@
 
 /**
  * @defgroup  HosCursor
- * @brief     Cursor ornaments
+ * @brief     horizontal or vertical line ornaments
  *
  * Cursors are horizontal or vertical movable bars on a HosCanvas that are
  * used to mark a position in one dimension.  The cursor position is tied
  * to a GtkAdjustment.
  *
+ * Parent Class
+ * - ::HosOrnament
+ *
  * @{
  */
 
-/**
- * @brief Properties
- */
-enum {
+enum cursor_properties {
   PROP_0,
   PROP_POSITION,   /**< the position in world coordinates */
   PROP_ADJUSTMENT  /**< the GtkAdjustment tied to the position */
 };
 
-/**
- * @brief Signals
- */
-enum {
+enum cursor_signals {
   MOVED,        /**< emitted when the position changes */
   DROPPED,      /**< emitted when the cursor loses mouse focus */
   LAST_SIGNAL

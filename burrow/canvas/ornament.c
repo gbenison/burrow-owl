@@ -25,7 +25,8 @@
  * @defgroup HosOrnament
  * @brief    Annotations for a HosCanvas
  *
- * Parent class -- ::HosCanvasItem
+ * Parent class
+ * - ::HosCanvasItem
  *
  * Subclasses
  * - ::HosMarker
