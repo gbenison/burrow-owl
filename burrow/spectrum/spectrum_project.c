@@ -135,9 +135,21 @@ spectrum_projected_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_projected_parent_class)->finalize (object);
 }
 
-/*
- * Return the projection of 'self', i.e. 
- * S'(i, j, k, ...) = S(idx, i, j, k, ...)
+/**
+ * @brief    Obtain a projection (section) of a spectrum
+ * @ingroup  HosSpectrum
+ *
+ * Keep only points having a particular index in the leading dimension,
+ * discarding all other points, to obtain a resulting spectrum with
+ * one fewer dimensions.  Can also be thought of as taking a slice through
+ * the leading dimension.
+ *
+ * For example if S' = spectrum_project(S, idx):
+ *
+ * @f$ S'(i, j, k, ...) = S(idx, i, j, k, ...) @f$
+ *
+ * @param   self   Spectrum to project
+ * @param   idx    index (in spectrum points) of the retained index in dimension 0
  */
 HosSpectrum*
 spectrum_project(HosSpectrum *self, guint idx)
@@ -189,6 +201,13 @@ spectrum_projected_free_iterator(struct spectrum_iterator* self)
   g_free(self);
 }
 
+/**
+ * @ingroup HosSpectrum
+ * @brief   Obtain a projection, specifying the position in ppm
+ *
+ * Like spectrum_project(), but the position argument is specified
+ * in units of ppm, rather than spectral points
+ */
 HosSpectrum*
 spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
 {

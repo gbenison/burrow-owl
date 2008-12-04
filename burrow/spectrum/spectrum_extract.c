@@ -160,11 +160,16 @@ spectrum_extracted_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_extracted_parent_class)->finalize (object);
 }
 
-/*
- * Return the extraction of 'self' between points 'start' and 'stop'.
- * e.g.
+/**
+ * @brief    Extract a portion of a spectrum
+ * @ingroup  HosSpectrum
  *
- * S'(i, j, k, ...) = S(start + i, j, k, ...)
+ * In the leading dimension, only points between 'start' and 'stop' indices
+ * are retained.  The resulting spectrum has the same number of dimensions
+ * as the argument spectrum.  Point 'start' of the argument spectrum (S) becomes
+ * the 0'th point of the result spectrum (S'):
+ *
+ * @f$ S'(i, j, k, ...) = S(i + start, j, k, ...) @f$
  */
 HosSpectrum*
 spectrum_extract(HosSpectrum *self, guint start, guint stop)
@@ -211,6 +216,15 @@ spectrum_extract(HosSpectrum *self, guint start, guint stop)
 
 }
 
+/**
+ * @brief   Extract a region specified in ppm
+ * @ingroup HosSpectrum
+ *
+ * Like spectrum_extract(), only the limits 'A' and 'B' are specified
+ * in ppm units rather than as spectral points.  Only the leading dimension
+ * is changed.
+ *
+ */
 HosSpectrum*
 spectrum_extract_ppm(HosSpectrum* self, const gdouble A, const gdouble B)
 {

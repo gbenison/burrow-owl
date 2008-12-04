@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,10 @@ G_BEGIN_DECLS
 #define HOS_IS_CONTOUR_PLOT_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_CONTOUR_PLOT))
 #define HOS_CONTOUR_PLOT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CONTOUR_PLOT, HosContourPlotClass))
 
+/**
+ * @ingroup HosContourPlot
+ * @brief   contour plots to display a HosSpectrum on a HosCanvas
+ */
 typedef struct _HosContourPlot      HosContourPlot;
 typedef struct _HosContourPlotClass HosContourPlotClass;
 

@@ -95,13 +95,14 @@ spectrum_integrated_finalize(GObject *object)
 
 /**
  * @ingroup HosSpectrum
- * @brief   Calculate the integration of a spectrum
+ * @brief   Integrate the leading dimension of a spectrum
  *
- * The argument spectrum is integrated along the leading dimension:
+ * The argument spectrum is integrated along the leading dimension.
+ * e.g. if argument spectrum S has dimensions (i, j, k), the result
+ * spectrum S' has one fewer dimension:
  *
- *  S'(j, k) = Sum_i(S(i, j, k))
+ *  @f$ S'(j, k) = \Sigma_i(S(i, j, k)) @f$
  *
- * @returns integration of 'self'
  */
 HosSpectrum*
 spectrum_integrate (HosSpectrum* self)

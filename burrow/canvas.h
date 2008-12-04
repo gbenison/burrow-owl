@@ -19,6 +19,18 @@
 
 /* The public C api for the graphical part of burrow-owl. */
 
+/**
+ * @defgroup canvas         Graphical components
+ *
+ * - @subpage  HosCanvas
+ * - @subpage  HosCanvasItem
+ *   - @subpage  HosContourPlot
+ *   - @subpage  HosOrnament
+ *     - @subpage  HosMarker
+ *     - @subpage  HosMarkerText
+ *     - @subpage  HosCursor
+ */
+
 #include <burrow/canvas/canvas.h>
 #include <burrow/canvas/canvasitem.h>
 #include <burrow/canvas/contourplot.h>

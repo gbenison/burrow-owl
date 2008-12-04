@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,38 @@
 #include <assert.h>
 #include "canvasitem.h"
 
+/**
+ * @defgroup HosCanvasItem
+ * @brief    Visible objects to place on a HosCanvas
+ *
+ * Parent Class:
+ * - GObject
+ *
+ * Subclasses:
+ * - ::HosOrnament
+ * - ::HosContourPlot
+ * - ::HosGrid
+ *
+ * A ::HosCanvas displays a collection of HosCanvasItem objects, each
+ * of which has some visual appearance.  Examples include contour plots,
+ * cursors, and markers.
+ *
+ * @{
+ */
+
+/**
+ * @brief   Properties
+ */
 enum {
   PROP_0,
-  PROP_CANVAS
+  PROP_CANVAS       /**< The HosCanvas on which this HosCanvasItem appears */
 };
 
+/**
+ * @brief   Signals
+ */
 enum {
-  ITEM_CONFIGURE,
+  ITEM_CONFIGURE,   /**< HosCanvasItem has been changed and needs to be redrawn */
   LAST_SIGNAL
 };
 
@@ -117,22 +142,12 @@ static void canvas_item_get_property (GObject         *object,
     }
 }
 
-
-void
-canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event)
-{
-  HosCanvasItemClass *class = HOS_CANVAS_ITEM_GET_CLASS(self);
-  if (class->expose) class->expose(self, event);
-}
-
-void
-canvas_item_configure(HosCanvasItem *self)
-{
-  g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
-
-  g_signal_emit(self, canvas_item_signals[ITEM_CONFIGURE], 0);
-}
-
+/**
+ * @brief   Re-parent a HosCanvasItem
+ *
+ * @param   self   The HosCanvasItem to re-parent
+ * @param   canvas The HosCanvas on which 'self' will appear
+ */
 void
 canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
 {
@@ -153,5 +168,22 @@ canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
 	  g_object_notify (G_OBJECT (self), "canvas");
 	}
     }
+}
+
+/** @} */
+
+void
+canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event)
+{
+  HosCanvasItemClass *class = HOS_CANVAS_ITEM_GET_CLASS(self);
+  if (class->expose) class->expose(self, event);
+}
+
+void
+canvas_item_configure(HosCanvasItem *self)
+{
+  g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
+
+  g_signal_emit(self, canvas_item_signals[ITEM_CONFIGURE], 0);
 }
 

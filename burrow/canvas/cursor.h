@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005 Greg Benison
+ *  Copyright (C) 2005, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,11 +33,19 @@ G_BEGIN_DECLS
 #define HOS_IS_CURSOR(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HOS_TYPE_CURSOR))
 #define HOS_IS_CURSOR_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_CURSOR))
 #define HOS_CURSOR_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CURSOR, HosCursorClass))
-					
+
+/**
+ * @ingroup HosCursor
+ * @brief   horizontal or vertical line ornaments
+ */					
 typedef struct _HosCursor       HosCursor;
 typedef struct _HosCursorClass  HosCursorClass;
 
-enum {
+/**
+ * @brief    HosCursor orientation
+ * @ingroup  HosCursor
+ */
+enum cursor_orientation {
   HORIZONTAL,
   VERTICAL
 };

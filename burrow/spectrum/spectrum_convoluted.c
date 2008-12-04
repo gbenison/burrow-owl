@@ -89,11 +89,22 @@ spectrum_convoluted_finalize(GObject *object)
 {
 }
 
-/*
- * Returns: the convolution of spectrum A and spectrum B.
+/**
+ * @brief   Convolute two spectra to form a higher-order spectrum
+ * @ingroup HosSpectrum
  *
- * Definition:  let C <- spectrum_convolute(A, B);
- *   then  C(a', b', a, b) = A(a', b') * B(a, b)
+ * The resulting spectrum is formed by multiplying the intensities of
+ * the two argument spectra, in all possible ways.
+ * The number of dimensions in the resulting spectrum is equal to
+ * the sum of the number of dimensions in the arguments.
+ * For example, if C = spectrum_convolute(A, B), then:
+ *
+ * @f$ C(i', j', i, j) = A(i', j') * B(i, j) @f$
+ *
+ * @param  A  First HosSpectrum operand
+ * @param  B  Second HosSpectrum operand
+ *
+ * @returns the convolution of 'A' and 'B'
  *
  */
 HosSpectrum*
