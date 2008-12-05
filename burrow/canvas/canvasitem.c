@@ -39,18 +39,12 @@
  * @{
  */
 
-/**
- * @brief   Properties
- */
-enum {
+enum canvas_item_properties {
   PROP_0,
   PROP_CANVAS       /**< The HosCanvas on which this HosCanvasItem appears */
 };
 
-/**
- * @brief   Signals
- */
-enum {
+enum canvas_item_signals {
   ITEM_CONFIGURE,   /**< HosCanvasItem has been changed and needs to be redrawn */
   LAST_SIGNAL
 };
@@ -64,7 +58,7 @@ static void canvas_item_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static guint canvas_item_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_ABSTRACT_TYPE (HosCanvasItem, hos_canvas_item, G_TYPE_OBJECT)
 
@@ -77,7 +71,7 @@ hos_canvas_item_class_init(HosCanvasItemClass *klass)
   gobject_class->set_property = canvas_item_set_property;
   gobject_class->get_property = canvas_item_get_property;
 
-  canvas_item_signals[ITEM_CONFIGURE] =
+  signals[ITEM_CONFIGURE] =
     g_signal_new ("item-configure",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -184,6 +178,6 @@ canvas_item_configure(HosCanvasItem *self)
 {
   g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
 
-  g_signal_emit(self, canvas_item_signals[ITEM_CONFIGURE], 0);
+  g_signal_emit(self, signals[ITEM_CONFIGURE], 0);
 }
 

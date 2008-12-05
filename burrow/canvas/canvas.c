@@ -47,19 +47,13 @@
  * @{
  */
 
-/**
- * @brief Signals
- */
-enum {
+enum canvas_signals {
   CLICKED,          /**< Mouse has been clicked over the canvas widget. */
   WORLD_CONFIGURE,  /**< The world coordinates of the canvas have changed. */
   LAST_SIGNAL
 };
 
-/**
- * @brief  Properties
- */
-enum {
+enum canvas_properties {
   PROP_0,
   PROP_X1,     /**< leftmost world coordinate     */
   PROP_Y1,     /**< bottom-most world coordinate  */
@@ -67,7 +61,7 @@ enum {
   PROP_YN      /**< topmost world coordinate      */
 };
 
-static guint canvas_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void     hos_canvas_set_property (GObject         *object,
 					 guint            prop_id,
@@ -113,7 +107,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
   g_object_class_install_property(gobject_class, PROP_XN, STD_P_SPEC("xn", "X right limit"));
   g_object_class_install_property(gobject_class, PROP_YN, STD_P_SPEC("yn", "Y upper limit"));
 
-  canvas_signals[CLICKED] =
+  signals[CLICKED] =
     g_signal_new("clicked",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -124,7 +118,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
 
-  canvas_signals[WORLD_CONFIGURE] =
+  signals[WORLD_CONFIGURE] =
     g_signal_new("world-configure",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -182,7 +176,7 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
   canvas_view2world(canvas, &x, &y);
 
   g_signal_emit(canvas,
-		canvas_signals[CLICKED],
+		signals[CLICKED],
 		0, x, y);
 
   if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event)
@@ -391,7 +385,7 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->y1 = y1;
   canvas->xn = xn;
   canvas->yn = yn;
-  g_signal_emit(canvas, canvas_signals[WORLD_CONFIGURE], 0);
+  g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
   gtk_widget_queue_draw(GTK_WIDGET(canvas));
 }
 

@@ -74,8 +74,24 @@ struct _HosSpectrumPrivate
 
 All NMR spectra in burrow-owl are represented by 'HosSpectrum' objects.
 There are many functions for manipulating HosSpectrum objects, for example:
-loading them from disk, extracting regions, projecting slices, and combining
+loading them from files, extracting regions, projecting slices, and combining
 them into higher-order spectra.
+
+Two important characteristics of HosSpectrum objects are
+<b>referential transparency</b> and <b>closure</b>.
+This means that the functions operating on spectrum objects
+do not have side effects (they do not modify their arguments)
+and that a HosSpectrum object returned by any function can
+be used as an argument for any other function.
+For example, a function expecting a two-dimensional spectrum
+as an argument could accept any of the following: a 2D spectrum
+read from a file, a 2D spectrum resulting from calling
+spectrum_convolute() on two 1D spectra, or a 2D spectrum
+resulting from calling spectrum_project() on a 3D spectrum.
+Spectra used as arguments are not modified- for example,
+let S1 be a spectrum and let S2 = spectrum_transpose(S1, 1).
+S1 is unchanged by this operation and S2 is totally
+independent of S1.
 
 @{
 
@@ -86,23 +102,17 @@ them into higher-order spectra.
  * describe referential transparency and closure properties
  */
 
-/**
- * @brief   Properties
- */
-enum {
+enum spectrum_properties {
   PROP_0,
   PROP_READY  /**< True if buffer contents are available */
 };
 
-/**
- * @brief   Signals
- */
-enum {
+enum spectrum_signals {
   READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
   LAST_SIGNAL
 };
 
-static guint spectrum_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void hos_spectrum_set_property (GObject         *object,
 				       guint            prop_id,
@@ -449,7 +459,7 @@ spectrum_signal_ready(HosSpectrum* self)
 {
 
   if (spectrum_is_ready(self))
-    g_signal_emit(self, spectrum_signals[READY], 0);
+    g_signal_emit(self, signals[READY], 0);
 
 }
 
@@ -553,7 +563,7 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 
   gobject_class->finalize = hos_spectrum_finalize;
 
-  spectrum_signals[READY] =
+  signals[READY] =
     g_signal_new ("ready",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST,

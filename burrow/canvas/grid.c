@@ -24,15 +24,13 @@
  * @defgroup HosGrid
  * @brief    A regularly-spaced grid to place over a HosCanvas
  *
- * Parent class -- ::HosCanvasItem
+ * Parent class
+ * - ::HosCanvasItem
  *
  * @{
  */
 
-/**
- * @brief Properties
- */
-enum {
+enum grid_properties {
   PROP_0,
   PROP_ANCHOR_HORIZONTAL,
   PROP_ANCHOR_VERTICAL,

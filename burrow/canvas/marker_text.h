@@ -33,6 +33,10 @@ G_BEGIN_DECLS
 #define HOS_IS_MARKER_TEXT_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_MARKER_TEXT))
 #define HOS_MARKER_TEXT_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_MARKER_TEXT, HosMarkerClass))
 					
+/**
+ * @ingroup HosMarkerText
+ * @brief   A marker with a text label
+ */
 typedef struct _HosMarkerText       HosMarkerText;
 typedef struct _HosMarkerTextClass  HosMarkerTextClass;
 

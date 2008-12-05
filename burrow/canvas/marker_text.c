@@ -35,13 +35,13 @@
  * A type of HosMarker ornament which displays a string of text, for example a peak assignment
  * label.
  *
+ * Parent Class
+ * - ::HosMarker
+ *
  * @{
  */
 
-/**
- * @brief Properties
- */
-enum {
+enum marker_text_properties {
   PROP_0,
   PROP_LABEL /**< The text string to display */
 };

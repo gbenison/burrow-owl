@@ -47,6 +47,9 @@
  * Parent Class
  * - ::HosOrnament
  *
+ * Subclasses
+ * - ::HosMarkerText
+ *
  * @{
  */
 

@@ -23,11 +23,32 @@
  * This manual documents the public C API of burrow-owl; for an overall description, see
  * <a href="http://burrow-owl.sourceforge.net">burrow-owl.sourceforge.net</a>
  *
+ * burrow-owl builds its own @subpage objects
+ * on top of the object-oriented framework of GTK+ and its underlying
+ * GObject system.
+ *
  * The core of the API is the @ref HosSpectrum object, which represents an NMR spectrum
  * (data and metadata).
  *
  * The interactive graphical features of burrow-owl revolve around the
  * @ref HosCanvas widget, a custom GTK+ widget for displaying spectra and annotations.
+ *
+ */
+
+/**
+ * @page objects  Object Hierarchy
+ *
+ * - GObject
+ *   - ::HosSpectrum
+ *   - ::HosCanvasItem
+ *     - ::HosContourPlot
+ *     - ::HosGrid
+ *     - ::HosOrnament
+ *       - ::HosMarker
+ *         - ::HosMarkerText
+ *       - ::HosCursor
+ * - GtkDrawingArea
+ *   - ::HosCanvas
  */
 
 /*
