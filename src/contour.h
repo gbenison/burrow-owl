@@ -28,6 +28,7 @@
 #define _HAVE_CONTOUR_H
 
 #include <glib-object.h>
+#include <gdk/gdk.h>
 
 G_BEGIN_DECLS
 
@@ -66,6 +67,8 @@ struct _HosContour
   gdouble  factor;
   guint    number_of_levels;
   gboolean draw_negative;
+
+  GdkColor *pos_min;
 
   guint16 red_min_pos;
   guint16 blue_min_pos;

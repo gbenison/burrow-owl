@@ -1,6 +1,6 @@
 
 EXTRA_DIST=
-AM_CPPFLAGS=@GLIB_CFLAGS@ @GTHREAD_CFLAGS@
+AM_CPPFLAGS=@GLIB_CFLAGS@ @GDK_CFLAGS@ @GTHREAD_CFLAGS@
 SUBDIRS=finite-state-machine . gw canvas
 CLEANFILES=
 
@@ -71,7 +71,7 @@ endian.h \
 version.c \
 version.h
 
-libburrow_la_LDFLAGS=@GLIB_LIBS@ @GTHREAD_LIBS@ -lm
+libburrow_la_LDFLAGS=@GLIB_LIBS@ @GDK_LIBS@ @GTHREAD_LIBS@ -lm
 libburrow_la_LIBADD=finite-state-machine/contour-fsm.lo
 
 marshal.h: marshal.cmd

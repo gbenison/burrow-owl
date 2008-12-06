@@ -16,6 +16,7 @@ AC_PROG_LIBTOOL
 AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 
 PKG_CHECK_MODULES(GLIB,      gobject-2.0)
+PKG_CHECK_MODULES(GDK,       gdk-2.0)
 PKG_CHECK_MODULES(GTK,       gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD,   gthread-2.0)
 PKG_CHECK_MODULES(STARPARSE, starparse)
