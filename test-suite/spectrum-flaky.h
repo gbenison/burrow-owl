@@ -2,7 +2,7 @@
 #ifndef HAVE_FLAKY_H
 #define HAVE_FLAKY_H
 
-#include "burrow.h"
+#include "burrow/spectrum.h"
 
 G_BEGIN_DECLS
 

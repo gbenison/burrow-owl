@@ -14,8 +14,8 @@ libburrowtest_la_SOURCES=spectrum-ramp.c      spectrum-ramp.h \
                          spectrum-flaky.c     spectrum-flaky.h \
                          segment-sim.c        segment-sim.h
 
-AM_CPPFLAGS=-I@top_srcdir@/src @GTK_CFLAGS@ @GTHREAD_CFLAGS@
-AM_LDFLAGS=-L../src -lburrow -lburrowtest
+AM_CPPFLAGS=-I@top_srcdir@ -I@top_srcdir@/burrow/spectrum @GTK_CFLAGS@ @GTHREAD_CFLAGS@
+AM_LDFLAGS=-L../burrow/spectrum -lburrow -lburrowtest
 
 EXTRA_DIST =  data
 DISTCLEANFILES = check-guile.log
