@@ -192,14 +192,7 @@ contour_set_color_positive(HosContour* self, guint16 red_min,   guint16 red_max,
 			                     guint16 green_min, guint16 green_max,
                                              guint16 blue_min,  guint16 blue_max)
 {
-  self->red_min_pos    =  red_min;
-  self->red_max_pos    =  red_max;
-  self->blue_min_pos   =  blue_min;
-  self->blue_max_pos   =  blue_max;
-  self->green_min_pos  =  green_min;
-  self->green_max_pos  =  green_max;
-
-  contour_configure(self);
+  /* FIXME deprecated */
 }
 
 void
@@ -207,14 +200,7 @@ contour_set_color_negative(HosContour* self, guint16 red_min,   guint16 red_max,
                                              guint16 green_min, guint16 green_max,
                                              guint16 blue_min,  guint16 blue_max)
 {
-  self->red_min_neg    =  red_min;
-  self->red_max_neg    =  red_max;
-  self->blue_min_neg   =  blue_min;
-  self->blue_max_neg   =  blue_max;
-  self->green_min_neg  =  green_min;
-  self->green_max_neg  =  green_max;
-
-  contour_configure(self);
+  /* FIXME deprecated */
 }
 
 /*

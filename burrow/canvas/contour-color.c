@@ -21,7 +21,10 @@
 
 enum contour_color_properties {
   PROP_0,
-  PROP_COLOR_NEGATIVE_LOW  /**< GdkColor Color of the lowest negative contour */
+  PROP_COLOR_NEGATIVE_LOW,   /**< GdkColor Color of the lowest negative contour  */
+  PROP_COLOR_NEGATIVE_HIGH,  /**< GdkColor Color of the highest negative contour */
+  PROP_COLOR_POSITIVE_LOW,   /**< GdkColor Color of the lowest positive contour  */
+  PROP_COLOR_POSITIVE_HIGH   /**< GdkColor Color of the highest positive contour */
 };
 
 #define CONTOUR_COLOR_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CONTOUR_COLOR, HosContourColorPrivate))
@@ -69,6 +72,34 @@ hos_contour_color_class_init (HosContourColorClass *klass)
 			 GDK_TYPE_COLOR,
 			 G_PARAM_READWRITE));
 
+  g_object_class_install_property
+    (gobject_class,
+     PROP_COLOR_NEGATIVE_HIGH,
+     g_param_spec_boxed ("color-negative-high",
+			 "color-negative-high",
+			 "Color of the highest negative contour",
+			 GDK_TYPE_COLOR,
+			 G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_COLOR_POSITIVE_LOW,
+     g_param_spec_boxed ("color-positive-low",
+			 "color-positive-low",
+			 "Color of the lowest positive contour",
+			 GDK_TYPE_COLOR,
+			 G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_COLOR_POSITIVE_HIGH,
+     g_param_spec_boxed ("color-positive-high",
+			 "color-positive-high",
+			 "Color of the highest positive contour",
+			 GDK_TYPE_COLOR,
+			 G_PARAM_READWRITE));
+
+
   g_type_class_add_private(gobject_class, sizeof(HosContourColorPrivate));
 
 }
@@ -107,6 +138,15 @@ hos_contour_color_get_property (GObject      *object,
     case PROP_COLOR_NEGATIVE_LOW:
       g_value_set_boxed(value, HOS_CONTOUR_COLOR(object)->color_negative_low);
       break;
+    case PROP_COLOR_NEGATIVE_HIGH:
+      g_value_set_boxed(value, HOS_CONTOUR_COLOR(object)->color_negative_high);
+      break;
+    case PROP_COLOR_POSITIVE_LOW:
+      g_value_set_boxed(value, HOS_CONTOUR_COLOR(object)->color_positive_low);
+      break;
+    case PROP_COLOR_POSITIVE_HIGH:
+      g_value_set_boxed(value, HOS_CONTOUR_COLOR(object)->color_positive_high);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -123,6 +163,18 @@ hos_contour_color_set_property (GObject      *object,
     {
     case PROP_COLOR_NEGATIVE_LOW:
       HOS_CONTOUR_COLOR(object)->color_negative_low = gdk_color_copy(g_value_get_boxed(value));
+      contour_configure(HOS_CONTOUR(object));
+      break;
+    case PROP_COLOR_NEGATIVE_HIGH:
+      HOS_CONTOUR_COLOR(object)->color_negative_high = gdk_color_copy(g_value_get_boxed(value));
+      contour_configure(HOS_CONTOUR(object));
+      break;
+    case PROP_COLOR_POSITIVE_LOW:
+      HOS_CONTOUR_COLOR(object)->color_positive_low = gdk_color_copy(g_value_get_boxed(value));
+      contour_configure(HOS_CONTOUR(object));
+      break;
+    case PROP_COLOR_POSITIVE_HIGH:
+      HOS_CONTOUR_COLOR(object)->color_positive_high = gdk_color_copy(g_value_get_boxed(value));
       contour_configure(HOS_CONTOUR(object));
       break;
     default:
@@ -149,11 +201,11 @@ contour_color_configuration_changed (HosContour *self)
   /* interpolate negative colors */
   if (self->draw_negative)
     {
-      guint16 delta_red   = (contour_color->color_negative_high->red
+      gdouble delta_red   = (1.0 * contour_color->color_negative_high->red
 			     - contour_color->color_negative_low->red)   / n_lvl;
-      guint16 delta_blue  = (contour_color->color_negative_high->blue
+      gdouble delta_blue  = (1.0 * contour_color->color_negative_high->blue
 			     - contour_color->color_negative_low->blue)  / n_lvl;
-      guint16 delta_green = (contour_color->color_negative_high->green
+      gdouble delta_green = (1.0 * contour_color->color_negative_high->green
 			     - contour_color->color_negative_low->green) / n_lvl;
 
       index = n_lvl - 1;
@@ -175,11 +227,11 @@ contour_color_configuration_changed (HosContour *self)
   
   /* interpolate positive colors */
   {
-      guint16 delta_red   = (contour_color->color_positive_high->red
+      gdouble delta_red   = (1.0 * contour_color->color_positive_high->red
 			     - contour_color->color_positive_low->red)   / n_lvl;
-      guint16 delta_blue  = (contour_color->color_positive_high->blue
+      gdouble delta_blue  = (1.0 * contour_color->color_positive_high->blue
 			     - contour_color->color_positive_low->blue)  / n_lvl;
-      guint16 delta_green = (contour_color->color_positive_high->green
+      gdouble delta_green = (1.0 * contour_color->color_positive_high->green
 			     - contour_color->color_positive_low->green) / n_lvl;
 
       index = self->draw_negative ? n_lvl : 0;

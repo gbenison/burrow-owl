@@ -57,29 +57,9 @@ struct _HosContour
   guint    number_of_levels;
   gboolean draw_negative;
 
-  guint16 red_min_pos;
-  guint16 blue_min_pos;
-  guint16 green_min_pos;
-
-  guint16 red_max_pos;
-  guint16 blue_max_pos;
-  guint16 green_max_pos;
-
-  guint16 red_min_neg;
-  guint16 blue_min_neg;
-  guint16 green_min_neg;
-
-  guint16 red_max_neg;
-  guint16 blue_max_neg;
-  guint16 green_max_neg;
-
   gdouble *levels;
 
 };
-
-#define CONTOUR_GET_RED(cntr, lvl) (cntr->lines[lvl].red)
-#define CONTOUR_GET_BLUE(cntr, lvl) (cntr->lines[lvl].blue)
-#define CONTOUR_GET_GREEN(cntr, lvl) (cntr->lines[lvl].green)
 
 guint    contour_get_n_contours     (HosContour *contour);
 gdouble* contour_get_levels         (HosContour *contour);

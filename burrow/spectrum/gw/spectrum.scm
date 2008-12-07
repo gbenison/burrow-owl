@@ -68,17 +68,6 @@
   (let ((adj (contour-get-nlvl-adjustment (painter-get-contour painter))))
     (set adj 'value x)))
 
-; ---- Color schemes for gdk painters ----
-(define-public (set-to-purple painter)
-  (contour-set-color-positive (painter-get-contour painter)
-			      5000 65000 0 0 40000 60000))
-
-(define-public (set-to-greenish painter)
-  (contour-set-color-positive (painter-get-contour painter)
-			      0 0 5000 65000 40000 60000))
-(define-public (set-to-reddish painter)
-  (contour-set-color-positive (painter-get-contour painter)
-			      30000 60000 5000 40000 0 0))
 
 ; ----- manipulations of spectra -------
 
