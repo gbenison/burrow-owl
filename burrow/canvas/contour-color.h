@@ -23,6 +23,8 @@
 #include <gdk/gdk.h>
 #include <burrow/spectrum/contour.h>
 
+G_BEGIN_DECLS
+
 #define HOS_TYPE_CONTOUR_COLOR            (hos_contour_color_get_type())
 #define HOS_CONTOUR_COLOR(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), \
 								       HOS_TYPE_CONTOUR_COLOR, HosContourColor))
@@ -56,9 +58,11 @@ struct _HosContourColor
   GdkColor *color_negative_high;
 };
 
-struct _HosContourColorClass
-{
-};
+GType hos_contour_color_get_type(void);
+
+GdkColor* contour_get_color(HosContour *self, gint lvl);
+
+G_END_DECLS
 
 #endif /* not _HAVE_CONTOUR_COLOR_H */
 

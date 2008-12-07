@@ -22,6 +22,7 @@
 #include <burrow/canvas/canvas.h>
 #include <burrow/canvas/canvasitem.h>
 #include <burrow/canvas/contourplot.h>
+#include <burrow/canvas/contour-color.h>
 /* #include <burrow/canvas/box.h> */
 #include <burrow/canvas/cursor.h>
 #include <burrow/canvas/grid.h>

@@ -108,15 +108,6 @@ hos_contour_class_init(HosContourClass *klass)
 
   g_object_class_install_property
     (gobject_class,
-     PROP_COLOR_POS_MIN,
-     g_param_spec_boxed ("color-positive-min",
-			 "positive-minimum color",
-			 "Color of the lowest positive contours",
-			 GDK_TYPE_COLOR,
-			 G_PARAM_READWRITE));
-
-  g_object_class_install_property
-    (gobject_class,
      PROP_DRAW_NEGATIVE,
      g_param_spec_boolean ("draw-negative",
 			   "draw-negative",
@@ -167,9 +158,6 @@ hos_contour_set_property (GObject         *object,
       HOS_CONTOUR(object)->draw_negative = g_value_get_boolean(value);
       sync_params(HOS_CONTOUR(object));
       break;
-    case PROP_COLOR_POS_MIN:
-      HOS_CONTOUR(object)->pos_min = gdk_color_copy(g_value_get_boxed(value));
-      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -195,9 +183,6 @@ hos_contour_get_property (GObject         *object,
       break;
     case PROP_DRAW_NEGATIVE:
       g_value_set_boolean(value, HOS_CONTOUR(object)->draw_negative);
-      break;
-    case PROP_COLOR_POS_MIN:
-      g_value_set_boxed(value, HOS_CONTOUR(object)->pos_min);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -351,5 +336,17 @@ contour_get_n_contours(HosContour *contour)
   return result;
 }
 
+/**
+ * @brief signal contour parameter re-configuration
+ *
+ * Signal that the configuration of 'self' has changed,
+ * indicating that any visualizations of it need to be redrawn
+ */
+void
+contour_configure(HosContour* self)
+{
+  g_return_if_fail(HOS_IS_CONTOUR(self));
+  g_signal_emit(self, contour_signals[CONFIGURATION_CHANGED], 0);
+}
 
 

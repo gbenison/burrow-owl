@@ -12,6 +12,7 @@ SUBDIRS=. gw
 canvas_c_built_sources= marshal.c
 
 canvas_c_sources=        \
+contour-color.c          \
 contourplot.c 		 \
 boomerang.c 		 \
 canvas.c  		 \
@@ -37,6 +38,7 @@ painter_cairo.h          \
 $(canvas_private_built_headers)
 
 canvas_public_headers=   \
+contour-color.h          \
 canvas.h		 \
 canvasitem.h		 \
 contourplot.h		 \

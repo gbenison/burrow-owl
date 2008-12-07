@@ -162,12 +162,9 @@ cairo_trace_line(HosPainterCairo *self, struct hos_point* points, const gint n_p
    */
   /* assert(lvl < painter->n_lvl); */
 
-  GdkColor color;
-  color.red = CONTOUR_GET_RED(painter->contour, lvl);
-  color.blue = CONTOUR_GET_BLUE(painter->contour, lvl);
-  color.green = CONTOUR_GET_GREEN(painter->contour, lvl);
+  GdkColor *color = contour_get_color(painter->contour, lvl);
 
-  gdk_cairo_set_source_color(self->context, &color);
+  gdk_cairo_set_source_color(self->context, color);
   cairo_set_line_width(self->context, 1.0);
   cairo_new_path(self->context);
 

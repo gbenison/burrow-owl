@@ -109,19 +109,15 @@ gdk_trace_line(HosPainterGdk *self, struct hos_point* points, const gint n_point
 
   /* set color */
   {
-    GdkColor color;
-    color.red = CONTOUR_GET_RED(painter->contour, lvl);
-    color.blue = CONTOUR_GET_BLUE(painter->contour, lvl);
-    color.green = CONTOUR_GET_GREEN(painter->contour, lvl);
+    GdkColor *color = contour_get_color(painter->contour, lvl);
 
-    /* FIXME */
-    gdk_gc_set_rgb_fg_color(self->gc, &color);
+    /* FIXME adjustable linewidth, etc. */
+    gdk_gc_set_rgb_fg_color(self->gc, color);
     gdk_gc_set_line_attributes(self->gc,
 			       1, /* width */
 			       GDK_LINE_SOLID,
 			       GDK_CAP_BUTT,
 			       GDK_JOIN_MITER);
-
 
   }
 

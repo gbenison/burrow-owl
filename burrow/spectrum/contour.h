@@ -28,7 +28,6 @@
 #define _HAVE_CONTOUR_H
 
 #include <glib-object.h>
-#include <gdk/gdk.h>
 
 G_BEGIN_DECLS
 
@@ -68,8 +67,6 @@ struct _HosContour
   guint    number_of_levels;
   gboolean draw_negative;
 
-  GdkColor *pos_min;
-
   guint16 red_min_pos;
   guint16 blue_min_pos;
   guint16 green_min_pos;
@@ -95,21 +92,23 @@ struct _HosContour
 #define CONTOUR_GET_BLUE(cntr, lvl) (cntr->lines[lvl].blue)
 #define CONTOUR_GET_GREEN(cntr, lvl) (cntr->lines[lvl].green)
 
-guint contour_get_n_contours(HosContour *contour);
-gdouble* contour_get_levels(HosContour *contour);
-void contour_set_draw_negative(HosContour *self, gboolean draw_negative);
+guint    contour_get_n_contours     (HosContour *contour);
+gdouble* contour_get_levels         (HosContour *contour);
+void     contour_set_draw_negative  (HosContour *self, gboolean draw_negative);
 
-void contour_set_color_positive(HosContour* self,
-				guint16 red_min,   guint16 red_max,
-				guint16 green_min, guint16 green_max,
-				guint16 blue_min,  guint16 blue_max);
+void     contour_set_color_positive (HosContour* self,
+				     guint16 red_min,   guint16 red_max,
+				     guint16 green_min, guint16 green_max,
+				     guint16 blue_min,  guint16 blue_max);
 
-void contour_set_color_negative(HosContour* self,
-				guint16 red_min,   guint16 red_max,
-				guint16 green_min, guint16 green_max,
-				guint16 blue_min,  guint16 blue_max);
+void     contour_set_color_negative (HosContour* self,
+				     guint16 red_min,   guint16 red_max,
+				     guint16 green_min, guint16 green_max,
+				     guint16 blue_min,  guint16 blue_max);
 
-GType hos_contour_get_type(void);
+void     contour_configure          (HosContour* self);
+
+GType    hos_contour_get_type       (void);
 
 G_END_DECLS
 
