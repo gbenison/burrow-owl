@@ -24,6 +24,8 @@ enum contour_color_properties {
   PROP_COLOR_NEGATIVE_LOW  /**< GdkColor Color of the lowest negative contour */
 };
 
+static void    contour_color_configuration_changed (HosContour *self);
+
 static void    hos_contour_color_set_property (GObject      *object,
 					       guint         prop_id,
 					       const GValue *value,
@@ -40,10 +42,15 @@ G_DEFINE_TYPE (HosContourColor, hos_contour_color, HOS_TYPE_CONTOUR)
 static void
 hos_contour_color_class_init (HosContourColorClass *klass)
 {
-  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+  GObjectClass     *gobject_class = G_OBJECT_CLASS (klass);
+  HosContourClass  *contour_class = HOS_CONTOUR_CLASS (klass);
+
+  hos_contour_color_parent_class = g_type_class_peek_parent (klass);
 
   gobject_class->get_property = hos_contour_color_get_property;
   gobject_class->set_property = hos_contour_color_set_property;
+
+  contour_class->configuration_changed = contour_color_configuration_changed;
 
   g_object_class_install_property
     (gobject_class,
@@ -102,6 +109,67 @@ hos_contour_color_set_property (GObject      *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
+}
+
+static void
+contour_color_configuration_changed (HosContour *self)
+{
+  HOS_CONTOUR_CLASS(hos_contour_color_parent_class)->configuration_changed(self);
+
+  HosContourColor *contour_color = HOS_CONTOUR_COLOR(self);
+  /* FIXME sync colors 
+
+
+  if (self->draw_negative)
+    {
+      guint16 delta_red = (self->red_max_neg - self->red_min_neg) / n_lvl;
+      guint16 delta_blue = (self->blue_max_neg - self->blue_min_neg) / n_lvl;
+      guint16 delta_green = (self->green_max_neg - self->green_min_neg) / n_lvl;
+
+      index = n_lvl - 1;
+
+      self->levels[index] = -contour_get_threshold(self);
+      self->lines[index].red = self->red_min_neg;
+      self->lines[index].blue = self->blue_min_neg;
+      self->lines[index].green = self->green_min_neg;
+
+      for (; index > 0; --index)
+	{
+	  self->levels[index - 1] = self->levels[index] * self->factor;
+	  self->lines[index - 1].red = self->lines[index].red + delta_red;
+	  self->lines[index - 1].blue = self->lines[index].blue + delta_blue;
+	  self->lines[index - 1].green = self->lines[index].green + delta_green;
+	}
+    }
+
+
+  {
+
+    guint16 delta_red = (self->red_max_pos - self->red_min_pos) / n_lvl;
+    guint16 delta_blue = (self->blue_max_pos - self->blue_min_pos) / n_lvl;
+    guint16 delta_green = (self->green_max_pos - self->green_min_pos) / n_lvl;
+    
+    index = self->draw_negative ? n_lvl : 0;
+
+    self->levels[index] = contour_get_threshold(self);
+    self->lines[index].red = self->red_min_pos;
+    self->lines[index].blue = self->blue_min_pos;
+    self->lines[index].green = self->green_min_pos;
+
+    for (; index < n_contours - 1; index++)
+      {
+	self->levels[index + 1] = self->levels[index] * self->factor;
+	self->lines[index + 1].red = self->lines[index].red + delta_red;
+	self->lines[index + 1].blue = self->lines[index].blue + delta_blue;
+	self->lines[index + 1].green = self->lines[index].green + delta_green;
+      }
+  }
+
+     guint i;
+     for (i = 0; i < nlvl; ++i)
+{
+}
+   */
 }
 
 static GdkColor default_contour_color = {0, 0xaaaa, 0x9999, 0xaaaa};
