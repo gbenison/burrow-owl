@@ -48,16 +48,6 @@ struct _HosContourClass
   void(*configuration_changed)(HosContour *self);
 };
 
-/* FIXME -- add width, dash pattern, what else ?? */
-struct contour_linestyle_struct {
-
-  /* color */
-  guint16 red;
-  guint16 blue;
-  guint16 green;
-
-};
-
 struct _HosContour
 {
   GObject parent_instance;
@@ -84,7 +74,6 @@ struct _HosContour
   guint16 green_max_neg;
 
   gdouble *levels;
-  struct contour_linestyle_struct *lines;
 
 };
 

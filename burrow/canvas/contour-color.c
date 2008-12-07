@@ -24,6 +24,14 @@ enum contour_color_properties {
   PROP_COLOR_NEGATIVE_LOW  /**< GdkColor Color of the lowest negative contour */
 };
 
+#define CONTOUR_COLOR_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CONTOUR_COLOR, HosContourColorPrivate))
+#define CONTOUR_COLOR_PRIVATE(o, field) ((CONTOUR_COLOR_GET_PRIVATE(o))->field)
+typedef struct _HosContourColorPrivate HosContourColorPrivate;
+struct _HosContourColorPrivate
+{
+  GArray *colors;
+};
+
 static void    contour_color_configuration_changed (HosContour *self);
 
 static void    hos_contour_color_set_property (GObject      *object,
@@ -61,19 +69,31 @@ hos_contour_color_class_init (HosContourColorClass *klass)
 			 GDK_TYPE_COLOR,
 			 G_PARAM_READWRITE));
 
+  g_type_class_add_private(gobject_class, sizeof(HosContourColorPrivate));
 
 }
 
 static void
 contour_color_set_default_colors(HosContourColor *self)
 {
+  static GdkColor default_positive_low  = {0, 0x800,  0x0, 0x6000};
+  static GdkColor default_positive_high = {0, 0x8000, 0x0, 0x8000};
+
+  static GdkColor default_negative_low  = {0, 0x4000, 0x800,  0x0};
+  static GdkColor default_negative_high = {0, 0x8000, 0x6000, 0x0};
+
+  self->color_negative_low  = gdk_color_copy(&default_negative_low);
+  self->color_negative_high = gdk_color_copy(&default_negative_high);
+
+  self->color_positive_low  = gdk_color_copy(&default_positive_low);
+  self->color_positive_high = gdk_color_copy(&default_positive_high);
 }
 
 static void
 hos_contour_color_init (HosContourColor *self)
 {
-  /* FIXME set default colors */
   contour_color_set_default_colors(self);
+  CONTOUR_COLOR_PRIVATE(self, colors) = g_array_new(TRUE, TRUE, sizeof(GdkColor));
 }
 
 static void
@@ -117,59 +137,64 @@ contour_color_configuration_changed (HosContour *self)
   HOS_CONTOUR_CLASS(hos_contour_color_parent_class)->configuration_changed(self);
 
   HosContourColor *contour_color = HOS_CONTOUR_COLOR(self);
-  /* FIXME sync colors 
+  GArray *colors = CONTOUR_COLOR_PRIVATE(self, colors);
 
+  guint n_lvl = self->number_of_levels;
+  guint n_contours = self->draw_negative ? n_lvl * 2 : n_lvl;
+  guint index;
 
+  /* ensure color array is allocated */
+  g_array_set_size(colors, self->draw_negative ? n_lvl * 2 : n_lvl);
+
+  /* interpolate negative colors */
   if (self->draw_negative)
     {
-      guint16 delta_red = (self->red_max_neg - self->red_min_neg) / n_lvl;
-      guint16 delta_blue = (self->blue_max_neg - self->blue_min_neg) / n_lvl;
-      guint16 delta_green = (self->green_max_neg - self->green_min_neg) / n_lvl;
+      guint16 delta_red   = (contour_color->color_negative_high->red
+			     - contour_color->color_negative_low->red)   / n_lvl;
+      guint16 delta_blue  = (contour_color->color_negative_high->blue
+			     - contour_color->color_negative_low->blue)  / n_lvl;
+      guint16 delta_green = (contour_color->color_negative_high->green
+			     - contour_color->color_negative_low->green) / n_lvl;
 
       index = n_lvl - 1;
 
-      self->levels[index] = -contour_get_threshold(self);
-      self->lines[index].red = self->red_min_neg;
-      self->lines[index].blue = self->blue_min_neg;
-      self->lines[index].green = self->green_min_neg;
+#define COLOR_SLOT(idx) g_array_index(colors, GdkColor, idx)
+
+      COLOR_SLOT(index).red   = contour_color->color_negative_low->red;
+      COLOR_SLOT(index).blue  = contour_color->color_negative_low->blue;
+      COLOR_SLOT(index).green = contour_color->color_negative_low->green;
 
       for (; index > 0; --index)
 	{
-	  self->levels[index - 1] = self->levels[index] * self->factor;
-	  self->lines[index - 1].red = self->lines[index].red + delta_red;
-	  self->lines[index - 1].blue = self->lines[index].blue + delta_blue;
-	  self->lines[index - 1].green = self->lines[index].green + delta_green;
+	  COLOR_SLOT(index - 1).red    = COLOR_SLOT(index).red + delta_red;
+	  COLOR_SLOT(index - 1).blue   = COLOR_SLOT(index).blue + delta_blue;
+	  COLOR_SLOT(index - 1).green  = COLOR_SLOT(index).green + delta_green;
 	}
+
     }
-
-
+  
+  /* interpolate positive colors */
   {
+      guint16 delta_red   = (contour_color->color_positive_high->red
+			     - contour_color->color_positive_low->red)   / n_lvl;
+      guint16 delta_blue  = (contour_color->color_positive_high->blue
+			     - contour_color->color_positive_low->blue)  / n_lvl;
+      guint16 delta_green = (contour_color->color_positive_high->green
+			     - contour_color->color_positive_low->green) / n_lvl;
 
-    guint16 delta_red = (self->red_max_pos - self->red_min_pos) / n_lvl;
-    guint16 delta_blue = (self->blue_max_pos - self->blue_min_pos) / n_lvl;
-    guint16 delta_green = (self->green_max_pos - self->green_min_pos) / n_lvl;
-    
-    index = self->draw_negative ? n_lvl : 0;
+      index = self->draw_negative ? n_lvl : 0;
 
-    self->levels[index] = contour_get_threshold(self);
-    self->lines[index].red = self->red_min_pos;
-    self->lines[index].blue = self->blue_min_pos;
-    self->lines[index].green = self->green_min_pos;
+      COLOR_SLOT(index).red   = contour_color->color_positive_low->red;
+      COLOR_SLOT(index).blue  = contour_color->color_positive_low->blue;
+      COLOR_SLOT(index).green = contour_color->color_positive_low->green;
 
     for (; index < n_contours - 1; index++)
       {
-	self->levels[index + 1] = self->levels[index] * self->factor;
-	self->lines[index + 1].red = self->lines[index].red + delta_red;
-	self->lines[index + 1].blue = self->lines[index].blue + delta_blue;
-	self->lines[index + 1].green = self->lines[index].green + delta_green;
+	COLOR_SLOT(index + 1).red   = COLOR_SLOT(index).red + delta_red;
+	COLOR_SLOT(index + 1).blue  = COLOR_SLOT(index).blue + delta_blue;
+	COLOR_SLOT(index + 1).green = COLOR_SLOT(index).green + delta_green;
       }
   }
-
-     guint i;
-     for (i = 0; i < nlvl; ++i)
-{
-}
-   */
 }
 
 static GdkColor default_contour_color = {0, 0xaaaa, 0x9999, 0xaaaa};
@@ -190,8 +215,14 @@ contour_get_color(HosContour *self, gint lvl)
     return &default_contour_color;
   else
     {
-      /* FIXME */
-      return &default_contour_color;
+      GArray *colors = CONTOUR_COLOR_PRIVATE(self, colors);
+      if (colors == NULL)
+	return &default_contour_color;
+
+      if (colors->len <= lvl)
+	return &default_contour_color;
+
+      return &(g_array_index(colors, GdkColor, lvl));
     }
 }
 

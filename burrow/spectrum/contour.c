@@ -119,7 +119,6 @@ static void
 hos_contour_init(HosContour *self)
 {
   self->levels = NULL;
-  self->lines = NULL;
 
   /* set some reasonable default contouring parameters */
   self->threshold        = 6.0;
@@ -190,13 +189,13 @@ hos_contour_get_property (GObject         *object,
 
 void
 contour_set_color_positive(HosContour* self, guint16 red_min,   guint16 red_max,
-                                              guint16 green_min, guint16 green_max,
-                                              guint16 blue_min,  guint16 blue_max)
+			                     guint16 green_min, guint16 green_max,
+                                             guint16 blue_min,  guint16 blue_max)
 {
   self->red_min_pos    =  red_min;
-  self->red_max_pos 	  =  red_max;
-  self->blue_min_pos	  =  blue_min;
-  self->blue_max_pos	  =  blue_max;
+  self->red_max_pos    =  red_max;
+  self->blue_min_pos   =  blue_min;
+  self->blue_max_pos   =  blue_max;
   self->green_min_pos  =  green_min;
   self->green_max_pos  =  green_max;
 
@@ -205,13 +204,13 @@ contour_set_color_positive(HosContour* self, guint16 red_min,   guint16 red_max,
 
 void
 contour_set_color_negative(HosContour* self, guint16 red_min,   guint16 red_max,
-                                              guint16 green_min, guint16 green_max,
-                                              guint16 blue_min,  guint16 blue_max)
+                                             guint16 green_min, guint16 green_max,
+                                             guint16 blue_min,  guint16 blue_max)
 {
   self->red_min_neg    =  red_min;
-  self->red_max_neg 	  =  red_max;
-  self->blue_min_neg	  =  blue_min;
-  self->blue_max_neg	  =  blue_max;
+  self->red_max_neg    =  red_max;
+  self->blue_min_neg   =  blue_min;
+  self->blue_max_neg   =  blue_max;
   self->green_min_neg  =  green_min;
   self->green_max_neg  =  green_max;
 
@@ -235,8 +234,6 @@ contour_configuration_changed (HosContour *self)
 
   n_contours = self->draw_negative ? n_lvl * 2 : n_lvl;
   self->levels = (gdouble*)g_realloc(self->levels, n_contours * sizeof(gdouble));
-  self->lines = (struct contour_linestyle_struct*)
-    g_realloc(self->lines, n_contours * sizeof(struct contour_linestyle_struct));
 
   if (self->draw_negative)
     {
