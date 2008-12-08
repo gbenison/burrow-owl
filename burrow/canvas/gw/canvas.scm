@@ -90,7 +90,11 @@
       #:step-increment (/ (spectrum-sw-ppm spectrum dim) 2000.0))))
 
 (define-public (contour-set-thres-adjustment contour adj)
-  (connect adj 'value-changed (lambda args (set contour 'thres (get adj 'value)))))
+  (define (sync! . args)
+    (set contour 'thres (get adj 'value))
+    #f)
+  (sync!)
+  (connect adj 'value-changed sync!))
 
 ; ------------- deperecated & disabled commands -----------
 

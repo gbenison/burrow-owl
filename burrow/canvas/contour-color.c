@@ -125,6 +125,7 @@ hos_contour_color_init (HosContourColor *self)
 {
   contour_color_set_default_colors(self);
   CONTOUR_COLOR_PRIVATE(self, colors) = g_array_new(TRUE, TRUE, sizeof(GdkColor));
+  contour_configure(self);
 }
 
 static void

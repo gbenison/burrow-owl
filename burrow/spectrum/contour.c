@@ -125,10 +125,6 @@ hos_contour_init(HosContour *self)
   self->factor           = 1.2;
   self->number_of_levels = 20;
 
-  /* set some default pleasing hues */
-  contour_set_color_positive(self, 5000, 65000,  0, 0,  40000, 60000);
-  contour_set_color_negative(self, 30000, 60000, 5000, 40000, 0, 0);
-
   contour_configure(self);
 }
 
@@ -185,22 +181,6 @@ hos_contour_get_property (GObject         *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
-}
-
-void
-contour_set_color_positive(HosContour* self, guint16 red_min,   guint16 red_max,
-			                     guint16 green_min, guint16 green_max,
-                                             guint16 blue_min,  guint16 blue_max)
-{
-  /* FIXME deprecated */
-}
-
-void
-contour_set_color_negative(HosContour* self, guint16 red_min,   guint16 red_max,
-                                             guint16 green_min, guint16 green_max,
-                                             guint16 blue_min,  guint16 blue_max)
-{
-  /* FIXME deprecated */
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,17 +64,6 @@ struct _HosContour
 guint    contour_get_n_contours     (HosContour *contour);
 gdouble* contour_get_levels         (HosContour *contour);
 void     contour_set_draw_negative  (HosContour *self, gboolean draw_negative);
-
-void     contour_set_color_positive (HosContour* self,
-				     guint16 red_min,   guint16 red_max,
-				     guint16 green_min, guint16 green_max,
-				     guint16 blue_min,  guint16 blue_max);
-
-void     contour_set_color_negative (HosContour* self,
-				     guint16 red_min,   guint16 red_max,
-				     guint16 green_min, guint16 green_max,
-				     guint16 blue_min,  guint16 blue_max);
-
 void     contour_configure          (HosContour* self);
 
 GType    hos_contour_get_type       (void);
