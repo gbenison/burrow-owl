@@ -56,6 +56,7 @@ struct _HosContour
 {
   GObject parent_instance;
 
+  gdouble  line_width;
   gdouble  threshold;
   gdouble  factor;
   guint    number_of_levels;

@@ -47,6 +47,7 @@ enum contour_properties {
   PROP_THRESHOLD,        /**< level of the lowest contour */
   PROP_FACTOR,           /**< multiplier between contour levels */
   PROP_NLVL,             /**< number of contour levels */
+  PROP_LINE_WIDTH,       /**< width of drawn contour lines */
   PROP_DRAW_NEGATIVE     /**< if true: draw positive and negative contours */
 };
 
@@ -98,6 +99,17 @@ hos_contour_class_init(HosContourClass *klass)
 
   g_object_class_install_property
     (gobject_class,
+     PROP_LINE_WIDTH,
+     g_param_spec_double ("line-width",
+			  "Line width",
+			  "width of drawn contour lines",
+			  0,
+			  10.0,
+			  1.0,
+			  G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
      PROP_FACTOR,
      g_param_spec_double ("factor",
 			  "Factor",
@@ -137,6 +149,7 @@ hos_contour_init(HosContour *self)
   self->threshold        = 6.0;
   self->factor           = 1.2;
   self->number_of_levels = 20;
+  self->line_width       = 1.0;
 
   contour_configure(self);
 }
@@ -161,6 +174,10 @@ hos_contour_set_property (GObject         *object,
       HOS_CONTOUR(object)->threshold = g_value_get_double(value);
       contour_configure(HOS_CONTOUR(object));
       break;
+    case PROP_LINE_WIDTH:
+      HOS_CONTOUR(object)->line_width = g_value_get_double(value);
+      contour_configure(HOS_CONTOUR(object));
+      break;
     case PROP_DRAW_NEGATIVE:
       contour_set_draw_negative(HOS_CONTOUR(object), g_value_get_boolean(value));
       break;
@@ -183,6 +200,9 @@ hos_contour_get_property (GObject         *object,
       break;
     case PROP_THRESHOLD:
       g_value_set_double(value, HOS_CONTOUR(object)->threshold);
+      break;
+    case PROP_LINE_WIDTH:
+      g_value_set_double(value, HOS_CONTOUR(object)->line_width);
       break;
     case PROP_FACTOR:
       g_value_set_double(value, HOS_CONTOUR(object)->factor);

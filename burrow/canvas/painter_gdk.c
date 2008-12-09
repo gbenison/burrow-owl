@@ -114,7 +114,7 @@ gdk_trace_line(HosPainterGdk *self, struct hos_point* points, const gint n_point
     /* FIXME adjustable linewidth, etc. */
     gdk_gc_set_rgb_fg_color(self->gc, color);
     gdk_gc_set_line_attributes(self->gc,
-			       1, /* width */
+			       painter->contour->line_width,
 			       GDK_LINE_SOLID,
 			       GDK_CAP_BUTT,
 			       GDK_JOIN_MITER);
