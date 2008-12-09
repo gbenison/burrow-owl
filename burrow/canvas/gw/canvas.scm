@@ -91,7 +91,7 @@
 
 (define-public (contour-set-thres-adjustment contour adj)
   (define (sync! . args)
-    (set contour 'thres (get adj 'value))
+    (set contour 'threshold (get adj 'value))
     #f)
   (sync!)
   (connect adj 'value-changed sync!))

@@ -7,8 +7,7 @@ exec burrow $0 "$@"
 (use-modules (burrow hacks)
 	     (oop goops)
              (gnome gtk)
-	     (spectrum)
-	     (spec-extra))
+	     (burrow spectrum))
 
 (sleep-if-requested)
 (define-usage
@@ -19,15 +18,11 @@ exec burrow $0 "$@"
   (let* ((spec-name (command-line-argument 1))
 	 (spec (spectrum-nih-from-file spec-name))
 	 (painter (painter-bwps-new-file "result.ps"))
-	 (threshold
-	  (let ((spec (spectrum-extract-ppm spec 8.8 9.0)))
-	    (log10
-	     (* 6 (spectrum-stddev spec))))))
+	 (threshold (* 1.1 (spectrum-stddev spec))))
     (painter-set-spectrum painter spec)
-    (set (contour-get-thres-adjustment (painter-get-contour painter))
-	 'value threshold)
+    (set (painter-get-contour painter) 'threshold (log10 threshold))
     (painter-view-ppm painter spec)
-    (painter-redraw painter 0 0 10000000 10000000)))
+    (painter-redraw painter)))
 
 (catch 'usage main usage-message)
 

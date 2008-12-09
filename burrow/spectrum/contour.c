@@ -88,7 +88,7 @@ hos_contour_class_init(HosContourClass *klass)
   g_object_class_install_property
     (gobject_class,
      PROP_THRESHOLD,
-     g_param_spec_double ("thres",
+     g_param_spec_double ("threshold",
 			  "Threshold",
 			  "Level of lowest contour line",
 			  0,
