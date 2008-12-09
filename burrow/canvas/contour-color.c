@@ -19,6 +19,20 @@
 
 #include "contour-color.h"
 
+/**
+ * @defgroup HosContourColor
+ * @brief    contour parameters in full color
+ *
+ * Parent Class
+ * - ::HosContour
+ *
+ * Adds colors to the ::HosContour class.  Colors are specified for the lowest and highest
+ * contour levels; colors are interpolated for the intervening contour levels.  There are
+ * separate color schemes for positive and negative contours.
+ *
+ * @{
+ */
+
 enum contour_color_properties {
   PROP_0,
   PROP_COLOR_NEGATIVE_LOW,   /**< GdkColor Color of the lowest negative contour  */
@@ -279,3 +293,6 @@ contour_get_color(HosContour *self, gint lvl)
     }
 }
 
+/**
+ * @}
+ */
