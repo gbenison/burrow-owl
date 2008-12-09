@@ -13,23 +13,7 @@ CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 BRIEF_MEMBER_DESC      = YES
 REPEAT_BRIEF           = YES
-
-# This tag implements a quasi-intelligent brief description abbreviator 
-# that is used to form the text in various listings. Each string 
-# in this list, if found as the leading text of the brief description, will be 
-# stripped from the text and the result after processing the whole list, is 
-# used as the annotated text. Otherwise, the brief description is used as-is. 
-# If left blank, the following values are used ("$name" is automatically 
-# replaced with the name of the entity): "The $name class" "The $name widget" 
-# "The $name file" "is" "provides" "specifies" "contains" 
-# "represents" "a" "an" "the"
-
 ABBREVIATE_BRIEF       = 
-
-# If the ALWAYS_DETAILED_SEC and REPEAT_BRIEF tags are both set to YES then 
-# Doxygen will generate a detailed section even if there is only a brief 
-# description.
-
 ALWAYS_DETAILED_SEC    = NO
 
 # If the INLINE_INHERITED_MEMB tag is set to YES, doxygen will show all 
