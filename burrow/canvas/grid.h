@@ -31,6 +31,10 @@ G_BEGIN_DECLS
 #define HOS_IS_GRID_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), HOS_TYPE_GRID))
 #define HOS_GRID_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_GRID, HosGridClass))
 
+/**
+ * @brief   A grid (graph paper) to display on a ::HosCanvas
+ * @ingroup HosGrid
+ */
 typedef struct _HosGrid      HosGrid;
 typedef struct _HosGridClass HosGridClass;
 

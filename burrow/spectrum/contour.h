@@ -38,6 +38,10 @@ G_BEGIN_DECLS
 #define HOS_IS_CONTOUR_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_CONTOUR))
 #define HOS_CONTOUR_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CONTOUR, HosContourClass))
 
+/**
+ * @ingroup HosContour
+ * @brief   Parameters for contour plots
+ */
 typedef struct _HosContour       HosContour;
 typedef struct _HosContourClass  HosContourClass;
 

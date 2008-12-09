@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007 Greg Benison
+ *  Copyright (C) 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,32 @@
 #include <assert.h>
 #include "canvasitem.h"
 
-enum {
+/**
+ * @defgroup HosCanvasItem
+ * @brief    Visible objects to place on a HosCanvas
+ *
+ * Parent Class:
+ * - GObject
+ *
+ * Subclasses:
+ * - ::HosOrnament
+ * - ::HosContourPlot
+ * - ::HosGrid
+ *
+ * A ::HosCanvas displays a collection of HosCanvasItem objects, each
+ * of which has some visual appearance.  Examples include contour plots,
+ * cursors, and markers.
+ *
+ * @{
+ */
+
+enum canvas_item_properties {
   PROP_0,
-  PROP_CANVAS
+  PROP_CANVAS       /**< The HosCanvas on which this HosCanvasItem appears */
 };
 
-enum {
-  ITEM_CONFIGURE,
+enum canvas_item_signals {
+  ITEM_CONFIGURE,   /**< HosCanvasItem has been changed and needs to be redrawn */
   LAST_SIGNAL
 };
 
@@ -39,7 +58,7 @@ static void canvas_item_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-static guint canvas_item_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_ABSTRACT_TYPE (HosCanvasItem, hos_canvas_item, G_TYPE_OBJECT)
 
@@ -52,7 +71,7 @@ hos_canvas_item_class_init(HosCanvasItemClass *klass)
   gobject_class->set_property = canvas_item_set_property;
   gobject_class->get_property = canvas_item_get_property;
 
-  canvas_item_signals[ITEM_CONFIGURE] =
+  signals[ITEM_CONFIGURE] =
     g_signal_new ("item-configure",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -117,22 +136,12 @@ static void canvas_item_get_property (GObject         *object,
     }
 }
 
-
-void
-canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event)
-{
-  HosCanvasItemClass *class = HOS_CANVAS_ITEM_GET_CLASS(self);
-  if (class->expose) class->expose(self, event);
-}
-
-void
-canvas_item_configure(HosCanvasItem *self)
-{
-  g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
-
-  g_signal_emit(self, canvas_item_signals[ITEM_CONFIGURE], 0);
-}
-
+/**
+ * @brief   Re-parent a HosCanvasItem
+ *
+ * @param   self   The HosCanvasItem to re-parent
+ * @param   canvas The HosCanvas on which 'self' will appear
+ */
 void
 canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
 {
@@ -153,5 +162,22 @@ canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
 	  g_object_notify (G_OBJECT (self), "canvas");
 	}
     }
+}
+
+/** @} */
+
+void
+canvas_item_expose(HosCanvasItem *self, GdkEventExpose *event)
+{
+  HosCanvasItemClass *class = HOS_CANVAS_ITEM_GET_CLASS(self);
+  if (class->expose) class->expose(self, event);
+}
+
+void
+canvas_item_configure(HosCanvasItem *self)
+{
+  g_return_if_fail (HOS_IS_CANVAS_ITEM(self));
+
+  g_signal_emit(self, signals[ITEM_CONFIGURE], 0);
 }
 

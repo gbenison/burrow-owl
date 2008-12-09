@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,27 +17,51 @@
  *
  */
 
+
 #include <assert.h>
 #include "canvas.h"
 #include "marshal.h"
 
 #define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \
                                          gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
-enum {
-  CLICKED,
-  WORLD_CONFIGURE,
+
+
+/**
+ * @defgroup HosCanvas
+ * @brief    A GTK+ widget for displaying NMR spectra and annotations.
+ *
+ * The principal way to display spectra on screen using
+ * burrow-owl is with the HosCanvas widget.
+ * A HosCanvas displays a collection of ::HosCanvasItem objects,
+ * which can be contour plots or ornaments such as labels, cursors,
+ * and grids.
+ * Ornaments are generally responsive to user input (e.g.
+ * mouse clicks), and so can be used, together with standard
+ * GTK+ widgets like buttons and scroll bars, for creating
+ * interactive user interfaces.
+ *
+ * In addition to its 'view coordinates' defined by its size on
+ * the screen, a HosCanvas has abstract 'world coordinates' which
+ * can be any requested value and do not change with widget size.
+ *
+ * @{
+ */
+
+enum canvas_signals {
+  CLICKED,          /**< Mouse has been clicked over the canvas widget. */
+  WORLD_CONFIGURE,  /**< The world coordinates of the canvas have changed. */
   LAST_SIGNAL
 };
 
-enum {
+enum canvas_properties {
   PROP_0,
-  PROP_X1,
-  PROP_Y1,
-  PROP_XN,
-  PROP_YN
+  PROP_X1,     /**< leftmost world coordinate     */
+  PROP_Y1,     /**< bottom-most world coordinate  */
+  PROP_XN,     /**< rightmost world coordinate    */
+  PROP_YN      /**< topmost world coordinate      */
 };
 
-static guint canvas_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void     hos_canvas_set_property (GObject         *object,
 					 guint            prop_id,
@@ -83,7 +107,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
   g_object_class_install_property(gobject_class, PROP_XN, STD_P_SPEC("xn", "X right limit"));
   g_object_class_install_property(gobject_class, PROP_YN, STD_P_SPEC("yn", "Y upper limit"));
 
-  canvas_signals[CLICKED] =
+  signals[CLICKED] =
     g_signal_new("clicked",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -94,7 +118,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
 
-  canvas_signals[WORLD_CONFIGURE] =
+  signals[WORLD_CONFIGURE] =
     g_signal_new("world-configure",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
 		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -152,7 +176,7 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
   canvas_view2world(canvas, &x, &y);
 
   g_signal_emit(canvas,
-		canvas_signals[CLICKED],
+		signals[CLICKED],
 		0, x, y);
 
   if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event)
@@ -257,6 +281,12 @@ hos_canvas_get_property (GObject         *object,
     }
 }
 
+/**
+ * @brief  Add an item to a canvas widget
+ *
+ * Append  #canvasitem to #self.
+ * Returns #canvasitem.
+ */
 HosCanvasItem*
 canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
 {
@@ -274,9 +304,9 @@ canvas_add_item(HosCanvas *self, HosCanvasItem *canvasitem)
   return canvasitem;
 }
 
-/*
- * returns: canvas item number 'idx' from 'self,
- * or NULL if idx out of range
+/**
+ * @brief    retrieve a canvasitem from a canvas
+ * @returns  canvas item number 'idx' from 'self, or NULL if idx out of range
  */
 HosCanvasItem*
 canvas_get_item
@@ -285,6 +315,8 @@ canvas_get_item
   g_return_val_if_fail(HOS_IS_CANVAS(self), NULL);
   return (idx < g_list_length(self->items)) ? HOS_CANVAS_ITEM(g_list_nth_data(self->items, idx)) : NULL;
 }
+
+/** @} */
 
 void
 canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region)
@@ -353,7 +385,7 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->y1 = y1;
   canvas->xn = xn;
   canvas->yn = yn;
-  g_signal_emit(canvas, canvas_signals[WORLD_CONFIGURE], 0);
+  g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
   gtk_widget_queue_draw(GTK_WIDGET(canvas));
 }
 

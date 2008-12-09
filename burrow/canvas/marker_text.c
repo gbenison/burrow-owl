@@ -28,10 +28,23 @@
 #include <assert.h>
 #include "marker_text.h"
 
-enum {
+/**
+ * @defgroup HosMarkerText
+ * @brief    Markers with text labels
+ *
+ * A type of HosMarker ornament which displays a string of text, for example a peak assignment
+ * label.
+ *
+ * Parent Class
+ * - ::HosMarker
+ *
+ * @{
+ */
+
+enum marker_text_properties {
   PROP_0,
-  PROP_LABEL,
-  PROP_COLOR
+  PROP_LABEL, /**< The text string to display */
+  PROP_COLOR  /**< GdkColor of the text label */
 };
 
 enum {
@@ -225,6 +238,12 @@ marker_text_get_patch_bbox(HosMarkerText* self, GdkRectangle *rect)
 
 }
 
+/**
+ * @brief  Change the label of 'marker_text'
+ *
+ * @param  marker_text  A HosMarkerText
+ * @param  text  The new text
+ */
 void
 marker_text_set_label(HosMarkerText* marker_text, const gchar *text)
 {
@@ -284,7 +303,11 @@ hos_marker_text_get_property (GObject         *object,
     }
 }
 
-/*
+/**
+ * @brief  Add a text marker to a canvas
+ *
+ * @returns a newly-created HosMarkerText
+ * @param  canvas   The HosCanvas to which the new marker should be added
  * Create a new marker with default adjustments appropriate
  * for this canvas; add to the canvas.
  */

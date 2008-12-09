@@ -29,6 +29,10 @@
 #include <gtk/gtk.h>
 #include "canvasitem.h"
 
+/**
+ * @ingroup HosOrnament
+ * @brief   Movable annotations for HosCanvas widgets
+ */
 typedef struct _HosOrnament       HosOrnament;
 typedef struct _HosOrnamentClass  HosOrnamentClass;
 

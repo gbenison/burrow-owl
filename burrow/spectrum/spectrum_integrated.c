@@ -93,9 +93,16 @@ spectrum_integrated_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_integrated_parent_class)->finalize (object);
 }
 
-/*
- * Returns:
- *  S' where S'(j, k) = Sum_i(self(i, j, k))
+/**
+ * @ingroup HosSpectrum
+ * @brief   Integrate the leading dimension of a spectrum
+ *
+ * The argument spectrum is integrated along the leading dimension.
+ * e.g. if argument spectrum S has dimensions (i, j, k), the result
+ * spectrum S' has one fewer dimension:
+ *
+ *  @f$ S'(j, k) = \Sigma_i(S(i, j, k)) @f$
+ *
  */
 HosSpectrum*
 spectrum_integrate (HosSpectrum* self)

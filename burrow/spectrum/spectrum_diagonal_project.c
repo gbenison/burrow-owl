@@ -99,9 +99,18 @@ spectrum_diagonal_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_diagonal_parent_class)->finalize (object);
 }
 
-/*
- * Return the diagonal projection of 'self', i.e. 
- * S'(j, k, ...) = S(i*, j, k, ...)
+/**
+ * @brief    Calculate the diagonal projection of a spectrum
+ * @ingroup  HosSpectrum
+ *
+ * Take a slice along the diagonal of the first two dimensions.
+ * For a spectrum with dimensions (i, j, k, ...), for every
+ * unique set (j, k, ...) retain only one point by choosing
+ * an index i* nearest index 'j' in chemical shift.
+ *
+ * i.e. if S' = spectrum_diagonal_project(S), then:
+ *
+ * @f$ S'(j, k, ...) = S(i*, j, k, ...) @f$
  *
  * where i* is nearest to 'j' in chemical shift.
  */

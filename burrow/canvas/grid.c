@@ -20,13 +20,23 @@
 #include <math.h>
 #include "grid.h"
 
-enum {
+/**
+ * @defgroup HosGrid
+ * @brief    A regularly-spaced grid to place over a HosCanvas
+ *
+ * Parent class
+ * - ::HosCanvasItem
+ *
+ * @{
+ */
+
+enum grid_properties {
   PROP_0,
   PROP_ANCHOR_HORIZONTAL,
   PROP_ANCHOR_VERTICAL,
   PROP_SPACING_HORIZONTAL,
   PROP_SPACING_VERTICAL,
-  PROP_AUTO_SPACING
+  PROP_AUTO_SPACING         /**< requested space between grid lines-- zero for no auto-spacing */
 };
 
 static void grid_set_property (GObject         *object,
@@ -57,6 +67,10 @@ static void     grid_set_auto_spacing       (HosGrid* self, gint spacing);
 
 
 G_DEFINE_TYPE (HosGrid, hos_grid, HOS_TYPE_CANVAS_ITEM)
+
+/**
+ * @}
+ */
 
 static void
 hos_grid_class_init(HosGridClass *klass)

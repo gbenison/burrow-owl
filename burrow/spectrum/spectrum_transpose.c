@@ -94,10 +94,17 @@ spectrum_transposed_finalize(GObject *object)
   G_OBJECT_CLASS(hos_spectrum_transposed_parent_class)->finalize (object);
 }
 
-/*
- * Transpose 'self' by bumping dimension 'idx' up to first place,
- * e.g.
- * S'(i, j, k, idx, q, ...) = S(idx, i, j, k, q, ...)
+/**
+ * @ingroup   HosSpectrum
+ * @brief     Transpose a spectrum (change order of indices)
+ *
+ * Circularly permute the first 'idx' indices of 'self' one place
+ * to the right; i.e. bump dimension 'idx' up to the lead position
+ * and slide the leading dimensions back one place to make room.
+ *
+ * For example, if S' = spectrum_transpose(S, idx):
+ *
+ * @f$ S'(i, j, k, idx, q, ...) = S(idx, i, j, k, q, ...) @f$
  */
 HosSpectrum*
 spectrum_transpose(HosSpectrum *self, guint idx)

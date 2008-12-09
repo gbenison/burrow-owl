@@ -21,25 +21,44 @@
 #include "marshal.h"
 #include "canvas.h"
 
-/* signals & properties */
-enum {
-  ACQUIRE,
-  RELEASE,
-  ENTER,
-  LEAVE,
-  CONFIGURE,
+/**
+ * @defgroup HosOrnament
+ * @brief    Annotations for a HosCanvas
+ *
+ * Parent class
+ * - ::HosCanvasItem
+ *
+ * Subclasses
+ * - ::HosMarker
+ * - ::HosCursor
+ *
+ * HosOrnaments are a class of ::HosCanvasItem which serve as annotations for
+ * a ::HosCanvas, for example, assignment labels and cursors.  A HosOrnament generally
+ * covers only a small portion of the canvas widget, is sensitive to mouse activity,
+ * and is movable.
+ *
+ * @{
+ *
+ */
+
+enum ornament_properties {
+  PROP_0,
+  PROP_MOUSE_OVER,   /**< True if the pointer is over the ornament's visible area */
+  PROP_GRABBED,      /**< True if the ornament currently has mouse focus */
+  PROP_VISIBLE,      /**< True if the ornament should be drawn on-screen */
+  PROP_SENSITIVE     /**< True if the ornament can acquire mouse focus, i.e. it is clickable */
+};
+
+enum ornament_signals {
+  ACQUIRE,           /**< Emitted upon acquiring mouse focus */
+  RELEASE,           /**< Emitted upon losing mouse focus */
+  ENTER,             /**< The mouse pointer has entered the visible region */
+  LEAVE,             /**< The mouse pointer has left the visible region */
+  CONFIGURE,         /**< The state of the ornament has changed somehow (position, size, etc.) */
   LAST_SIGNAL
 };
 
-enum {
-  PROP_0,
-  PROP_MOUSE_OVER,
-  PROP_GRABBED,
-  PROP_VISIBLE,
-  PROP_SENSITIVE
-};
-
-static guint ornament_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 
 static void hos_ornament_set_property   (GObject         *object,
@@ -136,7 +155,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 							 G_PARAM_READABLE | G_PARAM_WRITABLE));
 
 
-  ornament_signals[ACQUIRE] =
+  signals[ACQUIRE] =
     g_signal_new ("acquire",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -145,7 +164,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
-  ornament_signals[RELEASE] =
+  signals[RELEASE] =
     g_signal_new ("release",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -154,7 +173,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
-  ornament_signals[ENTER] =
+  signals[ENTER] =
     g_signal_new ("enter",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -163,7 +182,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
-  ornament_signals[LEAVE] =
+  signals[LEAVE] =
     g_signal_new ("leave",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -172,7 +191,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
 
-  ornament_signals[CONFIGURE] =
+  signals[CONFIGURE] =
     g_signal_new ("configure",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
@@ -335,6 +354,9 @@ ornament_calculate_region(HosOrnament *self)
     return gdk_region_new();
 }
 
+/**
+ * @brief Force ornament 'self' to acquire mouse focus.
+ */
 void
 ornament_acquire(HosOrnament* self)
 {
@@ -342,6 +364,9 @@ ornament_acquire(HosOrnament* self)
   ornament_set_grabbed(self, TRUE);
 }
 
+/**
+ * @brief Force ornament 'self' to release mouse focus.
+ */
 void
 ornament_release(HosOrnament* self)
 {
@@ -528,7 +553,7 @@ ornament_set_mouse_over(HosOrnament *self, gboolean mouse_over)
       self->mouse_over = mouse_over;
       g_object_notify(G_OBJECT(self), "mouse-over");
       g_signal_emit(self,
-		    mouse_over ? ornament_signals[ENTER] : ornament_signals[LEAVE],
+		    mouse_over ? signals[ENTER] : signals[LEAVE],
 		    0);
     }
 }
@@ -543,7 +568,7 @@ ornament_set_grabbed(HosOrnament *self, gboolean grabbed)
       self->grabbed = grabbed;
       g_object_notify(G_OBJECT(self), "grabbed");
       g_signal_emit(self,
-		    grabbed ? ornament_signals[ACQUIRE] : ornament_signals[RELEASE],
+		    grabbed ? signals[ACQUIRE] : signals[RELEASE],
 		    0);
     }
 }
@@ -573,3 +598,8 @@ ornament_set_sensitive(HosOrnament *self, gboolean sensitive)
       g_object_notify(G_OBJECT(self), "sensitive");
     }
 }
+
+/**
+ * @}
+ */
+

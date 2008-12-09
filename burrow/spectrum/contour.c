@@ -20,27 +20,40 @@
 #include <math.h>
 #include "contour.h"
 
-enum {
-  CONFIGURATION_CHANGED,
+/**
+ * @defgroup HosContour
+ * @brief    parameters for contour plots
+ *
+ * The parameters needed to represent a ::HosSpectrum as a contour plot are
+ * encapsulated in a HosContour object: threshold, level multiplier factor,
+ * number of levels.
+ *
+ * Parent Class
+ * - GObject
+ *
+ * Subclasses
+ * - ::HosContourColor
+ *
+ * @{
+ */
+
+enum contour_signals {
+  CONFIGURATION_CHANGED,  /**< contour parameters have changed */
   LAST_SIGNAL
 };
 
-enum {
+enum contour_properties {
   PROP_0,
-  PROP_THRESHOLD,
-  PROP_FACTOR,
-  PROP_NLVL,
-  PROP_DRAW_NEGATIVE,
-  PROP_COLOR_POS_MIN
+  PROP_THRESHOLD,        /**< level of the lowest contour */
+  PROP_FACTOR,           /**< multiplier between contour levels */
+  PROP_NLVL,             /**< number of contour levels */
+  PROP_DRAW_NEGATIVE     /**< if true: draw positive and negative contours */
 };
 
-static void contour_configuration_changed (HosContour *contour);
-static void hos_contour_class_init(HosContourClass *klass);
-static void hos_contour_init(HosContour *contour);
+static void    contour_configuration_changed (HosContour *contour);
+static gdouble contour_get_threshold         (HosContour* contour);
 
-static gdouble contour_get_threshold(HosContour* contour);
-
-static guint contour_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void hos_contour_set_property (GObject         *object,
 				      guint            prop_id,
@@ -63,7 +76,7 @@ hos_contour_class_init(HosContourClass *klass)
   gobject_class->set_property = hos_contour_set_property;
   gobject_class->get_property = hos_contour_get_property;
 
-  contour_signals[CONFIGURATION_CHANGED] =
+  signals[CONFIGURATION_CHANGED] =
     g_signal_new ("configuration-changed",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST,
@@ -226,7 +239,6 @@ contour_set_draw_negative(HosContour *self, gboolean draw_negative)
   self->draw_negative = draw_negative;
 
   contour_configure(self);
-
 }
 
 static gdouble
@@ -263,7 +275,9 @@ void
 contour_configure(HosContour* self)
 {
   g_return_if_fail(HOS_IS_CONTOUR(self));
-  g_signal_emit(self, contour_signals[CONFIGURATION_CHANGED], 0);
+  g_signal_emit(self, signals[CONFIGURATION_CHANGED], 0);
 }
 
-
+/**
+ * @}
+ */

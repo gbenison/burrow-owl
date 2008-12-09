@@ -224,8 +224,16 @@ nih_read_segment (gpointer env, guint segid, gdouble *buf)
 }
 
 
-/*
- * Constructor for the NIH spectrum type.
+/**
+ * @brief  Load a spectrum from a file in NMRPipe format
+ * @ingroup HosSpectrum
+ *
+ * The requested spectrum can be 1-, 2-, or 3-dimensional.
+ * A 3D spectrum must be present as a single file, rather than as a series of 2D planes. 
+ * The file can contain hypercomplex data, but only real data is loaded.
+ *
+ * @param  fname  The name of a file containing an NMRPipe spectrum
+ * @returns A HosSpectrum object
  */
 HosSpectrum*
 spectrum_nih_from_file(gchar* fname)
