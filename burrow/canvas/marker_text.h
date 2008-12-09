@@ -42,8 +42,9 @@ struct _HosMarkerText
 
   PangoLayout *layout;
 
-  gdouble patch_width, patch_height;
-  GdkColor text_color;
+  gdouble   patch_width, patch_height;
+  gchar    *text;
+  GdkColor *text_color;
 };
 
 struct _HosMarkerTextClass
@@ -51,11 +52,9 @@ struct _HosMarkerTextClass
   HosMarkerClass parent_class;
 };
 
-
-void marker_text_set_label            (HosMarkerText* marker_text, const gchar *text);
+void           marker_text_set_label  (HosMarkerText* marker_text, const gchar *text);
 HosMarkerText* canvas_add_marker_text (HosCanvas *canvas, const gchar *text);
-void marker_text_set_patch            (HosMarkerText* self, gdouble width, gdouble height);
-void marker_text_set_color            (HosMarkerText* self, guint16 red, guint16 green, guint16 blue);
+void           marker_text_set_patch  (HosMarkerText* self, gdouble width, gdouble height);
 
 GType hos_marker_text_get_type(void);
 
