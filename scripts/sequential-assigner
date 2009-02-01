@@ -207,13 +207,33 @@
 ;; default width for strips with xdim = H
 (define H-width 0.15)
 
+; project a spectrum until it has no more
+; than two dimensions.
+(define (spectrum->2d spec)
+  (let ((n (spectrum-ndim spec)))
+    (if (<= n 2)
+	spec
+	(spectrum->2d (spectrum-project (spectrum-transpose spec (- n 1)) 0)))))
+
+(define (spectrum->approx-noise spec)
+  (spectrum-stddev (spectrum->2d spec)))
+
+(define (spectrum->thres spec)
+  (let* ((base    (inexact->exact (log10 (spectrum->approx-noise spec))))
+	 (floor   (- base 3))
+	 (ceiling (+ base 5)))
+    (make <gtk-adjustment> #:lower floor #:upper ceiling #:value base #:step-increment 0.1)))
+
 (define (make-default-thres-adjustment)
   (make <gtk-adjustment> #:lower 2 #:upper 20 #:value 5.5 #:step-increment 0.1))
 
 (define *thres-table* (list))
 (define (get-thres-adjustment name)
   (or (assoc-ref *thres-table* name)
-      (let ((thres (make-default-thres-adjustment)))
+      (let* ((spec (assoc-ref spectra name))
+	     (thres (if spec
+			(spectrum->thres spec)
+			(make-default-thres-adjustment))))
 	(set! *thres-table* (cons (cons name thres) *thres-table*))
 	thres)))
 
@@ -345,11 +365,12 @@
 	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
 	(show-all (amide-window 'window))))
 
-(define (run-convoluted-search title strip spec-conv)
+(define (run-convoluted-search title strip spec-name)
   (if strip
       (let ((CA-adj ((strip 'get-adj) 'CA))
 	    (CB-adj ((strip 'get-adj) 'CB))
-	    (conv-thres (get-thres-adjustment 'convoluted)))
+	    (spec-conv (assoc-ref spectra spec-name))
+	    (conv-thres (get-thres-adjustment spec-name)))
 	(define (grab-spec!)
 	  (let ((ca (get-value CA-adj))
 		(cb (get-value CB-adj)))
@@ -399,11 +420,11 @@
   (run-hnca-search-inner strip-selection 'prev))
 
 (define (run-hncacb-search action)
-  (let ((win (run-convoluted-search "hncacb search" strip-selection (assoc-ref spectra 'hncacb-convoluted))))
+  (let ((win (run-convoluted-search "hncacb search" strip-selection 'hncacb-convoluted)))
     (canvas-set-draw-negative (win 'canv) #t)))
 
 (define (run-cbcaconh-search action)
-  (run-convoluted-search "cbcaconh search" (strip-selection 'prev) (assoc-ref spectra 'cbcaconh-convoluted)))
+  (run-convoluted-search "cbcaconh search" (strip-selection 'prev) 'cbcaconh-convoluted))
 
 ; ----------------------------------
 ; GUI layout
