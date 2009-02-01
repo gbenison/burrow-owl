@@ -3,7 +3,7 @@
 #ifndef HAVE_SPECTRUM_RAMP
 #define HAVE_SPECTRUM_RAMP
 
-#include "burrow.h"
+#include "burrow/spectrum.h"
 
 G_BEGIN_DECLS
 

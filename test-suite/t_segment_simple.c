@@ -1,5 +1,5 @@
 
-#include <burrow.h>
+#include "burrow/spectrum.h"
 #include "segment-sim.h"
 
 static gint i;

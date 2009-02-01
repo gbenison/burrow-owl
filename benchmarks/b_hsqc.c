@@ -1,5 +1,5 @@
 
-#include <burrow.h>
+#include "burrow/spectrum.h"
 
 int
 main()

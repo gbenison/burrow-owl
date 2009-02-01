@@ -2,7 +2,7 @@
 #ifndef HAVE_SEGMENT_SIM_H
 #define HAVE_SEGMENT_SIM_H
 
-#include "burrow.h"
+#include "burrow/spectrum.h"
 #include "spectrum_segmented.h"
 
 G_BEGIN_DECLS

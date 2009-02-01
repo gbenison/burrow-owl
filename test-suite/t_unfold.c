@@ -1,6 +1,6 @@
 
 #include <math.h>
-#include <burrow.h>
+#include "burrow/spectrum.h"
 #include "spectrum-test-cube.h"
 #include "spectrum-flaky.h"
 

@@ -4,7 +4,7 @@
 AC_INIT(burrow-owl, 1.5rc, [gbenison@gmail.com])
 AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_SRCDIR([src/spectrum.c])
+AC_CONFIG_SRCDIR([burrow/spectrum/spectrum.c])
 
 GUILE_PROGS
 GUILE_FLAGS
@@ -14,6 +14,8 @@ AC_PROG_CC
 AC_PROG_LIBTOOL
 
 AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
+
+AC_PATH_PROG(DOXYGEN, doxygen, no)
 
 PKG_CHECK_MODULES(GLIB,      gobject-2.0)
 PKG_CHECK_MODULES(GTK,       gtk+-2.0)
@@ -75,13 +77,15 @@ AC_SUBST([pre_install_path], [pre-install])
 AC_CONFIG_FILES([Makefile
                  burrow-owl.pc
                  doc/Makefile
+                 doc/Doxyfile
                  wrapper/burrow
 		 wrapper/pre-inst-burrow-env
-                 src/Makefile
-                 src/gw/Makefile
-		 src/finite-state-machine/Makefile
-                 src/canvas/Makefile
-                 src/canvas/gw/Makefile
+                 burrow/Makefile
+		 burrow/spectrum/Makefile
+                 burrow/spectrum/gw/Makefile
+		 burrow/spectrum/finite-state-machine/Makefile
+                 burrow/canvas/Makefile
+                 burrow/canvas/gw/Makefile
 		 benchmarks/Makefile
 		 test-suite/Makefile
 		 test-suite/guile-binding/Makefile])

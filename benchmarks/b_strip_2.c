@@ -1,5 +1,5 @@
 
-#include <burrow.h>
+#include "burrow/spectrum.h"
 
 #define N_STRIP 10
 
