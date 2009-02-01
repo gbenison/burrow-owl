@@ -62,10 +62,7 @@ struct _HosContourPlotPrivate
  * @{
  */
 
-/**
- * @brief  Properties
- */
-enum {
+enum contour_plot_properties {
   PROP_0,
   PROP_SPECTRUM,  /**< The HosSpectrum that will be drawn */
   PROP_CONTOUR,   /**< The HosContour object controlling appearance (threshold, interval, etc.) */
