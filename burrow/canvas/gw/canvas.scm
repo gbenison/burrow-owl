@@ -47,6 +47,19 @@
 (define-public (contour-plot-set-draw-negative contour-plot neg?)
   (contour-set-draw-negative (get contour-plot 'contour) neg?))
 
+; ---- Color schemes for contours ----
+(define-public (set-to-purple contour)
+  (set contour 'color-positive-low  #(#x0800 #x0 #x6000))
+  (set contour 'color-positive-high #(#xf000 #x0 #x8000)))
+
+(define-public (set-to-greenish contour)
+  (set contour 'color-positive-low  #(#x0 #x800  #x6000))
+  (set contour 'color-positive-high #(#x0 #xf000 #xd000)))
+
+(define-public (set-to-reddish contour)
+  (set contour 'color-positive-low  #(#x4000 #x800  #x0))
+  (set contour 'color-positive-high #(#xf000 #x6000 #x0)))
+
 ; ----- ornamental considerations -------
 (define-public (ornaments-allow-simultaneous-grab . ornaments)
   (define (process-ornament ornament)
@@ -78,7 +91,7 @@
 
 (define-public (contour-set-thres-adjustment contour adj)
   (define (sync! . args)
-    (set contour 'thres (get adj 'value))
+    (set contour 'threshold (get adj 'value))
     #f)
   (sync!)
   (connect adj 'value-changed sync!))

@@ -23,6 +23,7 @@
 #include "canvasitem.h"
 #include "burrow/spectrum.h"
 #include "painter_cairo.h"
+#include "contour-color.h"
 
 G_BEGIN_DECLS
 

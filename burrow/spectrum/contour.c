@@ -20,27 +20,41 @@
 #include <math.h>
 #include "contour.h"
 
-enum {
-  CONFIGURATION_CHANGED,
+/**
+ * @defgroup HosContour
+ * @brief    parameters for contour plots
+ *
+ * The parameters needed to represent a ::HosSpectrum as a contour plot are
+ * encapsulated in a HosContour object: threshold, level multiplier factor,
+ * number of levels.
+ *
+ * Parent Class
+ * - GObject
+ *
+ * Subclasses
+ * - ::HosContourColor
+ *
+ * @{
+ */
+
+enum contour_signals {
+  CONFIGURATION_CHANGED,  /**< contour parameters have changed */
   LAST_SIGNAL
 };
 
-enum {
+enum contour_properties {
   PROP_0,
-  PROP_THRESHOLD,
-  PROP_FACTOR,
-  PROP_NLVL,
-  PROP_DRAW_NEGATIVE
+  PROP_THRESHOLD,        /**< level of the lowest contour */
+  PROP_FACTOR,           /**< multiplier between contour levels */
+  PROP_NLVL,             /**< number of contour levels */
+  PROP_LINE_WIDTH,       /**< width of drawn contour lines */
+  PROP_DRAW_NEGATIVE     /**< if true: draw positive and negative contours */
 };
 
-static void contour_configuration_changed (HosContour *contour);
-static void sync_params(HosContour* self);
-static void hos_contour_class_init(HosContourClass *klass);
-static void hos_contour_init(HosContour *contour);
+static void    contour_configuration_changed (HosContour *contour);
+static gdouble contour_get_threshold         (HosContour* contour);
 
-static gdouble contour_get_threshold(HosContour* contour);
-
-static guint contour_signals[LAST_SIGNAL] = { 0 };
+static guint signals[LAST_SIGNAL] = { 0 };
 
 static void hos_contour_set_property (GObject         *object,
 				      guint            prop_id,
@@ -63,7 +77,7 @@ hos_contour_class_init(HosContourClass *klass)
   gobject_class->set_property = hos_contour_set_property;
   gobject_class->get_property = hos_contour_get_property;
 
-  contour_signals[CONFIGURATION_CHANGED] =
+  signals[CONFIGURATION_CHANGED] =
     g_signal_new ("configuration-changed",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST,
@@ -75,12 +89,23 @@ hos_contour_class_init(HosContourClass *klass)
   g_object_class_install_property
     (gobject_class,
      PROP_THRESHOLD,
-     g_param_spec_double ("thres",
+     g_param_spec_double ("threshold",
 			  "Threshold",
 			  "Level of lowest contour line",
 			  0,
 			  G_MAXDOUBLE,
 			  0.0,
+			  G_PARAM_READWRITE));
+
+  g_object_class_install_property
+    (gobject_class,
+     PROP_LINE_WIDTH,
+     g_param_spec_double ("line-width",
+			  "Line width",
+			  "width of drawn contour lines",
+			  0,
+			  10.0,
+			  1.0,
 			  G_PARAM_READWRITE));
 
   g_object_class_install_property
@@ -119,18 +144,14 @@ static void
 hos_contour_init(HosContour *self)
 {
   self->levels = NULL;
-  self->lines = NULL;
 
   /* set some reasonable default contouring parameters */
   self->threshold        = 6.0;
   self->factor           = 1.2;
   self->number_of_levels = 20;
+  self->line_width       = 1.0;
 
-  /* set some default pleasing hues */
-  contour_set_color_positive(self, 5000, 65000,  0, 0,  40000, 60000);
-  contour_set_color_negative(self, 30000, 60000, 5000, 40000, 0, 0);
-
-  sync_params(self);
+  contour_configure(self);
 }
 
 static void
@@ -143,19 +164,22 @@ hos_contour_set_property (GObject         *object,
     {
     case PROP_NLVL:
       HOS_CONTOUR(object)->number_of_levels = g_value_get_uint(value);
-      sync_params(HOS_CONTOUR(object));
+      contour_configure(HOS_CONTOUR(object));
       break;
     case PROP_FACTOR:
       HOS_CONTOUR(object)->factor = g_value_get_double(value);
-      sync_params(HOS_CONTOUR(object));
+      contour_configure(HOS_CONTOUR(object));
       break;
     case PROP_THRESHOLD:
       HOS_CONTOUR(object)->threshold = g_value_get_double(value);
-      sync_params(HOS_CONTOUR(object));
+      contour_configure(HOS_CONTOUR(object));
+      break;
+    case PROP_LINE_WIDTH:
+      HOS_CONTOUR(object)->line_width = g_value_get_double(value);
+      contour_configure(HOS_CONTOUR(object));
       break;
     case PROP_DRAW_NEGATIVE:
-      HOS_CONTOUR(object)->draw_negative = g_value_get_boolean(value);
-      sync_params(HOS_CONTOUR(object));
+      contour_set_draw_negative(HOS_CONTOUR(object), g_value_get_boolean(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -177,6 +201,9 @@ hos_contour_get_property (GObject         *object,
     case PROP_THRESHOLD:
       g_value_set_double(value, HOS_CONTOUR(object)->threshold);
       break;
+    case PROP_LINE_WIDTH:
+      g_value_set_double(value, HOS_CONTOUR(object)->line_width);
+      break;
     case PROP_FACTOR:
       g_value_set_double(value, HOS_CONTOUR(object)->factor);
       break;
@@ -189,58 +216,14 @@ hos_contour_get_property (GObject         *object,
     }
 }
 
-void
-contour_set_color_positive(HosContour* self, guint16 red_min,   guint16 red_max,
-                                              guint16 green_min, guint16 green_max,
-                                              guint16 blue_min,  guint16 blue_max)
-{
-  self->red_min_pos    =  red_min;
-  self->red_max_pos 	  =  red_max;
-  self->blue_min_pos	  =  blue_min;
-  self->blue_max_pos	  =  blue_max;
-  self->green_min_pos  =  green_min;
-  self->green_max_pos  =  green_max;
-
-  sync_params(self);
-}
-
-void
-contour_set_color_negative(HosContour* self, guint16 red_min,   guint16 red_max,
-                                              guint16 green_min, guint16 green_max,
-                                              guint16 blue_min,  guint16 blue_max)
-{
-  self->red_min_neg    =  red_min;
-  self->red_max_neg 	  =  red_max;
-  self->blue_min_neg	  =  blue_min;
-  self->blue_max_neg	  =  blue_max;
-  self->green_min_neg  =  green_min;
-  self->green_max_neg  =  green_max;
-
-  sync_params(self);
-}
-
 /*
  * 'configuration-changed' signal is emitted upon any change
  * in this contour's drawing parameters (n-lvl, thres, etc.)
  */
 static void
-contour_configuration_changed (HosContour *contour)
+contour_configuration_changed (HosContour *self)
 {
-}
-
-/*
- * Make contour drawing parameters internally consistent;
- * usually called after a parameter changes.
- * e.g. if the contour threshold changes, then all the levels
- * must be recalculated.
- *
- * The 'configuration-changed' signal is emitted after updates are complete.
- */
-static void
-sync_params(HosContour* self)
-{
-  int n_contours, index;
-  guint n_lvl;
+  guint n_lvl, n_contours, index;
 
   g_return_if_fail(HOS_IS_CONTOUR(self));
 
@@ -250,53 +233,21 @@ sync_params(HosContour* self)
 
   n_contours = self->draw_negative ? n_lvl * 2 : n_lvl;
   self->levels = (gdouble*)g_realloc(self->levels, n_contours * sizeof(gdouble));
-  self->lines = (struct contour_linestyle_struct*)
-    g_realloc(self->lines, n_contours * sizeof(struct contour_linestyle_struct));
 
   if (self->draw_negative)
     {
-      guint16 delta_red = (self->red_max_neg - self->red_min_neg) / n_lvl;
-      guint16 delta_blue = (self->blue_max_neg - self->blue_min_neg) / n_lvl;
-      guint16 delta_green = (self->green_max_neg - self->green_min_neg) / n_lvl;
-
       index = n_lvl - 1;
-
       self->levels[index] = -contour_get_threshold(self);
-      self->lines[index].red = self->red_min_neg;
-      self->lines[index].blue = self->blue_min_neg;
-      self->lines[index].green = self->green_min_neg;
-
       for (; index > 0; --index)
-	{
-	  self->levels[index - 1] = self->levels[index] * self->factor;
-	  self->lines[index - 1].red = self->lines[index].red + delta_red;
-	  self->lines[index - 1].blue = self->lines[index].blue + delta_blue;
-	  self->lines[index - 1].green = self->lines[index].green + delta_green;
-	}
+	self->levels[index - 1] = self->levels[index] * self->factor;
     }
 
-  {
+  index = self->draw_negative ? n_lvl : 0;
+  self->levels[index] = contour_get_threshold(self);
+  
+  for (; index < n_contours - 1; index++)
+    self->levels[index + 1] = self->levels[index] * self->factor;
 
-    guint16 delta_red = (self->red_max_pos - self->red_min_pos) / n_lvl;
-    guint16 delta_blue = (self->blue_max_pos - self->blue_min_pos) / n_lvl;
-    guint16 delta_green = (self->green_max_pos - self->green_min_pos) / n_lvl;
-    
-    index = self->draw_negative ? n_lvl : 0;
-
-    self->levels[index] = contour_get_threshold(self);
-    self->lines[index].red = self->red_min_pos;
-    self->lines[index].blue = self->blue_min_pos;
-    self->lines[index].green = self->green_min_pos;
-
-    for (; index < n_contours - 1; index++)
-      {
-	self->levels[index + 1] = self->levels[index] * self->factor;
-	self->lines[index + 1].red = self->lines[index].red + delta_red;
-	self->lines[index + 1].blue = self->lines[index].blue + delta_blue;
-	self->lines[index + 1].green = self->lines[index].green + delta_green;
-      }
-  }
-  g_signal_emit (self, contour_signals[CONFIGURATION_CHANGED], 0);
 }
 
 void
@@ -307,8 +258,7 @@ contour_set_draw_negative(HosContour *self, gboolean draw_negative)
     return;
   self->draw_negative = draw_negative;
 
-  sync_params(self);
-
+  contour_configure(self);
 }
 
 static gdouble
@@ -335,5 +285,19 @@ contour_get_n_contours(HosContour *contour)
   return result;
 }
 
+/**
+ * @brief signal contour parameter re-configuration
+ *
+ * Signal that the configuration of 'self' has changed,
+ * indicating that any visualizations of it need to be redrawn
+ */
+void
+contour_configure(HosContour* self)
+{
+  g_return_if_fail(HOS_IS_CONTOUR(self));
+  g_signal_emit(self, signals[CONFIGURATION_CHANGED], 0);
+}
 
-
+/**
+ * @}
+ */

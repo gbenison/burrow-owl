@@ -43,7 +43,8 @@
 
 enum marker_text_properties {
   PROP_0,
-  PROP_LABEL /**< The text string to display */
+  PROP_LABEL, /**< The text string to display */
+  PROP_COLOR  /**< GdkColor of the text label */
 };
 
 enum {
@@ -93,6 +94,13 @@ hos_marker_text_class_init (HosMarkerTextClass *klass)
                                                         NULL,
                                                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 
+  g_object_class_install_property (gobject_class,
+				   PROP_COLOR,
+				   g_param_spec_boxed ("color",
+						       "Color",
+						       "Color of the text label",
+						       GDK_TYPE_COLOR,
+						       G_PARAM_READWRITE));
 
 }
 
@@ -101,11 +109,11 @@ hos_marker_text_init(HosMarkerText *marker_text)
 {
   HosMarker* marker = HOS_MARKER(marker_text);
 
+  static GdkColor default_color = {0, 0xffff, 0xffff, 0xffff};
+
   marker->size = 20;
-  marker_text->text_color.pixel = 0;
-  marker_text->text_color.red = 0xFFFF;
-  marker_text->text_color.green = 0xFFFF;
-  marker_text->text_color.blue = 0xFFFF;
+
+  marker_text->text_color = gdk_color_copy(&default_color);
 
 }
 
@@ -171,7 +179,7 @@ marker_text_paint(HosOrnament *self, HosCanvas *canvas)
       gdk_draw_rectangle (widget->window, gc, TRUE, rect.x, rect.y, rect.width, rect.height);
     }
 
-  gdk_gc_set_rgb_fg_color(gc, &marker_text->text_color);
+  gdk_gc_set_rgb_fg_color(gc, marker_text->text_color);
   gdk_gc_set_line_attributes(gc,
 			     2, /* width */
 			     GDK_LINE_SOLID,
@@ -241,6 +249,8 @@ marker_text_set_label(HosMarkerText* marker_text, const gchar *text)
 {
   HosCanvas *canvas = (HOS_CANVAS_ITEM(marker_text))->canvas;
 
+  marker_text->text = g_strdup(text);
+
   if (canvas)
     {
       marker_text->layout =
@@ -248,16 +258,6 @@ marker_text_set_label(HosMarkerText* marker_text, const gchar *text)
       pango_layout_set_markup(marker_text->layout, text, -1);
       canvas_item_configure(HOS_CANVAS_ITEM(marker_text));
     }
-}
-
-void
-marker_text_set_color(HosMarkerText* self, guint16 red, guint16 green, guint16 blue)
-{
-  self->text_color.red = red;
-  self->text_color.green = green;
-  self->text_color.blue = blue;
-
-  canvas_item_configure(HOS_CANVAS_ITEM(self));
 }
 
 static void
@@ -270,6 +270,10 @@ hos_marker_text_set_property (GObject         *object,
 
   switch (prop_id)
     {
+    case PROP_COLOR:
+      marker_text->text_color = gdk_color_copy(g_value_get_boxed(value));
+      canvas_item_configure(HOS_CANVAS_ITEM(object));
+      break;
     case PROP_LABEL:
       marker_text_set_label(marker_text, g_value_get_string(value));
       break;
@@ -281,16 +285,18 @@ hos_marker_text_set_property (GObject         *object,
 
 static void
 hos_marker_text_get_property (GObject         *object,
-			  guint            prop_id,
-			  GValue          *value,
-			  GParamSpec      *pspec)
+			      guint            prop_id,
+			      GValue          *value,
+			      GParamSpec      *pspec)
 {
-  HosMarker *marker = HOS_MARKER(object);
-
-  marker=marker; /* to eliminate warning */
-
   switch (prop_id)
     {
+    case PROP_COLOR:
+      g_value_set_boxed(value, HOS_MARKER_TEXT(object)->text_color);
+      break;
+    case PROP_LABEL:
+      g_value_set_string(value, HOS_MARKER_TEXT(object)->text);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;

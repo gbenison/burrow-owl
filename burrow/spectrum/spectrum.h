@@ -34,14 +34,14 @@ G_BEGIN_DECLS
 
 /** 
  * @ingroup HosSpectrum
- * @brief  The base spectrum object type.
+ * @brief   The base spectrum object type.
  */
 typedef struct _HosSpectrum       HosSpectrum;
 typedef struct _HosSpectrumClass  HosSpectrumClass;
 
 struct _HosSpectrum
 {
-  GObject parent_instance;
+  GObject  parent_instance;
   gdouble *buf;
 };
 

@@ -5,13 +5,12 @@
   #:use-module (g-wrap c-codegen)
   #:use-module (g-wrap guile)
   #:use-module (gnome gw gdk-spec)
-  #:use-module (gnome gw gtk-spec)
   #:use-module (gnome gw support gobject)
   #:use-module (gnome gw support defs))
 
 (define-class <spectrum-wrapset> (<gobject-wrapset-base>)
   #:id 'spectrum
-  #:dependencies '(standard gnome-glib gnome-gobject))
+  #:dependencies '(standard gnome-glib gnome-gobject gnome-gdk))
 
 (define-method (global-declarations-cg (self <spectrum-wrapset>))
   (list (next-method)

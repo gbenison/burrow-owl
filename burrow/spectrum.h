@@ -40,6 +40,8 @@
  *
  * - GObject
  *   - ::HosSpectrum
+ *   - ::HosContour
+ *     - ::HosContourColor
  *   - ::HosCanvasItem
  *     - ::HosContourPlot
  *     - ::HosGrid

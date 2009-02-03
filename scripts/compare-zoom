@@ -165,9 +165,8 @@
 			 (label (format #f "~a" (amide:name asg)))
 			 (marker (canvas-add-marker-text canv label)))
 		    (define (sync-colors! . args)
-		      (if (amide:verified? asg)
-			  (marker-text-set-color marker #xFFFF #x2000 #x2000)
-			  (marker-text-set-color marker #xA000 #xA000 #xA000)))
+		      (set marker 'color
+			   (if (amide:verified? asg) "red" "grey")))
 		    (marker-set-adjustments marker H N)
 		    (ornament-group-add! group marker)
 		    (if (null? movable?)

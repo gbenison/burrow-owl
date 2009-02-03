@@ -212,7 +212,6 @@ contour_plot_get_property (GObject         *object,
     }
 }
 
-
 static void
 hos_contour_plot_init(HosContourPlot *self)
 {
@@ -220,6 +219,7 @@ hos_contour_plot_init(HosContourPlot *self)
   self->smoothed = TRUE;
   self->painter_cairo = g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
+  contour_plot_set_contour(self, g_object_new(HOS_TYPE_CONTOUR_COLOR, NULL));
 }
 
 

@@ -17,6 +17,7 @@ HEADERS_1=                         \
 $(headers_dir)/canvas.h		   \
 $(headers_dir)/canvasitem.h	   \
 $(headers_dir)/contourplot.h	   \
+$(headers_dir)/contour-color.h     \
 $(headers_dir)/cursor.h		   \
 $(headers_dir)/grid.h		   \
 $(headers_dir)/line.h		   \

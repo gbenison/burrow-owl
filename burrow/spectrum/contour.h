@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2006 Greg Benison
+ *  Copyright (C) 2006, 2008 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@ G_BEGIN_DECLS
 #define HOS_IS_CONTOUR_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), HOS_TYPE_CONTOUR))
 #define HOS_CONTOUR_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), HOS_TYPE_CONTOUR, HosContourClass))
 
+/**
+ * @ingroup HosContour
+ * @brief   Parameters for contour plots
+ */
 typedef struct _HosContour       HosContour;
 typedef struct _HosContourClass  HosContourClass;
 
@@ -48,65 +52,26 @@ struct _HosContourClass
   void(*configuration_changed)(HosContour *self);
 };
 
-/* FIXME -- add width, dash pattern, what else ?? */
-struct contour_linestyle_struct {
-
-  /* color */
-  guint16 red;
-  guint16 blue;
-  guint16 green;
-
-};
-
 struct _HosContour
 {
   GObject parent_instance;
 
+  gdouble  line_width;
   gdouble  threshold;
   gdouble  factor;
   guint    number_of_levels;
   gboolean draw_negative;
 
-  guint16 red_min_pos;
-  guint16 blue_min_pos;
-  guint16 green_min_pos;
-
-  guint16 red_max_pos;
-  guint16 blue_max_pos;
-  guint16 green_max_pos;
-
-  guint16 red_min_neg;
-  guint16 blue_min_neg;
-  guint16 green_min_neg;
-
-  guint16 red_max_neg;
-  guint16 blue_max_neg;
-  guint16 green_max_neg;
-
   gdouble *levels;
-  struct contour_linestyle_struct *lines;
 
 };
 
-#define CONTOUR_GET_RED(cntr, lvl) (cntr->lines[lvl].red)
-#define CONTOUR_GET_BLUE(cntr, lvl) (cntr->lines[lvl].blue)
-#define CONTOUR_GET_GREEN(cntr, lvl) (cntr->lines[lvl].green)
+guint    contour_get_n_contours     (HosContour *contour);
+gdouble* contour_get_levels         (HosContour *contour);
+void     contour_set_draw_negative  (HosContour *self, gboolean draw_negative);
+void     contour_configure          (HosContour* self);
 
-guint contour_get_n_contours(HosContour *contour);
-gdouble* contour_get_levels(HosContour *contour);
-void contour_set_draw_negative(HosContour *self, gboolean draw_negative);
-
-void contour_set_color_positive(HosContour* self,
-				guint16 red_min,   guint16 red_max,
-				guint16 green_min, guint16 green_max,
-				guint16 blue_min,  guint16 blue_max);
-
-void contour_set_color_negative(HosContour* self,
-				guint16 red_min,   guint16 red_max,
-				guint16 green_min, guint16 green_max,
-				guint16 blue_min,  guint16 blue_max);
-
-GType hos_contour_get_type(void);
+GType    hos_contour_get_type       (void);
 
 G_END_DECLS
 
