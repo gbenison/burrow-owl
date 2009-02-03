@@ -80,6 +80,10 @@
   (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")
   (set cursor 'sensitive movable))
 
+(define-public (marker-text-set-color marker red green blue)
+  (warn "use of deprecated function marker-text-set-color; use 'color' property")
+  (set marker 'color (vector red green blue)))
+
 (define-public (adjustment-for-spectrum spectrum dim)
   (let ((lower (spectrum-giro-ppm spectrum dim))
 	(upper (spectrum-orig-ppm spectrum dim)))
