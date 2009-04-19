@@ -22,10 +22,10 @@
 
 #include <glib-object.h>
 #include "spectrum.h"
-#include "finite-state-machine/contour-fsm.h"
 #include "contour.h"
 
 G_BEGIN_DECLS
+
 
 #define HOS_TYPE_PAINTER              (hos_painter_get_type())
 #define HOS_PAINTER(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), HOS_TYPE_PAINTER, HosPainter))
@@ -36,6 +36,8 @@ G_BEGIN_DECLS
 
 typedef struct _HosPainter       HosPainter;
 typedef struct _HosPainterClass  HosPainterClass;
+
+struct hos_point {gdouble x, y;};
 
 struct _HosPainterClass
 {

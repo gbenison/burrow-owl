@@ -9,4 +9,5 @@ doxygen-docs:
 	$(DOXYGEN) Doxyfile
 
 clean-local:
-	test -d api && rm -r api
+	test -d api && rm -r api || echo 'no api docs found'
+

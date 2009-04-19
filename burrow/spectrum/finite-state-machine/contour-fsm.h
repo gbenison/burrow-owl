@@ -3,8 +3,7 @@
 #define HAVE_CONTOUR_FSM
 
 #include <glib.h>
-
-struct hos_point {gdouble x, y;};
+#include "../painter.h"
 
 void test_method(void*, struct hos_point*, const int, const int, gboolean);
 

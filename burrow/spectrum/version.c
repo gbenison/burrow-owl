@@ -18,6 +18,7 @@
  */
 
 #include "version.h"
+#include "config.h"
 
 /*
  * returns:

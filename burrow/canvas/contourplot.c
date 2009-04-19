@@ -45,6 +45,9 @@ struct _HosContourPlotPrivate
 
   GdkRectangle extent;
 
+  HosPainter      *painter;
+  HosPainterCairo *painter_cairo;
+
 };
 
 /**
@@ -217,7 +220,8 @@ hos_contour_plot_init(HosContourPlot *self)
 {
   CONTOUR_PLOT_PRIVATE(self, configure_id) = 1;
   self->smoothed = TRUE;
-  self->painter_cairo = g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
+  CONTOUR_PLOT_PRIVATE(self, painter_cairo) =
+    g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
   contour_plot_set_contour(self, g_object_new(HOS_TYPE_CONTOUR_COLOR, NULL));
 }
@@ -289,7 +293,7 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
 	  CONFESS("contour plot 0x%x: drawing with GDK", self);
 
 	  /* fallback... draw with GDK */
-	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(contour_plot->painter);
+	  HosPainterGdk *painter_gdk = HOS_PAINTER_GDK(CONTOUR_PLOT_PRIVATE(contour_plot, painter));
       
 	  /* redraw the affected canvas portion */
 	  gdouble x1 = event->area.x;
@@ -415,12 +419,12 @@ contour_plot_idle_draw(HosContourPlot *self)
 	
 	priv->backing = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
 	priv->cr      = cairo_create(priv->backing);
-	g_assert(HOS_IS_PAINTER_CAIRO(self->painter_cairo));
-	painter_cairo_set_context(self->painter_cairo, priv->cr);
+	g_assert(HOS_IS_PAINTER_CAIRO(CONTOUR_PLOT_PRIVATE(self, painter_cairo)));
+	painter_cairo_set_context(CONTOUR_PLOT_PRIVATE(self, painter_cairo), priv->cr);
     }
 
   if (priv->cairo_trace_state == NULL)
-    priv->cairo_trace_state = painter_redraw_init_ppm(HOS_PAINTER(self->painter_cairo),
+    priv->cairo_trace_state = painter_redraw_init_ppm(HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter_cairo)),
 						      canvas->x1,
 						      canvas->y1,
 						      canvas->xn,
@@ -498,7 +502,7 @@ contour_plot_configure(HosCanvasItem *self)
   HosCanvas *canvas = HOS_CANVAS_ITEM(self)->canvas;
   if (canvas && GTK_WIDGET_REALIZED(canvas))
     {
-      HosPainter* painter = HOS_PAINTER(HOS_CONTOUR_PLOT(self)->painter);
+      HosPainter* painter = HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter));
       g_return_if_fail(HOS_IS_PAINTER(painter));
 
       HosSpectrum *spectrum = painter_get_spectrum(painter);
@@ -550,10 +554,10 @@ contour_plot_sync_xform(HosContourPlot *self)
     {
       g_return_if_fail(HOS_IS_CANVAS(canvas));
 
-      HosPainter* painter = HOS_PAINTER(self->painter);
+      HosPainter* painter = HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter));
       g_return_if_fail(HOS_IS_PAINTER(painter));
 
-      g_return_if_fail(HOS_IS_PAINTER_CAIRO(self->painter_cairo));
+      g_return_if_fail(HOS_IS_PAINTER_CAIRO(CONTOUR_PLOT_PRIVATE(self, painter_cairo)));
 
       HosSpectrum *spectrum = painter_get_spectrum(painter);
 
@@ -572,7 +576,7 @@ contour_plot_sync_xform(HosContourPlot *self)
       gdouble y_slope = y_1 - y_0;
 
       painter_set_xform(painter, x_0, y_0, x_slope, y_slope);
-      painter_set_xform(HOS_PAINTER(self->painter_cairo), x_0, y_0, x_slope, y_slope);
+      painter_set_xform(HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter_cairo)), x_0, y_0, x_slope, y_slope);
 
       CONTOUR_PLOT_PRIVATE(self, xform_is_in_sync) = TRUE;
 
@@ -585,17 +589,17 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
-  if (self->painter != NULL)
+  if (CONTOUR_PLOT_PRIVATE(self, painter) != NULL)
     {
       /* detach the old painter */
       gint n_connections =
-	g_signal_handlers_disconnect_by_func(self->painter,
+	g_signal_handlers_disconnect_by_func(CONTOUR_PLOT_PRIVATE(self, painter),
 					     G_CALLBACK(contour_plot_painter_configure), self);
       g_assert(1 == n_connections);
-      g_object_unref(self->painter);
+      g_object_unref(CONTOUR_PLOT_PRIVATE(self, painter));
     }
 
-  self->painter = painter;
+  CONTOUR_PLOT_PRIVATE(self, painter) = painter;
   if (painter != NULL)
     {
       g_return_if_fail(HOS_IS_PAINTER(painter));
@@ -611,13 +615,13 @@ contour_plot_set_painter(HosContourPlot *self, HosPainter *painter)
 static void
 contour_plot_sync_painters(HosContourPlot *self)
 {
-  HosSpectrum *spectrum = painter_get_spectrum(self->painter);
-  HosContour  *contour  = painter_get_contour(self->painter);
+  HosSpectrum *spectrum = painter_get_spectrum(CONTOUR_PLOT_PRIVATE(self, painter));
+  HosContour  *contour  = painter_get_contour(CONTOUR_PLOT_PRIVATE(self, painter));
 
   if (HOS_IS_CONTOUR(contour))
-    painter_set_contour(HOS_PAINTER(self->painter_cairo), contour);
+    painter_set_contour(HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter_cairo)), contour);
   if (HOS_IS_SPECTRUM(spectrum))
-    painter_set_spectrum(HOS_PAINTER(self->painter_cairo), spectrum);
+    painter_set_spectrum(HOS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter_cairo)), spectrum);
 }
 
 
@@ -695,9 +699,9 @@ void
 contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
-  g_return_if_fail(HOS_IS_PAINTER(self->painter));
+  g_return_if_fail(HOS_IS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter)));
 
-  painter_set_spectrum(self->painter, spectrum);
+  painter_set_spectrum(CONTOUR_PLOT_PRIVATE(self, painter), spectrum);
   contour_plot_invalidate_xform(self);
 }
 
@@ -705,27 +709,27 @@ void
 contour_plot_set_contour(HosContourPlot *self, HosContour *contour)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
-  g_return_if_fail(HOS_IS_PAINTER(self->painter));
+  g_return_if_fail(HOS_IS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter)));
 
-  painter_set_contour(self->painter, contour);
+  painter_set_contour(CONTOUR_PLOT_PRIVATE(self, painter), contour);
 }
 
 HosSpectrum*
 contour_plot_get_spectrum(HosContourPlot *self)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
-  g_return_if_fail(HOS_IS_PAINTER(self->painter));
+  g_return_if_fail(HOS_IS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter)));
 
-  return self->painter->spectrum;
+  return CONTOUR_PLOT_PRIVATE(self, painter)->spectrum;
 }
 
 HosContour*
 contour_plot_get_contour(HosContourPlot *self)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
-  g_return_if_fail(HOS_IS_PAINTER(self->painter));
+  g_return_if_fail(HOS_IS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter)));
 
-  return painter_get_contour(self->painter);
+  return painter_get_contour(CONTOUR_PLOT_PRIVATE(self, painter));
 }
 
 /**

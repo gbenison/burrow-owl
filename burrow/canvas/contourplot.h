@@ -22,7 +22,6 @@
 
 #include "canvasitem.h"
 #include "burrow/spectrum.h"
-#include "painter_cairo.h"
 #include "contour-color.h"
 
 G_BEGIN_DECLS
@@ -53,9 +52,6 @@ struct _HosContourPlot
   HosCanvasItem   parent_instance;
 
   gboolean        smoothed;
-
-  HosPainter      *painter;
-  HosPainterCairo *painter_cairo;
 
 };
 

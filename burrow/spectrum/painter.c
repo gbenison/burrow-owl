@@ -29,6 +29,7 @@
 
 #include <assert.h>
 #include "painter.h"
+#include "finite-state-machine/contour-fsm.h"
 
 enum {
   CONFIGURATION_CHANGED,

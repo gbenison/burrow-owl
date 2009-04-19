@@ -38,7 +38,6 @@ debug.h 		       \
 utils.h 		       \
 skiplist.h 		       \
 spectrum_priv.h 	       \
-spectrum_segmented.h 	       \
 painter_bwps.h  	       \
 painter.h  		       \
 endian.h 		       \
@@ -52,6 +51,7 @@ nih.h			       \
 painter.h		       \
 painter_bwps.h		       \
 spectrum.h		       \
+spectrum_segmented.h 	       \
 spectrum_convoluted.h	       \
 spectrum_diagonal_project.h    \
 spectrum_extract.h	       \
