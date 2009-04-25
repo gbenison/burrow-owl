@@ -54,6 +54,11 @@ struct _HosCanvas
   gdouble xn;
   gdouble yn;
 
+  /* zoom status */
+  gdouble zoom;
+  gdouble x_focus;
+  gdouble y_focus;
+
 };
 
 struct _HosCanvasClass
@@ -76,6 +81,9 @@ cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 
 GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
 GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
+
+void           canvas_set_zoom          (HosCanvas *canvas, gdouble zoom);
+void           canvas_set_focus         (HosCanvas *canvas, gdouble x, gdouble y);
 
 GType hos_canvas_get_type(void);
 

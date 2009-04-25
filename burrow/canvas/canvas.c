@@ -76,6 +76,18 @@ static gboolean canvas_button_press     (GtkWidget *widget, GdkEventButton *even
 static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *event);
 static void     canvas_realize          (GtkWidget *widget);
 static void     canvas_world_configure  (HosCanvas *self);
+static gdouble  world2view              (gdouble world,
+					 gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus,
+					 gdouble view_range);
+static gdouble  view2world              (gdouble view,
+					 gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus,
+					 gdouble view_range);
 
 static gboolean canvas_is_double_buffered = TRUE;
 
@@ -157,6 +169,7 @@ hos_canvas_init(HosCanvas  *canvas)
   }
 
   canvas_set_world(canvas, 0, 0, 100, 100);
+  canvas->zoom = 1.0;
 
 }
 
@@ -338,11 +351,9 @@ canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
 			  &window_width, &window_height);
       
       if (x != NULL)
-	*x = (*x / window_width)
-	  * (canvas->xn - canvas->x1) + canvas->x1;
+	*x = view2world(*x, canvas->x1, canvas->xn, canvas->zoom, canvas->x_focus, window_width);
       if (y != NULL)
-	*y = (*y / window_height)
-	  * (canvas->yn - canvas->y1) + canvas->y1;
+	*y = view2world(*y, canvas->y1, canvas->yn, canvas->zoom, canvas->y_focus, window_height);
     }
   else
     {
@@ -363,19 +374,88 @@ canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
 			  &window_width, &window_height);
       
       if (x != NULL)
-	*x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
-	  * window_width;
+	*x = world2view(*x, canvas->x1, canvas->xn, canvas->zoom, canvas->x_focus, window_width);
       
       if (y != NULL)
-	*y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
-	  * window_height;
+	*y = world2view(*y, canvas->y1, canvas->yn, canvas->zoom, canvas->y_focus, window_height);
+
     }
   else
     {
       if (x != NULL) *x = 0;
       if (y != NULL) *y = 0;
     }
+}
 
+static gdouble
+world2view(gdouble world,
+	   gdouble world_min,
+	   gdouble world_max,
+	   gdouble zoom,
+	   gdouble focus,
+	   gdouble view_range)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range = world_range / zoom;
+  gdouble zoom_min = focus - (zoom_range / 2);
+
+  if (fabs(world_max - zoom_min) > fabs(world_range))
+    zoom_min = world_min;
+  if (fabs(zoom_min + zoom_range - world_min) > fabs(world_range))
+    zoom_min = world_max - zoom_range;
+
+  return ((world - zoom_min) / zoom_range) * view_range;
+}
+
+static gdouble
+view2world(gdouble view,
+	   gdouble world_min,
+	   gdouble world_max,
+	   gdouble zoom,
+	   gdouble focus,
+	   gdouble view_range)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range = world_range / zoom;
+  gdouble zoom_min = focus - (zoom_range / 2);
+
+  if (fabs(world_max - zoom_min) > fabs(world_range))
+    zoom_min = world_min;
+  if (fabs(zoom_min + zoom_range - world_min) > fabs(world_range))
+    zoom_min = world_max - zoom_range;
+
+  return zoom_min + (view / view_range) * zoom_range;
+}
+
+/**
+ * @brief change the zoom level of 'canvas'.
+ */
+void
+canvas_set_zoom (HosCanvas *canvas, gdouble zoom)
+{
+  gdouble old_zoom = canvas->zoom;
+
+  /* sanity checks */
+  if (zoom < 1.0) zoom = 1.0;
+  if (zoom > 1e6) zoom = 1e6;
+
+  if (zoom != old_zoom)
+    {
+      canvas->zoom = zoom;
+      /* FIXME sync adjustments */
+      g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
+    }
+}
+
+void
+canvas_set_focus(HosCanvas *canvas, gdouble x, gdouble y)
+{
+  if ((x != canvas->x_focus) || (y != canvas->y_focus))
+    {
+      canvas->x_focus = x;
+      canvas->y_focus = y;
+      g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
+    }
 }
 
 void
@@ -386,7 +466,6 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->xn = xn;
   canvas->yn = yn;
   g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
-  gtk_widget_queue_draw(GTK_WIDGET(canvas));
 }
 
 cairo_t*
