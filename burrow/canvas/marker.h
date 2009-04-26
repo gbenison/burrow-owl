@@ -76,6 +76,8 @@ gdouble        marker_get_x             (HosMarker *marker);
 gdouble        marker_get_y             (HosMarker *marker);
 HosMarker*     canvas_add_marker        (HosCanvas *canvas);
 
+GType hos_marker_get_type(void);
+
 G_END_DECLS
 
 #endif /* not _HAVE_MARKER_H */

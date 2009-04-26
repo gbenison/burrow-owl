@@ -19,6 +19,7 @@
 
 
 #include <assert.h>
+#include <math.h>
 #include "canvas.h"
 #include "marshal.h"
 
@@ -76,6 +77,16 @@ static gboolean canvas_button_press     (GtkWidget *widget, GdkEventButton *even
 static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *event);
 static void     canvas_realize          (GtkWidget *widget);
 static void     canvas_world_configure  (HosCanvas *self);
+static void     canvas_set_scroll_adjustments (HosCanvas *self,
+					       GtkAdjustment *hadhjustment,
+					       GtkAdjustment *vadjustment);
+
+static void     canvas_disconnect_adjustment  (HosCanvas *self,
+					       GtkAdjustment *adjustment);
+static void     canvas_connect_adjustment     (HosCanvas *self,
+					       GtkAdjustment *adjustment);
+static gboolean canvas_adjustment_value_changed (GtkAdjustment *adjustment,
+						 gpointer data);
 static gdouble  world2view              (gdouble world,
 					 gdouble world_min,
 					 gdouble world_max,
@@ -88,6 +99,10 @@ static gdouble  view2world              (gdouble view,
 					 gdouble zoom,
 					 gdouble focus,
 					 gdouble view_range);
+static gdouble  calc_zoom_min           (gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus);
 
 static gboolean canvas_is_double_buffered = TRUE;
 
@@ -110,6 +125,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
   widget_class->realize            = canvas_realize;
 
   klass->world_configure           = canvas_world_configure;
+  klass->set_scroll_adjustments    = canvas_set_scroll_adjustments;
 
 #define STD_P_SPEC(name, blurb)   g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE | G_PARAM_WRITABLE)
 
@@ -138,6 +154,17 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 NULL, NULL,
 		 g_cclosure_marshal_VOID__VOID,
 		 G_TYPE_NONE, 0);
+
+  widget_class->set_scroll_adjustments_signal =
+    g_signal_new ("set_scroll_adjustments",
+		  G_OBJECT_CLASS_TYPE (gobject_class),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET (HosCanvasClass, set_scroll_adjustments),
+		  NULL, NULL,
+		  g_cclosure_user_marshal_VOID__OBJECT_OBJECT,
+		  G_TYPE_NONE, 2,
+		  GTK_TYPE_ADJUSTMENT,
+		  GTK_TYPE_ADJUSTMENT);
 
 }
 
@@ -203,6 +230,40 @@ static void
 canvas_world_configure(HosCanvas *self)
 {
   g_return_if_fail(HOS_IS_CANVAS(self));
+  GtkWidget *widget = GTK_WIDGET(self);
+  /* FIXME sync scroll adjustments */
+  if (GTK_IS_ADJUSTMENT(self->horiz_scroll_adjustment))
+    {
+      GtkAdjustment *adjustment = self->horiz_scroll_adjustment;
+
+      adjustment->page_size = 1;
+      adjustment->page_increment = 0.9;
+      adjustment->step_increment = 0.1;
+      adjustment->lower = 0;
+      adjustment->upper = self->zoom;
+
+      gdouble zoom_min = calc_zoom_min (self->x1, self->xn, self->zoom, self->x_focus);
+      adjustment->value = (zoom_min - self->x1) / (self->xn - self->x1) * self->zoom;
+      gtk_adjustment_value_changed(adjustment);
+
+    }
+
+  if (GTK_IS_ADJUSTMENT(self->vert_scroll_adjustment))
+    {
+      GtkAdjustment *adjustment = self->vert_scroll_adjustment;
+
+      adjustment->page_size = 1;
+      adjustment->page_increment = 0.9;
+      adjustment->step_increment = 0.1;
+      adjustment->lower = 0;
+      adjustment->upper = self->zoom;
+
+      gdouble zoom_min = calc_zoom_min (self->y1, self->yn, self->zoom, self->y_focus);
+      adjustment->value = (zoom_min - self->y1) / (self->yn - self->y1) * self->zoom;
+      gtk_adjustment_value_changed(adjustment);
+
+    }
+
   gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
@@ -388,12 +449,10 @@ canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
 }
 
 static gdouble
-world2view(gdouble world,
-	   gdouble world_min,
-	   gdouble world_max,
-	   gdouble zoom,
-	   gdouble focus,
-	   gdouble view_range)
+calc_zoom_min(gdouble world_min,
+	      gdouble world_max,
+	      gdouble zoom,
+	      gdouble focus)
 {
   gdouble world_range = world_max - world_min;
   gdouble zoom_range = world_range / zoom;
@@ -403,6 +462,21 @@ world2view(gdouble world,
     zoom_min = world_min;
   if (fabs(zoom_min + zoom_range - world_min) > fabs(world_range))
     zoom_min = world_max - zoom_range;
+
+  return zoom_min;
+}
+
+static gdouble
+world2view(gdouble world,
+	   gdouble world_min,
+	   gdouble world_max,
+	   gdouble zoom,
+	   gdouble focus,
+	   gdouble view_range)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range  = world_range / zoom;
+  gdouble zoom_min    = calc_zoom_min(world_min, world_max, zoom, focus);
 
   return ((world - zoom_min) / zoom_range) * view_range;
 }
@@ -416,13 +490,8 @@ view2world(gdouble view,
 	   gdouble view_range)
 {
   gdouble world_range = world_max - world_min;
-  gdouble zoom_range = world_range / zoom;
-  gdouble zoom_min = focus - (zoom_range / 2);
-
-  if (fabs(world_max - zoom_min) > fabs(world_range))
-    zoom_min = world_min;
-  if (fabs(zoom_min + zoom_range - world_min) > fabs(world_range))
-    zoom_min = world_max - zoom_range;
+  gdouble zoom_range  = world_range / zoom;
+  gdouble zoom_min    = calc_zoom_min(world_min, world_max, zoom, focus);
 
   return zoom_min + (view / view_range) * zoom_range;
 }
@@ -442,7 +511,6 @@ canvas_set_zoom (HosCanvas *canvas, gdouble zoom)
   if (zoom != old_zoom)
     {
       canvas->zoom = zoom;
-      /* FIXME sync adjustments */
       g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
     }
 }
@@ -501,3 +569,65 @@ adjustment_for_canvas_y(HosCanvas* canvas)
 					   0, 0));
 }
 
+static void
+canvas_connect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+{
+  g_return_if_fail (HOS_IS_CANVAS(self));
+  if (!adjustment)
+    adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (0.0, 0.0, 1.0, 0.1, 0.1, 0.1));
+  g_return_if_fail (GTK_IS_ADJUSTMENT(adjustment));
+  g_object_ref_sink (adjustment);
+
+  g_signal_connect (adjustment, "value_changed",
+		    G_CALLBACK (canvas_adjustment_value_changed),
+		    self);
+
+}
+
+static void
+canvas_disconnect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+{
+  g_return_if_fail(HOS_IS_CANVAS(self));
+  if (adjustment)
+    {
+      g_return_if_fail(GTK_IS_ADJUSTMENT(adjustment));
+      g_signal_handlers_disconnect_by_func (adjustment,
+					    canvas_adjustment_value_changed,
+					    self);
+      g_object_unref(adjustment);
+    }
+}
+
+static gboolean
+canvas_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
+{
+  HosCanvas *canvas = HOS_CANVAS(data);
+  gdouble x_focus = canvas->x_focus;
+  gdouble y_focus = canvas->y_focus;
+
+  if (adjustment == canvas->horiz_scroll_adjustment)
+    x_focus = (canvas->xn - canvas->x1) * (adjustment->value + 0.5) / canvas->zoom
+      + canvas->x1;
+  else if (adjustment == canvas->vert_scroll_adjustment)
+    y_focus = (canvas->yn - canvas->y1) * (adjustment->value + 0.5) / canvas->zoom
+      + canvas->y1;
+  else g_warn("canvas: internal scroll inconsistency");
+
+  canvas_set_focus(canvas, x_focus, y_focus);
+}
+
+static void
+canvas_set_scroll_adjustments (HosCanvas *self,
+			       GtkAdjustment *hadjustment,
+			       GtkAdjustment *vadjustment)
+{
+  canvas_disconnect_adjustment(self, self->horiz_scroll_adjustment);
+  canvas_connect_adjustment(self, hadjustment);
+  self->horiz_scroll_adjustment = hadjustment;
+
+  canvas_disconnect_adjustment(self, self->vert_scroll_adjustment);
+  canvas_connect_adjustment(self, vadjustment);
+  self->vert_scroll_adjustment = vadjustment;
+
+  g_signal_emit(self, signals[WORLD_CONFIGURE], 0);
+}

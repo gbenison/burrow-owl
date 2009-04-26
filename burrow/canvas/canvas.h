@@ -58,6 +58,9 @@ struct _HosCanvas
   gdouble zoom;
   gdouble x_focus;
   gdouble y_focus;
+  
+  GtkAdjustment *horiz_scroll_adjustment;
+  GtkAdjustment *vert_scroll_adjustment;
 
 };
 
@@ -66,8 +69,12 @@ struct _HosCanvasClass
 
   GtkDrawingAreaClass parent_class;
 
-  void (*clicked)        (HosCanvas *canvas, gdouble x, gdouble y);
-  void (*world_configure)(HosCanvas *canvas);
+  void (*clicked)         (HosCanvas *canvas, gdouble x, gdouble y);
+  void (*world_configure) (HosCanvas *canvas);
+
+  void	(*set_scroll_adjustments)	(HosCanvas	*canvas,
+					 GtkAdjustment	*hadjustment,
+					 GtkAdjustment	*vadjustment);
 
 };
 
