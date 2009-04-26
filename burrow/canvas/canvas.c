@@ -83,11 +83,11 @@ static void     canvas_set_scroll_adjustments (HosCanvas *self,
 					       GtkAdjustment *hadhjustment,
 					       GtkAdjustment *vadjustment);
 
-static void     canvas_disconnect_adjustment  (HosCanvas *self,
+static void     canvas_disconnect_scroll_adjustment  (HosCanvas *self,
 					       GtkAdjustment *adjustment);
-static void     canvas_connect_adjustment     (HosCanvas *self,
+static void     canvas_connect_scroll_adjustment     (HosCanvas *self,
 					       GtkAdjustment *adjustment);
-static gboolean canvas_adjustment_value_changed      (GtkAdjustment *adjustment,
+static gboolean canvas_scroll_adjustment_value_changed      (GtkAdjustment *adjustment,
 						      gpointer data);
 static gboolean canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment,
 						      gpointer data);
@@ -255,9 +255,9 @@ canvas_sync_scroll_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment, gdou
       gdouble zoom_min = calc_zoom_min (x1, xn, canvas->zoom, focus);
       adjustment->value = (zoom_min - x1) / (xn - x1) * canvas->zoom;
 
-      g_signal_handlers_block_by_func (adjustment, canvas_adjustment_value_changed, canvas);
+      g_signal_handlers_block_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
       gtk_adjustment_value_changed(adjustment);
-      g_signal_handlers_unblock_by_func (adjustment, canvas_adjustment_value_changed, canvas);
+      g_signal_handlers_unblock_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
 
     }
 }
@@ -589,7 +589,7 @@ adjustment_for_canvas_y(HosCanvas* canvas)
 }
 
 static void
-canvas_connect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+canvas_connect_scroll_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
 {
   g_return_if_fail (HOS_IS_CANVAS(self));
   if (!adjustment)
@@ -598,7 +598,7 @@ canvas_connect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
   g_object_ref_sink (adjustment);
 
   g_signal_connect (adjustment, "value_changed",
-		    G_CALLBACK (canvas_adjustment_value_changed),
+		    G_CALLBACK (canvas_scroll_adjustment_value_changed),
 		    self);
 
 }
@@ -636,21 +636,21 @@ canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
 }
 
 static void
-canvas_disconnect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+canvas_disconnect_scroll_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
 {
   g_return_if_fail(HOS_IS_CANVAS(self));
   if (adjustment)
     {
       g_return_if_fail(GTK_IS_ADJUSTMENT(adjustment));
       g_signal_handlers_disconnect_by_func (adjustment,
-					    canvas_adjustment_value_changed,
+					    canvas_scroll_adjustment_value_changed,
 					    self);
       g_object_unref(adjustment);
     }
 }
 
 static gboolean
-canvas_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
+canvas_scroll_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
 {
   HosCanvas *canvas = HOS_CANVAS(data);
   gdouble x_focus = canvas->x_focus;
@@ -672,12 +672,12 @@ canvas_set_scroll_adjustments (HosCanvas *self,
 			       GtkAdjustment *hadjustment,
 			       GtkAdjustment *vadjustment)
 {
-  canvas_disconnect_adjustment(self, self->horiz_scroll_adjustment);
-  canvas_connect_adjustment(self, hadjustment);
+  canvas_disconnect_scroll_adjustment(self, self->horiz_scroll_adjustment);
+  canvas_connect_scroll_adjustment(self, hadjustment);
   self->horiz_scroll_adjustment = hadjustment;
 
-  canvas_disconnect_adjustment(self, self->vert_scroll_adjustment);
-  canvas_connect_adjustment(self, vadjustment);
+  canvas_disconnect_scroll_adjustment(self, self->vert_scroll_adjustment);
+  canvas_connect_scroll_adjustment(self, vadjustment);
   self->vert_scroll_adjustment = vadjustment;
 
   g_signal_emit(self, signals[WORLD_CONFIGURE], 0);
