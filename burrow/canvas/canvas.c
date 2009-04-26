@@ -530,6 +530,9 @@ canvas_set_zoom (HosCanvas *canvas, gdouble zoom)
   if (zoom != old_zoom)
     {
       canvas->zoom = zoom;
+      if (GTK_IS_ADJUSTMENT(canvas->zoom_adjustment))
+	gtk_adjustment_set_value (canvas->zoom_adjustment, zoom);
+
       g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
     }
 }
