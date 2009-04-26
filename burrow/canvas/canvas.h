@@ -58,6 +58,8 @@ struct _HosCanvas
   gdouble zoom;
   gdouble x_focus;
   gdouble y_focus;
+
+  GtkAdjustment *zoom_adjustment;
   
   GtkAdjustment *horiz_scroll_adjustment;
   GtkAdjustment *vert_scroll_adjustment;
@@ -86,11 +88,12 @@ void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble 
 void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
 cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 
-GtkAdjustment* adjustment_for_canvas_x(HosCanvas* canvas);
-GtkAdjustment* adjustment_for_canvas_y(HosCanvas* canvas);
+GtkAdjustment* adjustment_for_canvas_x  (HosCanvas* canvas);
+GtkAdjustment* adjustment_for_canvas_y  (HosCanvas* canvas);
 
-void           canvas_set_zoom          (HosCanvas *canvas, gdouble zoom);
-void           canvas_set_focus         (HosCanvas *canvas, gdouble x, gdouble y);
+void           canvas_set_zoom            (HosCanvas *canvas, gdouble zoom);
+void           canvas_set_zoom_adjustment (HosCanvas *canvas, GtkAdjustment *adjustment);
+void           canvas_set_focus           (HosCanvas *canvas, gdouble x, gdouble y);
 
 GType hos_canvas_get_type(void);
 

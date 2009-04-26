@@ -59,7 +59,9 @@ enum canvas_properties {
   PROP_X1,     /**< leftmost world coordinate     */
   PROP_Y1,     /**< bottom-most world coordinate  */
   PROP_XN,     /**< rightmost world coordinate    */
-  PROP_YN      /**< topmost world coordinate      */
+  PROP_YN,     /**< topmost world coordinate      */
+  PROP_ZOOM,   /**< ratio of world domain to displayed domain */
+  PROP_ZOOM_ADJUSTMENT
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
@@ -85,8 +87,10 @@ static void     canvas_disconnect_adjustment  (HosCanvas *self,
 					       GtkAdjustment *adjustment);
 static void     canvas_connect_adjustment     (HosCanvas *self,
 					       GtkAdjustment *adjustment);
-static gboolean canvas_adjustment_value_changed (GtkAdjustment *adjustment,
-						 gpointer data);
+static gboolean canvas_adjustment_value_changed      (GtkAdjustment *adjustment,
+						      gpointer data);
+static gboolean canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment,
+						      gpointer data);
 static gdouble  world2view              (gdouble world,
 					 gdouble world_min,
 					 gdouble world_max,
@@ -134,6 +138,15 @@ hos_canvas_class_init (HosCanvasClass *klass)
 
   g_object_class_install_property(gobject_class, PROP_XN, STD_P_SPEC("xn", "X right limit"));
   g_object_class_install_property(gobject_class, PROP_YN, STD_P_SPEC("yn", "Y upper limit"));
+
+  g_object_class_install_property(gobject_class, PROP_ZOOM, STD_P_SPEC("zoom", "zoom ratio"));
+  g_object_class_install_property(gobject_class,
+				  PROP_ZOOM_ADJUSTMENT,
+				  g_param_spec_object ("zoom-adjustment",
+						       "zoom-adjustment",
+						       "GtkAdjustment tied to the 'zoom' value",
+						       GTK_TYPE_ADJUSTMENT,
+						       G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   signals[CLICKED] =
     g_signal_new("clicked",
@@ -195,8 +208,9 @@ hos_canvas_init(HosCanvas  *canvas)
     gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
   }
 
-  canvas_set_world(canvas, 0, 0, 100, 100);
+  canvas_set_world (canvas, 0, 0, 100, 100);
   canvas->zoom = 1.0;
+  canvas_set_zoom_adjustment (canvas, NULL);
 
 }
 
@@ -227,42 +241,35 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 }
 
 static void
+canvas_sync_scroll_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment, gdouble x1, gdouble xn, gdouble focus)
+{
+  if (GTK_IS_ADJUSTMENT(adjustment))
+    {
+
+      adjustment->page_size = 1;
+      adjustment->page_increment = 0.9;
+      adjustment->step_increment = 0.1;
+      adjustment->lower = 0;
+      adjustment->upper = canvas->zoom;
+
+      gdouble zoom_min = calc_zoom_min (x1, xn, canvas->zoom, focus);
+      adjustment->value = (zoom_min - x1) / (xn - x1) * canvas->zoom;
+
+      g_signal_handlers_block_by_func (adjustment, canvas_adjustment_value_changed, canvas);
+      gtk_adjustment_value_changed(adjustment);
+      g_signal_handlers_unblock_by_func (adjustment, canvas_adjustment_value_changed, canvas);
+
+    }
+}
+
+static void
 canvas_world_configure(HosCanvas *self)
 {
   g_return_if_fail(HOS_IS_CANVAS(self));
   GtkWidget *widget = GTK_WIDGET(self);
-  /* FIXME sync scroll adjustments */
-  if (GTK_IS_ADJUSTMENT(self->horiz_scroll_adjustment))
-    {
-      GtkAdjustment *adjustment = self->horiz_scroll_adjustment;
 
-      adjustment->page_size = 1;
-      adjustment->page_increment = 0.9;
-      adjustment->step_increment = 0.1;
-      adjustment->lower = 0;
-      adjustment->upper = self->zoom;
-
-      gdouble zoom_min = calc_zoom_min (self->x1, self->xn, self->zoom, self->x_focus);
-      adjustment->value = (zoom_min - self->x1) / (self->xn - self->x1) * self->zoom;
-      gtk_adjustment_value_changed(adjustment);
-
-    }
-
-  if (GTK_IS_ADJUSTMENT(self->vert_scroll_adjustment))
-    {
-      GtkAdjustment *adjustment = self->vert_scroll_adjustment;
-
-      adjustment->page_size = 1;
-      adjustment->page_increment = 0.9;
-      adjustment->step_increment = 0.1;
-      adjustment->lower = 0;
-      adjustment->upper = self->zoom;
-
-      gdouble zoom_min = calc_zoom_min (self->y1, self->yn, self->zoom, self->y_focus);
-      adjustment->value = (zoom_min - self->y1) / (self->yn - self->y1) * self->zoom;
-      gtk_adjustment_value_changed(adjustment);
-
-    }
+  canvas_sync_scroll_adjustment(self, self->horiz_scroll_adjustment, self->x1, self->xn, self->x_focus);
+  canvas_sync_scroll_adjustment(self, self->vert_scroll_adjustment, self->y1, self->yn, self->y_focus);
 
   gtk_widget_queue_draw(GTK_WIDGET(self));
 }
@@ -323,6 +330,12 @@ hos_canvas_set_property (GObject         *object,
     case PROP_YN:
       canvas_set_world(canvas, canvas->x1, canvas->y1, canvas->xn, g_value_get_double(value));
       break;
+    case PROP_ZOOM:
+      canvas_set_zoom(canvas, g_value_get_double(value));
+      break;
+    case PROP_ZOOM_ADJUSTMENT:
+      canvas_set_zoom_adjustment(canvas, g_value_get_object(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -348,6 +361,12 @@ hos_canvas_get_property (GObject         *object,
       break;
     case PROP_YN:
       g_value_set_double(value, HOS_CANVAS(object)->yn);
+      break;
+    case PROP_ZOOM:
+      g_value_set_double(value, HOS_CANVAS(object)->zoom);
+      break;
+    case PROP_ZOOM_ADJUSTMENT:
+      g_value_set_object(value, HOS_CANVAS(object)->zoom_adjustment);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -582,6 +601,38 @@ canvas_connect_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
 		    G_CALLBACK (canvas_adjustment_value_changed),
 		    self);
 
+}
+
+void
+canvas_set_zoom_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment)
+{
+  g_return_if_fail (HOS_IS_CANVAS(canvas));
+  if (!adjustment)
+    adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (1.0, 1.0, 10.0, 0.1, 0.0, 0.0));
+  if (adjustment != canvas->zoom_adjustment)
+    {
+      if (GTK_IS_ADJUSTMENT(canvas->zoom_adjustment))
+	{
+	  g_signal_handlers_disconnect_by_func (canvas->zoom_adjustment,
+						canvas_zoom_adjustment_value_changed,
+						canvas);
+	  g_object_unref(canvas->zoom_adjustment);
+	}
+      canvas->zoom_adjustment = adjustment;
+
+      g_signal_connect (adjustment, "value-changed",
+			G_CALLBACK (canvas_zoom_adjustment_value_changed),
+			canvas);
+      g_object_ref_sink (adjustment);
+    }
+}
+
+static gboolean
+canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
+{
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(adjustment), FALSE);
+  HosCanvas *canvas = HOS_CANVAS(data);
+  canvas_set_zoom(canvas, adjustment->value);
 }
 
 static void
