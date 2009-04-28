@@ -122,7 +122,7 @@ static void
 contour_color_set_default_colors(HosContourColor *self)
 {
   static GdkColor default_positive_low  = {0, 0x800,  0x0, 0x6000};
-  static GdkColor default_positive_high = {0, 0x8000, 0x0, 0x8000};
+  static GdkColor default_positive_high = {0, 0xf000, 0x0, 0xe000};
 
   static GdkColor default_negative_low  = {0, 0x4000, 0x800,  0x0};
   static GdkColor default_negative_high = {0, 0x8000, 0x6000, 0x0};
