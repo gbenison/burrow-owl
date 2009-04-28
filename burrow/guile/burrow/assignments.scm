@@ -164,7 +164,11 @@
   (let ((format (find extension-predicate assignment-formats)))
     (if format (assignment-format:name format) default-assignment-style)))
 
-(define (assignments-to-file assignments fname)
+(define (assignments-to-file assignments fname . overwrite)
+  (if (or (null? overwrite)
+	  (not (car overwrite)))
+      (if (file-exists? fname)
+	  (throw 'file-exists fname)))
   (with-output-to-file fname
     (lambda ()
       (assignments-write-with-style assignments (fname->format fname)))))

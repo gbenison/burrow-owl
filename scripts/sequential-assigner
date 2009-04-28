@@ -730,10 +730,19 @@
 	(assignment-set! assignment 'residue-type (residue 'residue-type))
 	assignment))
     (map get-atom (list 'H 'N 'CA 'CB)))
-  (assignments-to-file
-   (apply append (map residue->assignments residues))
-   assignment-file-name))
-
+  (let ((assignments (apply append (map residue->assignments residues))))
+    (catch 'file-exists
+	   (lambda () (assignments-to-file assignments assignment-file-name))
+	   (lambda args
+	     (let ((dialog (make <gtk-message-dialog>
+			     #:title "Warning"
+			     #:text (format #f "File ~a exists: overwrite?" assignment-file-name)
+			     #:buttons 'ok)))
+	       (if (eq? 'ok
+			(genum->symbol (make <gtk-response-type> #:value (run dialog))))
+		   (assignments-to-file assignments assignment-file-name #t))
+	       (destroy dialog))))))
+			      
 ;; How to make a widget look 'selected'
 ;; (gtk-widget-set-state hbox 'selected)
 
