@@ -1,10 +1,12 @@
-
-;
-; 1) read a list of assignments in .scm format;
-; 2) write to a file in BMRB format
-; 3) read the BMRB file
-; 4) verify equivalence
-;
+#!/bin/sh
+#
+# 1) read a list of assignments in .scm format;
+# 2) write to a file in BMRB format
+# 3) read the BMRB file
+# 4) verify equivalence
+#
+exec guile -s $0
+!#
 
 (use-modules (burrow assignments)
 	     (srfi srfi-1))

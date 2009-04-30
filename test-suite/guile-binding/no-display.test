@@ -1,0 +1,9 @@
+#!/bin/sh
+# without a usable display,
+# non-graphical components should still function.
+DISPLAY=none exec guile -s $0
+!#
+
+(use-modules (burrow spectrum)
+	     (burrow assignments))
+

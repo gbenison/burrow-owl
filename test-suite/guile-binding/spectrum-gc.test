@@ -1,7 +1,8 @@
-;-*-scheme-*-
-;
-; stress garbage collection of transposed and projected spectra
-;
+#!/bin/sh
+#-*-scheme-*-
+# stress garbage collection of transposed and projected spectra
+exec guile -s $0
+!#
 (use-modules (burrow spectrum))
 
 (sleep-if-requested)

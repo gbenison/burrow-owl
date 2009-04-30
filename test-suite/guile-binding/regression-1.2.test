@@ -1,8 +1,11 @@
-;-*-scheme-*-
-; Is the functionality from 1.2 still around?
-; This script was created by looking through the scripts released with 1.2,
-; and taking out the interactive parts
-;
+#!/bin/sh
+#-*-scheme-*-
+# Is the functionality from 1.2 still around?
+# This script was created by looking through the scripts released with 1.2,
+# and taking out the interactive parts
+#
+exec guile -s $0
+!#
 
 (use-modules (oop goops)
 	     (burrow spectrum)

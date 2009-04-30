@@ -1,0 +1,9 @@
+#!/bin/sh
+# without a usable display, trying to load graphical components should fail.
+DISPLAY=none exec guile -s $0
+!#
+
+(use-modules (burrow spectrum)
+	     (burrow canvas))
+
+

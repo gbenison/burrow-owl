@@ -1,4 +1,8 @@
-; -*-scheme-*-
+#!/bin/sh
+# -*-scheme-*-
+exec guile -s $0
+!#
+
 (use-modules (burrow spectrum))
 
 (define (example-spectrum-path str)
