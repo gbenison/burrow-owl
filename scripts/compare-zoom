@@ -25,7 +25,10 @@
 (define option-spec
   '((assignment-file (single-char #\a) (value #t))))
 (define options (getopt-long (command-line) option-spec))
-(define assignment-file-name (option-ref options 'assignment-file "assignments.scm"))
+(define asg-fnames '("assignments.str" "assignments.scm"))
+(define assignment-file-name #f)
+(let ((name-from-arg (option-ref options 'assignment-file #f)))
+  (if name-from-arg (set! asg-fnames (cons name-from-arg asg-fnames))))
 (define spectrum-file-names  (option-ref options '() #f))
 
 (define (spec->zoom-canvas spec)
@@ -119,21 +122,34 @@
 
 (define sequence '())
 
-(define assignments
-  (false-if-exception
-   (hash-fold
-    (lambda (key value seed)
-      (define (find-shift/safe name)
-	(false-if-exception (assignment:shift (assignments:find-atom value name))))
-      (set! sequence (assoc-set! sequence key (assignment:residue-type (car value))))
-      (let ((H (find-shift/safe 'H))
-	    (N (find-shift/safe 'N)))
-	(if (and H N)
-	    (cons (amide key H N #t) seed)
-	    seed)))
-    '()
-    (assignments->residue-table
-     (assignments-from-file assignment-file-name)))))
+(define (assignments->amide-list asg)
+  (hash-fold
+   (lambda (key value seed)
+     (define (find-shift/safe name)
+       (false-if-exception (assignment:shift (assignments:find-atom value name))))
+     (set! sequence (assoc-set! sequence key (assignment:residue-type (car value))))
+     (let ((H (find-shift/safe 'H))
+	   (N (find-shift/safe 'N)))
+       (if (and H N)
+	   (cons (amide key H N #t) seed)
+	   seed)))
+   '()
+   (assignments->residue-table asg)))
+
+(define assignments #f)
+
+(let loop ((asg-fnames asg-fnames))
+  (if (null? asg-fnames)
+      (display "Could not open any assignment file...\ntry --assignment-file=<fname>\n")
+      (let ((asg 
+	     (false-if-exception
+	      (assignments-from-file (car asg-fnames)))))
+	(if asg
+	    (begin (set! assignment-file-name (car asg-fnames))
+		   (set! assignments (assignments->amide-list asg)))
+	    (begin 
+	      (format #t "Failed to open assignment file ~a~%" (car asg-fnames))
+	      (loop (cdr asg-fnames)))))))
 
 (define (current-assignments)
   (define (get-res-type residue-id)
