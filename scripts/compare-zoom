@@ -245,6 +245,19 @@
 	    (cons 'cursor-horiz cursor-horiz)
 	    (cons 'cursor-vert cursor-vert)))))
 
+(define (assignments-to-file/warn asg fname)
+  (catch 'file-exists
+	 (lambda () (assignments-to-file asg fname))
+	 (lambda args
+	   (let ((dialog (make <gtk-message-dialog>
+			   #:title "Warning"
+			   #:text (format #f "File ~a exists: overwrite?" fname)
+			   #:buttons 'ok)))
+	     (if (eq? 'ok
+		      (genum->symbol (make <gtk-response-type> #:value (run dialog))))
+		 (assignments-to-file asg fname #t))
+	     (destroy dialog)))))
+
 (define zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
 (define zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
 (define write-button (make <gtk-button> #:label "WRITE ASSIGNMENTS"))
@@ -252,7 +265,7 @@
 	 'clicked
 	 (lambda args 
 	   (let ((asg (current-assignments)))
-	     (assignments-to-file asg assignment-file-name)) #f))
+	     (assignments-to-file/warn asg assignment-file-name)) #f))
 
 (define x-adj #f)
 (define y-adj #f)
