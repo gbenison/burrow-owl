@@ -228,7 +228,6 @@ spectrum_convoluted_free_iterator(struct spectrum_iterator *self)
   struct convoluted_iterator *convoluted_iterator = (struct convoluted_iterator*)self;
   iterator_free(convoluted_iterator->A);
   iterator_free(convoluted_iterator->B);
-  g_free(self);
 }
 
 

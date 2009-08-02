@@ -143,7 +143,6 @@ static void
 spectrum_extracted_free_iterator(struct spectrum_iterator* self)
 {
   iterator_free(((struct extracted_iterator*)self)->base);
-  g_free(self);
 }
 
 static void

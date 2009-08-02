@@ -244,7 +244,6 @@ spectrum_diagonal_free_iterator(struct spectrum_iterator *self)
 {
   struct diagonal_iterator *diagonal_iterator = (struct diagonal_iterator*)self;
   iterator_free(diagonal_iterator->base);
-  g_free(self);
 }
 
 

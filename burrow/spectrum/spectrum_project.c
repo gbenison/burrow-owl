@@ -198,7 +198,6 @@ static void
 spectrum_projected_free_iterator(struct spectrum_iterator* self)
 {
   iterator_free(((struct projected_iterator*)self)->base);
-  g_free(self);
 }
 
 /**

@@ -232,6 +232,7 @@ static void
 spectrum_integrated_free_iterator(struct spectrum_iterator *self)
 {
   struct integrated_iterator *integrated_iterator = (struct integrated_iterator*)self;
+  iterator_free(integrated_iterator->integrand);
 }
 
 
