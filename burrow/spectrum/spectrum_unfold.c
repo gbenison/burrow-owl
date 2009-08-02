@@ -240,6 +240,7 @@ spectrum_unfolded_free_iterator(struct spectrum_iterator* self)
 {
   struct unfolded_iterator *unfolded_iterator = (struct unfolded_iterator*)self;
   iterator_free(unfolded_iterator->base);
+  g_free(self);
 }
 
 

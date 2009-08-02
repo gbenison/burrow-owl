@@ -220,4 +220,5 @@ static void
 spectrum_transposed_free_iterator(struct spectrum_iterator* self)
 {
   iterator_free(((struct transposed_iterator*)self)->base);
+  g_free(self);
 }

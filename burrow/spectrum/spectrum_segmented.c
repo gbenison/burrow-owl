@@ -521,6 +521,9 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
   priv->iterators = g_list_remove(priv->iterators, self);
   CONFESS("Tr (0x%x): free: unlock iterators (0x%x)", segmented_iterator, priv->iterators_lock);
   g_mutex_unlock(priv->iterators_lock);
+
+  CONFESS("Tr: freeing iterator 0x%x", self);
+  g_free(self);
 }
 
 void

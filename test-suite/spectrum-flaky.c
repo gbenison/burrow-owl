@@ -139,4 +139,5 @@ static void
 spectrum_flaky_free_iterator(struct spectrum_iterator* self)
 {
   iterator_free(((struct flaky_iterator*)self)->flakand);
+  g_free(self);
 }

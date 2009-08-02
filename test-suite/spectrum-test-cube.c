@@ -60,7 +60,7 @@ test_cube_construct_iterator(HosSpectrum *self)
 static void
 test_cube_free_iterator(struct spectrum_iterator* self)
 {
-  /* g_free(self); */
+  g_free(self);
 }
 
 static gdouble
