@@ -1235,7 +1235,7 @@ iterator_free(struct spectrum_iterator *self)
     (self->free)(self);
 
   /* FIXME why? */
-  //  g_free(self);
+  g_free(self);
 }
 
 /**** 'cached' iterators ****/
