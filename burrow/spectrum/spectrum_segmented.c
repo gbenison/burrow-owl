@@ -45,6 +45,8 @@ struct _cache_slot
 struct _HosSpectrumSegmentedPrivate
 {
   GThread *io_thread;
+  GThread *deadlock_detection_thread;
+  GTimeVal deadline;
 
   GList   *iterators;
   GMutex  *iterators_lock;
@@ -83,6 +85,13 @@ struct segmented_iterator
 
 };
 
+struct _deadline
+{
+  guint    nsec;
+  gboolean satisfied;
+};
+typedef struct _deadline deadline_t;
+
 static cache_slot_t* cache_slot_new           (guint segment_size);
 static cache_slot_t* iterator_fetch_segid     (struct segmented_iterator *iterator,
 					       gint segid);
@@ -97,6 +106,11 @@ static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpect
 static void                      spectrum_segmented_free_iterator      (struct spectrum_iterator* self);
 
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
+
+static void     deadline_set      (deadline_t *self, guint nsec);
+static void     deadline_release  (deadline_t *self);
+static void     deadline_handler  (deadline_t *self);
+
 static gboolean segmented_acquire_slot        (struct segmented_iterator *iterator, gint segid, gboolean block);
 
 
@@ -293,14 +307,42 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
 }
 
 static void
+deadline_set(deadline_t *self, guint nsec)
+{
+  self->nsec = nsec;
+  self->satisfied = FALSE;
+
+  GError *error = NULL;
+  g_thread_create((GThreadFunc)deadline_handler,
+		  self,
+		  FALSE,
+		  &error);
+  g_assert(error == NULL);
+}
+
+static void
+deadline_release(deadline_t *self)
+{
+  self->satisfied = TRUE;
+}
+
+static void
+deadline_handler(deadline_t *self)
+{
+  g_usleep(1000000 * self->nsec);
+      
+  if (self->satisfied == FALSE)
+    g_error("segmented spectrum: deadlock detected");
+
+}
+
+static void
 spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
   HosSpectrumSegmentedClass   *class = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
 
   cache_slot_t *active_slot = NULL;
-
-  /* FIXME die when 'self' is traversed! */
 
   while (1)
     {
@@ -391,11 +433,15 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	  /* finally pick one and block */
 	  if (active_slot == NULL)
 	    {
+	      deadline_t deadline;
+	      
 	      /* FIXME can deadlock if there is a reader lock on active_slot */
 	      gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
 	      active_slot = g_ptr_array_index(priv->segment_cache, idx);
 	      CONFESS("IO (0x%x): seizing slot %d", self,  idx);
+	      deadline_set(&deadline, 1);
 	      g_static_rw_lock_writer_lock(&active_slot->lock);
+	      deadline_release(&deadline);
 	      CONFESS("IO (0x%x): seized slot %d; segid %d", self, idx, active_slot->segid);
 	    }
 
@@ -451,7 +497,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
 					self,
 					FALSE,
 					&error);
-      
+
       g_object_ref(self); /* for the IO thread. */
       g_assert(error == NULL);
       priv->io_thread = thread;

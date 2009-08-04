@@ -4,7 +4,8 @@ check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_segment_async t_project     \
                t_diagonal_project t_extract t_transpose t_unfold  \
                t_cache \
-               t_collision
+               t_collision \
+               t_traverse_blocking
 TESTS = $(check_PROGRAMS)
 SUBDIRS=. guile-binding
 
