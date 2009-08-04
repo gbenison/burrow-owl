@@ -41,11 +41,12 @@ struct _cache_slot
   gdouble       *buf;
 };
 
-static cache_slot_t* cache_slot_new                (guint segment_size);
 
 struct _HosSpectrumSegmentedPrivate
 {
   GThread *io_thread;
+  GThread *deadlock_detection_thread;
+  GTimeVal deadline;
 
   GList   *iterators;
   GMutex  *iterators_lock;
@@ -84,6 +85,16 @@ struct segmented_iterator
 
 };
 
+struct _deadline
+{
+  guint    nsec;
+  gboolean satisfied;
+};
+typedef struct _deadline deadline_t;
+
+static cache_slot_t* cache_slot_new           (guint segment_size);
+static cache_slot_t* iterator_fetch_segid     (struct segmented_iterator *iterator,
+					       gint segid);
 static gdouble  spectrum_segmented_wait       (struct spectrum_iterator* self);
 static void     spectrum_segmented_mark       (struct spectrum_iterator* self);
 static void     spectrum_segmented_restore    (struct spectrum_iterator* self);
@@ -95,6 +106,11 @@ static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpect
 static void                      spectrum_segmented_free_iterator      (struct spectrum_iterator* self);
 
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
+
+static void     deadline_set      (deadline_t *self, guint nsec);
+static void     deadline_release  (deadline_t *self);
+static void     deadline_handler  (deadline_t *self);
+
 static gboolean segmented_acquire_slot        (struct segmented_iterator *iterator, gint segid, gboolean block);
 
 
@@ -166,6 +182,33 @@ spectrum_segmented_wait(struct spectrum_iterator* self)
 }
 
 /*
+ * Return the cache slot of 'iterator' holding segment 'segid',
+ * or NULL if 'segid' is not in the cache.
+ *
+ * postcondition: if result != NULL, (result)->lock is held
+ */
+static cache_slot_t*
+iterator_fetch_segid(struct segmented_iterator *iterator, gint segid)
+{
+  cache_slot_t *slot = skip_list_lookup(iterator->segment_cache, segid);
+  if (slot != NULL)
+    {
+      g_static_rw_lock_reader_lock(&slot->lock);
+      CONFESS("Tr (0x%x): locked slot %x", iterator, slot);
+      /* consistency: do the slot index and the slot agree on the segid? */
+      if (slot->segid != segid)
+	{
+	  /* evict from index */
+	  skip_list_pop(iterator->segment_cache, segid);
+	  g_static_rw_lock_reader_unlock(&slot->lock);
+	  CONFESS("Tr (0x%x): unlocked slot %x", iterator, slot);
+	  slot = NULL;
+	}
+    }
+  return slot;
+}
+
+/*
  * Attempt to acquire a read lock on cache slot 'segid'
  * and store in the field 'last_slot' of 'segmented_iterator'.
  * If 'block' is true, block until 'segid' is available.
@@ -185,7 +228,10 @@ segmented_acquire_slot(struct segmented_iterator *iterator, gint segid, gboolean
   else
     {
       if (iterator->last_slot != NULL)
-	g_static_rw_lock_reader_unlock(&iterator->last_slot->lock);
+	{
+	  g_static_rw_lock_reader_unlock(&iterator->last_slot->lock);
+	  CONFESS("Tr (0x%x): unlocked slot %x", iterator, iterator->last_slot);
+	}
       iterator->last_slot = NULL;
 
       gboolean repeat = TRUE;
@@ -193,18 +239,7 @@ segmented_acquire_slot(struct segmented_iterator *iterator, gint segid, gboolean
       while (repeat)
 	{
 	  repeat = FALSE;
-	  cache_slot_t* slot = skip_list_lookup(iterator->segment_cache, segid);
-	  if (slot != NULL)
-	    {
-	      g_static_rw_lock_reader_lock(&slot->lock);
-	      if (slot->segid == segid)
-		iterator->last_slot = slot;
-	      else
-		{
-		  g_static_rw_lock_reader_unlock(&slot->lock);
-		  skip_list_pop(iterator->segment_cache, segid);
-		}
-	    }
+	  iterator->last_slot = iterator_fetch_segid(iterator, segid);
 	  if ((iterator->last_slot == NULL) && (block == TRUE))
 	    {
 	      skip_list_insert(iterator->request_queue, segid, NULL);
@@ -272,14 +307,42 @@ spectrum_segmented_tickle(struct spectrum_iterator* self, gdouble *dest)
 }
 
 static void
+deadline_set(deadline_t *self, guint nsec)
+{
+  self->nsec = nsec;
+  self->satisfied = FALSE;
+
+  GError *error = NULL;
+  g_thread_create((GThreadFunc)deadline_handler,
+		  self,
+		  FALSE,
+		  &error);
+  g_assert(error == NULL);
+}
+
+static void
+deadline_release(deadline_t *self)
+{
+  self->satisfied = TRUE;
+}
+
+static void
+deadline_handler(deadline_t *self)
+{
+  g_usleep(1000000 * self->nsec);
+      
+  if (self->satisfied == FALSE)
+    g_error("segmented spectrum: deadlock detected");
+
+}
+
+static void
 spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 {
   HosSpectrumSegmentedPrivate *priv  = SEGMENTED_GET_PRIVATE(self);
   HosSpectrumSegmentedClass   *class = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
 
   cache_slot_t *active_slot = NULL;
-
-  /* FIXME die when 'self' is traversed! */
 
   while (1)
     {
@@ -359,22 +422,29 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	    {
 	      gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
 	      active_slot = g_ptr_array_index(priv->segment_cache, idx);
-
+	      
 	      if (g_static_rw_lock_writer_trylock(&active_slot->lock))
 		break;
 	      else
 		active_slot = NULL;
-
+	      
 	      CONFESS("IO (0x%x): collision with slot %d", self,  idx);
 	    }
 	  /* finally pick one and block */
 	  if (active_slot == NULL)
 	    {
+	      deadline_t deadline;
+	      
+	      /* FIXME can deadlock if there is a reader lock on active_slot */
 	      gint idx = g_random_int_range(0, priv->segment_cache->len - 1);
 	      active_slot = g_ptr_array_index(priv->segment_cache, idx);
+	      CONFESS("IO (0x%x): seizing slot %d", self,  idx);
+	      deadline_set(&deadline, 1);
 	      g_static_rw_lock_writer_lock(&active_slot->lock);
+	      deadline_release(&deadline);
+	      CONFESS("IO (0x%x): seized slot %d; segid %d", self, idx, active_slot->segid);
 	    }
-	  
+
 	  g_assert(active_slot != NULL);
 	  g_assert(active_slot->buf != NULL);
 	  class->read_segment(self->traversal_env, segid, active_slot->buf);
@@ -427,7 +497,7 @@ spectrum_segmented_construct_iterator(HosSpectrum *self)
 					self,
 					FALSE,
 					&error);
-      
+
       g_object_ref(self); /* for the IO thread. */
       g_assert(error == NULL);
       priv->io_thread = thread;
@@ -478,6 +548,7 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
   if (segmented_iterator->last_slot != NULL)
     {
       g_static_rw_lock_reader_unlock(&segmented_iterator->last_slot->lock);
+      CONFESS("Tr (0x%x): unlocked slot %x", segmented_iterator, segmented_iterator->last_slot);
       segmented_iterator->last_slot = NULL;
     }
 
@@ -497,7 +568,7 @@ spectrum_segmented_free_iterator(struct spectrum_iterator* self)
   CONFESS("Tr (0x%x): free: unlock iterators (0x%x)", segmented_iterator, priv->iterators_lock);
   g_mutex_unlock(priv->iterators_lock);
 
-  CONFESS("Tr: about to destroy iterator 0x%x", self);
+  CONFESS("Tr: freeing iterator 0x%x", self);
   g_free(self);
 }
 

@@ -33,18 +33,22 @@ main()
       gint source_x0 = spectrum_ppm2pt(S2, 0, x_ppm);
       gint source_x1 = spectrum_ppm2pt(S2, 1, x_ppm);
 
-      gint source_idx_1 = source_x0 + (source_x1 - 1) * stride_x1 + y * stride_y;
-      gint source_idx_2 = source_x0 + source_x1 * stride_x1 + y * stride_y;
-      gint source_idx_3 = source_x0 + (source_x1 + 1) * stride_x1 + y * stride_y;
+#define DX_TO_IDX(dx0, dx1)  (source_x0 + dx0 + (source_x1 - dx1) * stride_x1 + y * stride_y)
+#define DX_TO_PEEK(dx0, dx1) (spectrum_peek(S2, DX_TO_IDX(dx0, dx1)))
+#define DX_IS_BAD(dx0, dx1)  (fabs(actual - DX_TO_PEEK(dx0, dx1)) > 0.00001)
 
-      gdouble error_1 = fabs(actual - spectrum_peek(S2, source_idx_1));
-      gdouble error_2 = fabs(actual - spectrum_peek(S2, source_idx_2));
-      gdouble error_3 = fabs(actual - spectrum_peek(S2, source_idx_3));
+      if (DX_IS_BAD(-1, -1) &&
+	  DX_IS_BAD(-1, 0) &&
+	  DX_IS_BAD(-1, 1) &&
 
-      if ((error_1 > 0.00001) &&
-	  (error_2 > 0.00001) &&
-	  (error_3 > 0.00001))
-	g_error("Error: idx %d actual %f, errors %f, %f, %f", i, actual, error_1, error_2, error_3);
+	  DX_IS_BAD(0, -1) &&
+	  DX_IS_BAD(0, 0) &&
+	  DX_IS_BAD(0, 1) &&
+
+	  DX_IS_BAD(1, -1) &&
+	  DX_IS_BAD(1, 0) &&
+	  DX_IS_BAD(1, 1))
+	g_error("Error: idx %d actual %f, no matching point found\n", i, actual);
       if ((i % 100) == 0) g_print(".");
     }
   
