@@ -44,6 +44,8 @@ struct _HosSpectrumTransposedClass
   HosSpectrumClass parent_instance;
 };
 
+GType hos_spectrum_transposed_get_type (void);
+
 HosSpectrum* CONSTRUCTOR spectrum_transpose        (HosSpectrum* self, guint dim);
 
 G_END_DECLS
