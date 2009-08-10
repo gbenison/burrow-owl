@@ -17,11 +17,8 @@
   (list (next-method)
         "#include \"burrow/spectrum.h\"\n"
         "#include \"burrow/canvas.h\"\n"
+	"#include \"guile-cairo.h\"\n"
         "\n"))
-
-        ; couple of disabled sources
-        ; "#include \"box.h\"\n"
-        ; "#include \"speciter.h\"\n"
 
 (define-method (initializations-cg (self <canvas-wrapset>) err)
   (list
