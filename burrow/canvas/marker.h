@@ -66,6 +66,7 @@ struct _HosMarkerClass
 
 };
 
+GType          hos_marker_get_type      (void);
 void           marker_set_size          (HosMarker *marker, guint size);
 void           marker_set_adjustments   (HosMarker *marker,
 					 GtkAdjustment *x_adjustment,

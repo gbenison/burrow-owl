@@ -21,6 +21,7 @@
 #include <string.h>
 #include <assert.h>
 #include <glib-object.h>
+#include "contour-color.h"
 #include "painter_gdk.h"
 
 enum {
