@@ -34,7 +34,7 @@ canvas.defs: $(HEADERS_1)
 canvas-gw.c canvas-gw.h canvas-gw.scm: canvas.defs
 	GUILE_LOAD_PATH=@srcdir@:@builddir@:@GUILE_GNOME_MODULE_DIR@:@G_WRAP_MODULE_DIR@:$$GUILE_LOAD_PATH $(GUILE) -s @srcdir@/run-g-wrap.scm
 
-INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I@top_srcdir@
+INCLUDES=@GTK_CFLAGS@ @G_WRAP_CFLAGS@ @GUILE_GNOME_CFLAGS@ @GUILE_CAIRO_CFLAGS@ @GUILE_CFLAGS@ -I$(headers_dir) -I@top_srcdir@
 
 moduledir=$(datadir)/guile/burrow
 module_DATA=canvas-gw.scm canvas.scm
