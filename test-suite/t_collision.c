@@ -55,7 +55,7 @@ main()
   while (1)
     {
       g_usleep(1 * G_USEC_PER_SEC);
-      if (S3->buf != NULL)
+      if (spectrum_is_ready(S3))
 	break;
       g_print(".");
     }

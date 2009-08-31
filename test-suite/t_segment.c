@@ -21,7 +21,7 @@ main()
     {
       g_usleep(1000000);
       g_print(".");
-      if (spec_sim->buf != NULL)
+      if (spectrum_is_ready(spec_sim))
 	break;
     }
   g_print("\nDone.\n");

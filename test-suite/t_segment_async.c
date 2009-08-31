@@ -29,7 +29,8 @@ main()
       ++tick;
       guint n_remaining = n_readers;
       for (i = 0; i < n_readers; ++i)
-	if (readers[i]->buf != NULL) --n_remaining;
+	if (spectrum_is_ready(readers[i]))
+	  --n_remaining;
       g_message("(%3d) %3d remaining", tick, n_remaining);
       if (n_remaining == 0)
 	break;

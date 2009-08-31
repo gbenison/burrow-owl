@@ -346,9 +346,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
   while (1)
     {
-      /* check if 'self' is traversed already */
-      if (HOS_SPECTRUM(self)->buf != NULL)
-	break;
+      /* FIXME perhaps kill the thread if 'self' is traversed already */
 
       /* maintainance on all active iterators */
       CONFESS("IO (0x%x): lock iterators (0x%x)", self, priv->iterators_lock);
@@ -454,6 +452,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	}
       else
 	{
+	  /* FIXME perhaps kill the thread? */
 	  CONFESS("IO (0x%x): sleep because no segments are pending", self, g_thread_self());
 	  active_slot = NULL;
 	  g_usleep(5000);
