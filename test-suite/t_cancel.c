@@ -18,6 +18,8 @@ main()
     {
       HosSpectrum *spec = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
       traversal_token_t *token = spectrum_traverse(spec);
+      spectrum_traverse_cancel(token);
+      g_object_unref(spec);
     }
 
   /* start final traversal and wait */

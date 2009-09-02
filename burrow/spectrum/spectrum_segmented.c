@@ -45,6 +45,7 @@ struct _cache_slot
 struct _HosSpectrumSegmentedPrivate
 {
   GThread *io_thread;
+  gboolean condemned;
   GThread *deadlock_detection_thread;
   GTimeVal deadline;
 
@@ -105,7 +106,10 @@ static void     spectrum_segmented_increment  (struct spectrum_iterator* self, g
 static struct spectrum_iterator* spectrum_segmented_construct_iterator (HosSpectrum *self);
 static void                      spectrum_segmented_free_iterator      (struct spectrum_iterator* self);
 
+static void     spectrum_segmented_dispose    (GObject *object);
+
 static void     spectrum_segmented_io_thread  (HosSpectrumSegmented *self);
+static void     ensure_io_thread              (HosSpectrumSegmented *self);
 
 static void     deadline_set      (deadline_t *self, guint nsec);
 static void     deadline_release  (deadline_t *self);
@@ -122,6 +126,8 @@ hos_spectrum_segmented_class_init(HosSpectrumSegmentedClass *klass)
   GObjectClass     *gobject_class  = G_OBJECT_CLASS(klass);
   HosSpectrumClass *spectrum_class = HOS_SPECTRUM_CLASS(klass);
 
+  gobject_class->dispose             = spectrum_segmented_dispose;
+
   spectrum_class->construct_iterator = spectrum_segmented_construct_iterator;
   spectrum_class->free_iterator      = spectrum_segmented_free_iterator;
 
@@ -136,8 +142,38 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
   priv->segment_cache          = g_ptr_array_new();
   priv->iterators_lock         = g_mutex_new();
   priv->iterators_pending_cond = g_cond_new();
-
+  priv->condemned              = FALSE;
+  
   spectrum_segmented_set_cache_size(self, 32);
+}
+
+static void
+spectrum_segmented_dispose (GObject *object)
+{
+  SEGMENTED_PRIVATE(object, condemned) = TRUE;
+  if (SEGMENTED_PRIVATE(object, io_thread) != NULL)
+    {
+      g_thread_join(SEGMENTED_PRIVATE(object, io_thread));
+      SEGMENTED_PRIVATE(object, io_thread) = NULL;
+    }
+  G_OBJECT_CLASS(hos_spectrum_segmented_parent_class)->dispose (object);
+}
+
+static void
+ensure_io_thread (HosSpectrumSegmented *self)
+{
+  g_mutex_lock (SEGMENTED_PRIVATE(self, iterators_lock));
+  if (SEGMENTED_PRIVATE(self, io_thread) == NULL)
+    {
+      GError *error = NULL;
+      SEGMENTED_PRIVATE(self, io_thread)
+	= g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
+			  self,
+			  TRUE,
+			  &error);
+      g_assert(error == NULL);
+    }
+  g_mutex_unlock (SEGMENTED_PRIVATE(self, iterators_lock));
 }
 
 static void
@@ -344,10 +380,8 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
   cache_slot_t *active_slot = NULL;
 
-  while (1)
+  while (priv->condemned != TRUE)
     {
-      /* FIXME perhaps kill the thread if 'self' is traversed already */
-
       /* maintainance on all active iterators */
       CONFESS("IO (0x%x): lock iterators (0x%x)", self, priv->iterators_lock);
       CONFESS("IO (0x%x): acquired lock", self);
@@ -452,13 +486,11 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	}
       else
 	{
-	  /* FIXME perhaps kill the thread? */
 	  CONFESS("IO (0x%x): sleep because no segments are pending", self, g_thread_self());
 	  active_slot = NULL;
 	  g_usleep(5000);
 	}
     }
-  g_object_unref(self);
 }
 
 static cache_slot_t*
@@ -483,25 +515,10 @@ set_segment_size(cache_slot_t* slot, guint size)
 static struct spectrum_iterator*
 spectrum_segmented_construct_iterator(HosSpectrum *self)
 {
+  ensure_io_thread(self);
 
   struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);
-
-  /* ensure existence of traversal thread. */
-  g_mutex_lock(priv->iterators_lock);
-  if (priv->io_thread == NULL)
-    {
-      GError  *error  = NULL;
-      GThread *thread = g_thread_create((GThreadFunc)spectrum_segmented_io_thread,
-					self,
-					FALSE,
-					&error);
-
-      g_object_ref(self); /* for the IO thread. */
-      g_assert(error == NULL);
-      priv->io_thread = thread;
-    }
-  g_mutex_unlock(priv->iterators_lock);
 
   result->priv          = priv;
   result->class         = HOS_SPECTRUM_SEGMENTED_GET_CLASS(self);
