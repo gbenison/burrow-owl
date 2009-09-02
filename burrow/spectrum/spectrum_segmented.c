@@ -150,9 +150,14 @@ hos_spectrum_segmented_init(HosSpectrumSegmented *self)
 static void
 spectrum_segmented_dispose (GObject *object)
 {
-  SEGMENTED_PRIVATE(object, condemned) = TRUE;
+  HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(object);
+  g_atomic_int_set(&(priv->condemned), TRUE);
   if (SEGMENTED_PRIVATE(object, io_thread) != NULL)
     {
+      /* wake up IO thread */
+      g_mutex_lock(priv->iterators_lock);
+      g_cond_signal(priv->iterators_pending_cond);
+      g_mutex_unlock(priv->iterators_lock);
       g_thread_join(SEGMENTED_PRIVATE(object, io_thread));
       SEGMENTED_PRIVATE(object, io_thread) = NULL;
     }
@@ -380,7 +385,7 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 
   cache_slot_t *active_slot = NULL;
 
-  while (priv->condemned != TRUE)
+  while (1)
     {
       /* maintainance on all active iterators */
       CONFESS("IO (0x%x): lock iterators (0x%x)", self, priv->iterators_lock);
@@ -389,6 +394,8 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
       while (g_list_length(priv->iterators) == 0)
 	{
 	  CONFESS("IO (0x%x): no iterators pending", self);
+	  if (g_atomic_int_get(&(priv->condemned)) == TRUE)
+	    goto done;
 	  g_cond_wait(priv->iterators_pending_cond, priv->iterators_lock);
 	}
 
@@ -488,9 +495,13 @@ spectrum_segmented_io_thread(HosSpectrumSegmented *self)
 	{
 	  CONFESS("IO (0x%x): sleep because no segments are pending", self, g_thread_self());
 	  active_slot = NULL;
+	  if (g_atomic_int_get(&(priv->condemned)) == TRUE)
+	    goto done;
 	  g_usleep(5000);
 	}
     }
+ done:
+  1 == 1;
 }
 
 static cache_slot_t*
@@ -515,7 +526,7 @@ set_segment_size(cache_slot_t* slot, guint size)
 static struct spectrum_iterator*
 spectrum_segmented_construct_iterator(HosSpectrum *self)
 {
-  ensure_io_thread(self);
+  ensure_io_thread(HOS_SPECTRUM_SEGMENTED(self));
 
   struct segmented_iterator* result = g_new0(struct segmented_iterator, 1);
   HosSpectrumSegmentedPrivate *priv = SEGMENTED_GET_PRIVATE(self);

@@ -119,6 +119,7 @@ struct _traversal_token {
 
 static traversal_token_t* token_new  (HosSpectrum *spec);
 static void               token_free (traversal_token_t *token);
+static void               token_drop_reference  (traversal_token_t *token);
 
 static void          spectrum_traverse_internal (traversal_token_t *token);
 static void          spectrum_traverse_and_queue(traversal_token_t *token);
@@ -493,10 +494,19 @@ token_new  (HosSpectrum *spec)
 static void
 token_free (traversal_token_t *token)
 {
-  g_return_if_fail(HOS_IS_SPECTRUM(token->spectrum));
-  g_object_unref (token->spectrum);
-  token->spectrum = NULL;
+  token_drop_reference(token);
   g_free(token);
+}
+
+static void
+token_drop_reference (traversal_token_t *token)
+{
+  if (token->spectrum != NULL)
+    {
+      g_return_if_fail(HOS_IS_SPECTRUM(token->spectrum));
+      g_object_unref (token->spectrum);
+    }
+  token->spectrum = NULL;
 }
 
 static int
@@ -739,6 +749,7 @@ spectrum_ready_pop()
 	  g_assert(SPECTRUM_PRIVATE(spec, valid) == TRUE);
 	  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
 	  spectrum_signal_ready(spec);
+	  token_drop_reference(token);
 	}
     }
   return result;
