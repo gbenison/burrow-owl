@@ -114,12 +114,14 @@ static void hos_spectrum_get_property (GObject         *object,
 
 struct _traversal_token {
   HosSpectrum *spectrum;
-  gboolean valid;
+  gboolean     valid;
+  gint         ref_count;
 };
 
 static traversal_token_t* token_new  (HosSpectrum *spec);
-static void               token_free (traversal_token_t *token);
 static void               token_drop_reference  (traversal_token_t *token);
+static void               token_unref (traversal_token_t *token);
+#define token_ref(token) {token->ref_count++;}
 
 static void          spectrum_traverse_internal (traversal_token_t *token);
 static void          spectrum_traverse_and_queue(traversal_token_t *token);
@@ -191,6 +193,7 @@ spectrum_traverse(HosSpectrum *spec)
       ensure_traversal_setup();
       SPECTRUM_PRIVATE(spec, schedule_id) = schedule_id;
       ++schedule_id;
+      token_ref(result); /* reference held by traversal_pool */
       g_thread_pool_push(traversal_pool, result, NULL);
     }
   g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
@@ -200,13 +203,12 @@ spectrum_traverse(HosSpectrum *spec)
 
 /**
  * @brief   Cancel traversal of the spectrum referenced by 'token'
- *
- * Frees 'token'-- on return, 'token' is no longer valid
  */
 void
 spectrum_traverse_cancel(traversal_token_t *token)
 {
-  /* FIXME */
+  token->valid    = FALSE;
+  token_unref(token);
 }
 
 /**
@@ -232,7 +234,7 @@ spectrum_traverse_blocking(HosSpectrum *spec)
   SPECTRUM_PRIVATE(spec, valid) = TRUE;
   g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
 
-  token_free(token);
+  token_unref(token);
 }
 
 /**
@@ -487,15 +489,21 @@ token_new  (HosSpectrum *spec)
   result->valid = TRUE;
   result->spectrum = spec;
   g_object_ref(spec);
+  result->ref_count = 1;  /* caller-owned */
   
   return result;
 }
 
+
 static void
-token_free (traversal_token_t *token)
+token_unref (traversal_token_t *token)
 {
-  token_drop_reference(token);
-  g_free(token);
+  token->ref_count--;
+  if (token->ref_count == 0)
+    {
+      token_drop_reference (token);
+      g_free (token);
+    }
 }
 
 static void
@@ -751,6 +759,7 @@ spectrum_ready_pop()
 	  spectrum_signal_ready(spec);
 	  token_drop_reference(token);
 	}
+      token_unref(token);
     }
   return result;
 }
@@ -800,16 +809,20 @@ spectrum_bump_idx(HosSpectrum* self, gint* idx)
 static void
 spectrum_traverse_and_queue(traversal_token_t *token)
 {
-  HosSpectrum *spec = token->spectrum;
-  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-  if (SPECTRUM_PRIVATE(spec, valid) == FALSE)
+  if (token->valid == TRUE)
     {
-      spectrum_traverse_internal(token);
-      SPECTRUM_PRIVATE(spec, valid) = TRUE;
-      g_async_queue_push(ready_queue, token);
-      signal_spectra_ready();
+      g_assert(HOS_IS_SPECTRUM(token->spectrum));
+      HosSpectrum *spec = token->spectrum;
+      g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
+      if (SPECTRUM_PRIVATE(spec, valid) == FALSE)
+	{
+	  spectrum_traverse_internal(token);
+	  SPECTRUM_PRIVATE(spec, valid) = TRUE;
+	  g_async_queue_push(ready_queue, token);
+	  signal_spectra_ready();
+	}
+      g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
     }
-  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
 }
 
 static void

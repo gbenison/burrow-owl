@@ -7,11 +7,35 @@
 #include "burrow/spectrum.h"
 #include "segment-sim.h"
 
+static void
+report_thread_func(HosSpectrum *self)
+{
+  /* FIXME perhaps add timer? */
+  while (1)
+    {
+      if (spectrum_is_ready(self))
+	break;
+      g_usleep(300000);
+      g_print(".");
+    }
+}
+
 int
 main()
 {
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
+
+  HosSpectrum *main_spec = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
+
+  /* start report thread */
+  GError *error = NULL;
+  GThread *report_thread =
+    g_thread_create((GThreadFunc)report_thread_func,
+		    main_spec,
+		    TRUE,
+		    &error);
+  g_assert(error == NULL);
 
   gint i;
   for (i = 0; i < 1000; ++i)
@@ -23,27 +47,18 @@ main()
     }
 
   /* start final traversal and wait */
-  HosSpectrum *spec = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
-  spectrum_traverse (spec);
-  while (1)
-    {
-      if (spectrum_is_ready(spec))
-	break;
-      g_usleep(100000);
-      g_print(".");
-    }
+  spectrum_traverse (main_spec);
+  g_thread_join(report_thread);
 
   /* validate */
-  for (i = 0; i < spectrum_np(spec, 0); ++i)
+  for (i = 0; i < spectrum_np(main_spec, 0); ++i)
     {
-      g_assert(segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(spec), i)
-	       == spectrum_peek(spec, i));
+      g_assert(segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(main_spec), i)
+	       == spectrum_peek(main_spec, i));
     }
 
   g_print("OK\n");
 
-  /* FIXME perhaps add timer? */
-  
   return 0;
 }
 
