@@ -24,6 +24,7 @@ struct _HosSpectrumSegmentSim
 };
 
 gdouble segment_sim_predict (HosSpectrumSegmentSim* self, guint idx);
+void    segment_sim_validate (HosSpectrumSegmentSim* self);
 
 G_END_DECLS
 

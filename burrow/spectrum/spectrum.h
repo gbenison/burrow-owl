@@ -56,8 +56,6 @@ struct _HosSpectrumClass
 
 };
 
-typedef struct _traversal_token traversal_token_t;
-
 gboolean spectrum_is_ready (HosSpectrum *self);
 gsize    spectrum_np       (HosSpectrum* spec, guint dim);
 gsize    spectrum_np_total (HosSpectrum* spec);
@@ -88,12 +86,11 @@ gdouble  spectrum_mean               (HosSpectrum *spec);
 gdouble  spectrum_stddev             (HosSpectrum *spec);
 gdouble  spectrum_peek               (HosSpectrum *spec, guint idx);
 
-traversal_token_t* spectrum_traverse           (HosSpectrum *spec);
-void               spectrum_traverse_cancel    (traversal_token_t *token);
-void               spectrum_traverse_blocking  (HosSpectrum *spec);
+gint     spectrum_traverse           (HosSpectrum *spec);
+void     spectrum_traverse_cancel    (HosSpectrum *spec, gint cancel_id);
+void     spectrum_traverse_blocking  (HosSpectrum *spec);
 
-GType hos_spectrum_get_type (void);
-
+GType    hos_spectrum_get_type (void);
 
 G_END_DECLS
 
