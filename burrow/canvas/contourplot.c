@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2007, 2008 Greg Benison
+ *  Copyright (C) 2007-2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,9 +41,9 @@ struct _HosContourPlotPrivate
   cairo_surface_t *backing;
   cairo_t         *cr;
 
-  gulong configure_id;
-
-  GdkRectangle extent;
+  gint             traverse_cancel_id;
+  gulong           configure_id;
+  GdkRectangle     extent;
 
   HosPainter      *painter;
   HosPainterCairo *painter_cairo;
@@ -222,6 +222,7 @@ hos_contour_plot_init(HosContourPlot *self)
   self->smoothed = TRUE;
   CONTOUR_PLOT_PRIVATE(self, painter_cairo) =
     g_object_new(HOS_TYPE_PAINTER_CAIRO, NULL);
+  CONTOUR_PLOT_PRIVATE(self, traverse_cancel_id) = -1;
   contour_plot_set_painter(self, g_object_new(HOS_TYPE_PAINTER_GDK, NULL));
   contour_plot_set_contour(self, g_object_new(HOS_TYPE_CONTOUR_COLOR, NULL));
 }
@@ -271,12 +272,10 @@ contour_plot_expose(HosCanvasItem *self, GdkEventExpose *event)
   if (priv->xform_is_in_sync == FALSE)
     contour_plot_sync_xform(contour_plot);
 
-  spectrum_traverse(spectrum);
+  if (priv->traverse_cancel_id < 0)
+    priv->traverse_cancel_id = spectrum_traverse(spectrum);
 
-  gboolean ready;
-  g_object_get(G_OBJECT(spectrum), "ready", &ready, NULL);
-
-  if (ready)
+  if (spectrum_is_ready(spectrum))
     {
       if (contour_plot_smooth_ready(contour_plot))
 	{
@@ -699,10 +698,21 @@ void
 contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
-  g_return_if_fail(HOS_IS_PAINTER(CONTOUR_PLOT_PRIVATE(self, painter)));
 
-  painter_set_spectrum(CONTOUR_PLOT_PRIVATE(self, painter), spectrum);
-  contour_plot_invalidate_xform(self);
+  HosPainter  *painter = CONTOUR_PLOT_PRIVATE(self, painter);
+  g_return_if_fail(HOS_IS_PAINTER(painter));
+
+  HosSpectrum *old_spectrum = painter_get_spectrum(painter);
+  if (spectrum != old_spectrum)
+    {
+      if (HOS_IS_SPECTRUM(old_spectrum))
+	spectrum_traverse_cancel(old_spectrum,
+				 CONTOUR_PLOT_PRIVATE(self,
+						      traverse_cancel_id));
+      CONTOUR_PLOT_PRIVATE(self, traverse_cancel_id) = -1;
+      painter_set_spectrum(CONTOUR_PLOT_PRIVATE(self, painter), spectrum);
+      contour_plot_invalidate_xform(self);
+    }
 }
 
 void

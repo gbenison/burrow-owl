@@ -757,7 +757,7 @@ ready_queue_flush()
 static gboolean
 idle_spectra_ready(gpointer not_used)
 {
-  ready_queue_flush;
+  ready_queue_flush();
   return FALSE;
 }
 
