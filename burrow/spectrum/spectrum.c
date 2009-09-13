@@ -33,10 +33,24 @@
 #include <glib.h>
 #include "spectrum.h"
 #include "spectrum_priv.h"
+#include "skiplist.h"
 #include "debug.h"
 
 /* for debugging purposes; make value available */
 static const gdouble datum_unknown_value_substitute=DATUM_UNKNOWN_VALUE_SUBSTITUTE;
+
+/* spectrum status */
+enum
+{
+  NO_STATUS = 0,
+  LATENT,
+  SCHEDULED,
+  TRAVERSING,
+  CANCELLED,
+  QUEUED,
+  READY
+};
+
 
 #define SPECTRUM_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_SPECTRUM, HosSpectrumPrivate))
 #define SPECTRUM_PRIVATE(o, field) ((SPECTRUM_GET_PRIVATE(o))->field)
@@ -44,12 +58,13 @@ typedef struct _HosSpectrumPrivate HosSpectrumPrivate;
 
 struct _HosSpectrumPrivate
 {
-  GMutex   *traversal_lock;
+  GMutex      *status_lock;
+  GCond       *traversal_complete_cond;
+  skip_list_t *traversal_requests;
+  guint        status;
+  gint         schedule_id;
+
   GList    *dimensions;
-
-  gboolean  valid;
-
-  gint      schedule_id;
 
   gboolean  instantiable;
   gboolean  instantiable_known;
@@ -97,7 +112,7 @@ enum spectrum_properties {
 };
 
 enum spectrum_signals {
-  READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
+  SIGNAL_READY,       /**< Traversal is complete; spectrum_traverse() will succeed */
   LAST_SIGNAL
 };
 
@@ -112,38 +127,23 @@ static void hos_spectrum_get_property (GObject         *object,
 				       GValue          *value,
 				       GParamSpec      *pspec);
 
-struct _traversal_token {
-  HosSpectrum *spectrum;
-  gboolean     valid;
-  gint         ref_count;
-};
-
-static traversal_token_t* token_new  (HosSpectrum *spec);
-static void               token_drop_reference  (traversal_token_t *token);
-static void               token_unref (traversal_token_t *token);
-#define token_ref(token) {token->ref_count++;}
-
-static void          spectrum_traverse_internal (traversal_token_t *token);
-static void          spectrum_traverse_and_queue(traversal_token_t *token);
-static gboolean      spectrum_signal_ready      (HosSpectrum* self);
+static gboolean      spectrum_traverse_internal (HosSpectrum *spec);
+static void          spectrum_traverse_and_queue(HosSpectrum *spec);
 static void          spectrum_ensure_buffer     (HosSpectrum *self);
+static gint          spectrum_traverse_request  (HosSpectrum *self);
+static void          spectrum_prioritize        (HosSpectrum *self);
 
 static gboolean      spectrum_bump_idx          (HosSpectrum* self, gint* idx);
 
 static void          ensure_traversal_setup     (void);
-static HosSpectrum*  spectrum_ready_pop         (void);
+static void          ready_queue_flush          (void);
 
 static void          signal_spectra_ready       (void);
 static gboolean      idle_spectra_ready         (gpointer not_used);
 
 static dimension_t*  spectrum_fetch_dimension   (HosSpectrum* self, const guint dim);
-static gboolean      spectrum_grab_cached       (HosSpectrum* self, guint *idx, gdouble* dest);
-static void          spectrum_push_cached       (HosSpectrum *self, guint *idx, gdouble value);
-
 static void          point_cache_store          (HosSpectrum *spec, gsize idx, gdouble value);
 static gdouble       point_cache_fetch          (HosSpectrum *spec, gsize idx);
-
-static struct spectrum_iterator* spectrum_iterator_cached(HosSpectrum *self);
 
 G_DEFINE_ABSTRACT_TYPE (HosSpectrum, hos_spectrum, G_TYPE_OBJECT)
 
@@ -167,36 +167,42 @@ static void     check_dim_count      (HosSpectrum* spec, const guint dim);
  *
  * Does not block the calling thread.
  * 'spec' will emit the 'ready' signal when traversal is done.
- * Returns a 'traversal token' which can be passed to
+ * Returns a cancellation ID which can be passed to
  * spectrum_traverse_cancel() if the caller decides 'spec'
  * no longer needs to be instantiated.
  *
  * @param    spec   The HosSpectrum to traverse
- * @returns  traversal token
+ * @returns  cancellation ID for this traversal request
  */
-traversal_token_t*
+gint
 spectrum_traverse(HosSpectrum *spec)
 {
-  if (spectrum_is_ready(spec))
-    return NULL;
+  gint result = -1;
 
-  spectrum_ensure_buffer(spec);
-
-  traversal_token_t *result = token_new(spec);
-
-  static gint schedule_id = 1;
-
-  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-
-  if (SPECTRUM_PRIVATE(spec, valid) == FALSE)
+  g_return_if_fail(HOS_IS_SPECTRUM(spec));
+  spectrum_ensure_buffer (spec);
+  ensure_traversal_setup();
+  ready_queue_flush();
+  g_mutex_lock(SPECTRUM_PRIVATE(spec, status_lock));
+  switch(SPECTRUM_PRIVATE(spec, status))
     {
-      ensure_traversal_setup();
-      SPECTRUM_PRIVATE(spec, schedule_id) = schedule_id;
-      ++schedule_id;
-      token_ref(result); /* reference held by traversal_pool */
-      g_thread_pool_push(traversal_pool, result, NULL);
+    case READY:
+      break;
+    case LATENT:
+      spectrum_prioritize(spec);
+      g_object_ref(spec);
+      g_thread_pool_push(traversal_pool, spec, NULL);
+      SPECTRUM_PRIVATE(spec, status) = SCHEDULED;
+      /* fall-through */
+    case SCHEDULED:  /* fall-through */
+    case TRAVERSING:
+      result = spectrum_traverse_request(spec);
+      break;
+    case QUEUED:     /* fall-through */
+    default:
+      g_error("spectrum_traverse(): invalid status");
     }
-  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
+  g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
 
   return result;
 }
@@ -205,10 +211,10 @@ spectrum_traverse(HosSpectrum *spec)
  * @brief   Cancel traversal of the spectrum referenced by 'token'
  */
 void
-spectrum_traverse_cancel(traversal_token_t *token)
+spectrum_traverse_cancel(HosSpectrum *self, gint cancel_id)
 {
-  token->valid    = FALSE;
-  token_unref(token);
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+  skip_list_pop(SPECTRUM_PRIVATE(self, traversal_requests), cancel_id);
 }
 
 /**
@@ -221,20 +227,41 @@ spectrum_traverse_cancel(traversal_token_t *token)
 void
 spectrum_traverse_blocking(HosSpectrum *spec)
 {
-  if (spectrum_is_ready(spec))
+  g_return_if_fail(HOS_IS_SPECTRUM(spec));
+
+  if (SPECTRUM_PRIVATE(spec, status) == READY)
     return;
 
+  gint cancel_id;
+
   spectrum_ensure_buffer (spec);
-
-  traversal_token_t *token = token_new(spec);
-
-  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-  if (SPECTRUM_PRIVATE(spec, valid) != TRUE)
-    spectrum_traverse_internal(token);  
-  SPECTRUM_PRIVATE(spec, valid) = TRUE;
-  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
-
-  token_unref(token);
+  spectrum_prioritize (spec);
+ start:
+  ready_queue_flush();
+  g_mutex_lock(SPECTRUM_PRIVATE(spec, status_lock));
+  switch (SPECTRUM_PRIVATE(spec, status))
+    {
+    case READY:
+      break;
+    case TRAVERSING:
+      g_cond_wait(SPECTRUM_PRIVATE(spec, traversal_complete_cond),
+		  SPECTRUM_PRIVATE(spec, status_lock));
+      /* fall-through */
+    case QUEUED:
+      g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
+      goto start;
+    case LATENT:
+    case SCHEDULED:  /* fall-through */
+      cancel_id = spectrum_traverse_request(spec);
+      g_assert(spectrum_traverse_internal(spec) == TRUE);
+      spectrum_traverse_cancel(spec, cancel_id);
+      SPECTRUM_PRIVATE(spec, status) = READY;
+      break;
+    default:
+      g_error("spectrum_traverse_blocking: invalid status");
+    }
+  g_assert(SPECTRUM_PRIVATE(spec, status) == READY);
+  g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
 }
 
 /**
@@ -468,55 +495,6 @@ spectrum_stddev(HosSpectrum *spec)
   return sqrt(result / spec_size);
 }
 
-/*
- * Emit the 'ready' signal from spectrum 'self',
- * indicating that traversal is complete,
- * but only if 'self' really is ready
- */
-static gboolean
-spectrum_signal_ready(HosSpectrum* self)
-{
-
-  if (spectrum_is_ready(self))
-    g_signal_emit(self, signals[READY], 0);
-}
-
-static traversal_token_t*
-token_new  (HosSpectrum *spec)
-{
-  g_return_if_fail(HOS_IS_SPECTRUM(spec));
-  traversal_token_t *result = g_new(traversal_token_t, 1);
-  result->valid = TRUE;
-  result->spectrum = spec;
-  g_object_ref(spec);
-  result->ref_count = 1;  /* caller-owned */
-  
-  return result;
-}
-
-
-static void
-token_unref (traversal_token_t *token)
-{
-  token->ref_count--;
-  if (token->ref_count == 0)
-    {
-      token_drop_reference (token);
-      g_free (token);
-    }
-}
-
-static void
-token_drop_reference (traversal_token_t *token)
-{
-  if (token->spectrum != NULL)
-    {
-      g_return_if_fail(HOS_IS_SPECTRUM(token->spectrum));
-      g_object_unref (token->spectrum);
-    }
-  token->spectrum = NULL;
-}
-
 static int
 compare_gdoubles(void* A_ptr, void* B_ptr)
 {
@@ -591,9 +569,14 @@ hos_spectrum_finalize(GObject *object)
 {
   HosSpectrum *spectrum = HOS_SPECTRUM(object);
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(object);
-  g_mutex_lock(priv->traversal_lock);
-  priv->valid = FALSE;
-  g_mutex_unlock(priv->traversal_lock);
+
+  /*
+   * Justification:
+   * For 'object' to be finalizing, the traversal queue must
+   * drop its reference to 'object'; this only happens when
+   * the traversal request list is empty.
+   */
+  g_assert(skip_list_length(priv->traversal_requests) == 0);
 
   gpointer buf = spectrum->buf;
   g_atomic_pointer_set(&spectrum->buf, NULL);
@@ -618,7 +601,7 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 
   gobject_class->finalize = hos_spectrum_finalize;
 
-  signals[READY] =
+  signals[SIGNAL_READY] =
     g_signal_new ("ready",
 		  G_OBJECT_CLASS_TYPE(klass),
 		  G_SIGNAL_RUN_FIRST,
@@ -644,8 +627,12 @@ hos_spectrum_class_init (HosSpectrumClass *klass)
 static void
 hos_spectrum_init(HosSpectrum  *spectrum)
 {
-  SPECTRUM_PRIVATE(spectrum, valid) = FALSE;
-  SPECTRUM_PRIVATE(spectrum, traversal_lock) = g_mutex_new();
+  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(spectrum);
+
+  priv->status      = LATENT;
+  priv->status_lock = g_mutex_new();
+  priv->traversal_complete_cond  = g_cond_new();
+  priv->traversal_requests       = skip_list_new(8, 0.5);
 }
 
 static void
@@ -674,14 +661,9 @@ hos_spectrum_set_property (GObject         *object,
 gboolean
 spectrum_is_ready(HosSpectrum *self)
 {
-  /* flush ready queue */
-  while (spectrum_ready_pop() != NULL)
-    if (SPECTRUM_PRIVATE(self, valid) == TRUE)
-      break;
-
-  if (SPECTRUM_PRIVATE(self, valid) == TRUE)
-    g_assert(self->buf != NULL);
-  return SPECTRUM_PRIVATE(self, valid);
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+  ready_queue_flush();
+  return (SPECTRUM_PRIVATE(self, status) == READY) ? TRUE : FALSE;
 }
 
 static void
@@ -728,47 +710,55 @@ ensure_traversal_setup()
 					  max_threads,
 					  exclusive,
 					  &error);
-
-      /* FIXME priority sorting is disabled */
-#ifdef UNDEF
-      g_thread_pool_set_sort_function(traversal_pool, (GCompareDataFunc)compare_spectrum_priority, NULL);
-#endif
       g_assert(error == NULL);
+      g_thread_pool_set_sort_function(traversal_pool, (GCompareDataFunc)compare_spectrum_priority, NULL);
     }
 }
 
 /*
- * The return value was previously passed as the argument
- * to 'spectrum_traverse'.
+ * Flush all pending spectra from the 'ready queue',
+ * changing its status in one of these ways:
+ *
+ * CANCELED -> LATENT
+ * QUEUED   -> READY
+ *
  */
-static HosSpectrum*
-spectrum_ready_pop()
+static void
+ready_queue_flush()
 {
-  traversal_token_t *token = g_async_queue_try_pop(ready_queue);
-  HosSpectrum *result = NULL;
-
-  if (token != NULL)
+  while (1)
     {
-      if (token->valid == TRUE)
+      HosSpectrum *spec = g_async_queue_try_pop(ready_queue);
+      if (spec == NULL)
+	break;
+      g_assert(HOS_IS_SPECTRUM(spec));
+      g_mutex_lock(SPECTRUM_PRIVATE(spec, status_lock));
+      switch (SPECTRUM_PRIVATE(spec, status))
 	{
-	  HosSpectrum *spec = token->spectrum;
-	  g_assert(HOS_IS_SPECTRUM(spec));
-	  g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-	  g_assert(SPECTRUM_PRIVATE(spec, valid) == TRUE);
-	  g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
-	  spectrum_signal_ready(spec);
-	  token_drop_reference(token);
+	case QUEUED:
+	  SPECTRUM_PRIVATE(spec, status) = READY;
+	  g_signal_emit(spec, signals[SIGNAL_READY], 0);
+	  break;
+	case CANCELLED:
+	  SPECTRUM_PRIVATE(spec, status) = LATENT;
+	  break;
+	case LATENT:	  /* fall-through */
+	case SCHEDULED:	  /* fall-through */
+	case TRAVERSING:  /* fall-through */
+	case READY:       /* fall-through */
+	default:
+	  g_error("ready_queue_flush(): spectrum 0x%x: invalid status", spec);
 	}
-      token_unref(token);
+      g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
+      g_object_unref(spec);
     }
-  return result;
 }
 
 static gboolean
 idle_spectra_ready(gpointer not_used)
 {
-  HosSpectrum *next = spectrum_ready_pop();
-  return (next == NULL) ? FALSE : TRUE;
+  ready_queue_flush();
+  return FALSE;
 }
 
 /*
@@ -806,23 +796,37 @@ spectrum_bump_idx(HosSpectrum* self, gint* idx)
   return FALSE;
 }
 
+/*
+ * called from traversal thread.
+ */
 static void
-spectrum_traverse_and_queue(traversal_token_t *token)
+spectrum_traverse_and_queue(HosSpectrum *spec)
 {
-  if (token->valid == TRUE)
+  g_assert(HOS_IS_SPECTRUM(spec));
+  g_mutex_lock(SPECTRUM_PRIVATE(spec, status_lock));
+
+  switch (SPECTRUM_PRIVATE(spec, status))
     {
-      g_assert(HOS_IS_SPECTRUM(token->spectrum));
-      HosSpectrum *spec = token->spectrum;
-      g_mutex_lock(SPECTRUM_PRIVATE(spec, traversal_lock));
-      if (SPECTRUM_PRIVATE(spec, valid) == FALSE)
-	{
-	  spectrum_traverse_internal(token);
-	  SPECTRUM_PRIVATE(spec, valid) = TRUE;
-	  g_async_queue_push(ready_queue, token);
-	  signal_spectra_ready();
-	}
-      g_mutex_unlock(SPECTRUM_PRIVATE(spec, traversal_lock));
+    case READY:
+      break;
+    case SCHEDULED:
+      SPECTRUM_PRIVATE(spec, status) = TRAVERSING;
+      g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
+      gboolean success = spectrum_traverse_internal(spec);
+      g_mutex_lock(SPECTRUM_PRIVATE(spec, status_lock));
+      SPECTRUM_PRIVATE(spec, status) = success ? QUEUED : CANCELLED;
+      g_async_queue_push(ready_queue, spec);
+      g_cond_signal(SPECTRUM_PRIVATE(spec, traversal_complete_cond));
+      signal_spectra_ready();
+      break;
+    case LATENT:     /* fall-through */
+    case TRAVERSING: /* fall-through */
+    case QUEUED:     /* fall-through */
+    case CANCELLED:  /* fall-through */
+    default:
+      g_error("spectrum_traverse_and_queue(): invalid status");
     }
+  g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
 }
 
 static void
@@ -839,16 +843,39 @@ spectrum_ensure_buffer(HosSpectrum *self)
     }
 }
 
+static gint
+spectrum_traverse_request(HosSpectrum *self)
+{
+  static gint counter = 0;
+
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+  skip_list_insert(SPECTRUM_PRIVATE(self, traversal_requests), ++counter, NULL);
+
+  return counter;
+}
+
+/*
+ * Elevate traversal priority of 'self' to highest
+ */
+static void
+spectrum_prioritize(HosSpectrum *self)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM(self));
+
+  static gint counter = 1;
+  SPECTRUM_PRIVATE(self, schedule_id) = ++counter;
+}
+
 /*
  * Fill the buffer of 'self'.
  */
-static void
-spectrum_traverse_internal(traversal_token_t *token)
+static gboolean
+spectrum_traverse_internal(HosSpectrum *self)
 {
-  HosSpectrum *self = token->spectrum;
-
   g_return_if_fail(HOS_IS_SPECTRUM(self));
   HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
+
+  gboolean result = TRUE;
   
   g_assert(self->buf != NULL);
   gdouble *buf = self->buf;
@@ -901,8 +928,15 @@ spectrum_traverse_internal(traversal_token_t *token)
       ++outer_dest;
       if (iterator_bump(iterator))
 	break;
+      /* check for cancellation. */
+      if (skip_list_length(priv->traversal_requests) == 0)
+	{
+	  result = FALSE;
+	  break;
+	}
     }
   iterator_free(iterator);
+  return result;
 }
 
 
@@ -926,76 +960,6 @@ spectrum_determine_instantiable(HosSpectrum* self, HosSpectrumPrivate *priv)
 	}
       priv->instantiable = instantiable_result;
       priv->instantiable_known = TRUE;
-    }
-}
-
-/*
- * If 'self' is already instantiated, set *dest and return TRUE.
- * If 'self[idx]' is cached, set *dest and return TRUE.
- * Otherwise, return FALSE.
- */
-static gboolean
-spectrum_grab_cached(HosSpectrum* self, guint *idx, gdouble* dest)
-{
-  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-
-  spectrum_determine_instantiable(self, priv);
-
-  if (priv->instantiable)
-    {
-      /* collapse idx */
-      gint stride = 1;
-      gsize linear_idx = 0;
-      GList* dimensions;
-
-      for (dimensions = priv->dimensions; dimensions != NULL; dimensions = dimensions->next)
-	{
-	  linear_idx += stride * *idx;
-	  stride *= ((dimension_t*)(dimensions->data))->np;
-	  ++idx;
-	}
-
-      gdouble *buf = g_atomic_pointer_get(&self->buf);
-      if (buf != NULL)
-	{
-	  *dest = buf[linear_idx];
-	  return TRUE;
-	}
-      else
-	{
-	  gdouble cached_value = point_cache_fetch(self, linear_idx);
-	  if (DATUM_IS_KNOWN(cached_value))
-	    {
-	      *dest = cached_value;
-	      return TRUE;
-	    }
-	}
-    }
-
-  return FALSE;
-}
-
-static void
-spectrum_push_cached(HosSpectrum *self, guint *idx, gdouble value)
-{
-  HosSpectrumPrivate *priv = SPECTRUM_GET_PRIVATE(self);
-  spectrum_determine_instantiable(self, priv);
-
-  if (priv->instantiable)
-    {
-      /* collapse idx */
-      gint stride = 1;
-      gsize linear_idx = 0;
-      GList* dimensions;
-
-      for (dimensions = priv->dimensions; dimensions != NULL; dimensions = dimensions->next)
-	{
-	  linear_idx += stride * *idx;
-	  stride *= ((dimension_t*)(dimensions->data))->np;
-	  ++idx;
-	}
-
-      point_cache_store(self, linear_idx, value);
     }
 }
 
@@ -1106,15 +1070,10 @@ spectrum_construct_iterator(HosSpectrum *self)
 {
   struct spectrum_iterator* result = NULL;
 
-  if (SPECTRUM_PRIVATE(self, valid) == TRUE)
-    result = spectrum_iterator_cached(self);
-  else
-    {
-      HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
-      g_assert(class->construct_iterator != NULL);
-      result = class->construct_iterator(self);
-      result->free = class->free_iterator;
-    }
+  HosSpectrumClass *class = HOS_SPECTRUM_GET_CLASS(self);
+  g_assert(class->construct_iterator != NULL);
+  result = class->construct_iterator(self);
+  result->free = class->free_iterator;
 
   result->root      = self;
   result->root_type = G_OBJECT_TYPE(self);
@@ -1213,7 +1172,7 @@ iterator_check_cache(struct spectrum_iterator *self, gdouble *dest)
 {
   if (self->can_cache == TRUE)
     {
-      if (SPECTRUM_PRIVATE(self->root, valid) == TRUE)
+      if (SPECTRUM_PRIVATE(self->root, status) == READY)
 	{
 	  g_assert(self->root->buf != NULL);
 	  *dest = self->root->buf[self->idx_linear];
@@ -1285,21 +1244,6 @@ iterator_free(struct spectrum_iterator *self)
 
   if (self->free)
     (self->free)(self);
-
-}
-
-/**** 'cached' iterators ****/
-
-static struct spectrum_iterator*
-spectrum_iterator_cached(HosSpectrum *self)
-{
-  g_return_if_fail(HOS_IS_SPECTRUM(self));
-  g_assert(self->buf != NULL);
-  struct spectrum_iterator *result           = g_new0(struct spectrum_iterator, 1);
-
-  /* FIXME insert entries for result->tickle, etc. here */
-
-  return result;
 }
 
 void

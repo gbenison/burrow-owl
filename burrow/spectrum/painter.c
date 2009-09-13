@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2007 Greg Benison
+ *  Copyright (C) 2005-2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -326,23 +326,16 @@ painter_redraw_init(HosPainter* painter,
   HosContour *contour = HOS_CONTOUR(painter->contour);
   g_return_val_if_fail(HOS_IS_CONTOUR(contour), NULL);
 
-  gdouble* buf = spectrum_traverse(spectrum);
-
-  fsm_state_t* result;
-
-  if (buf != NULL)
-    result = fsm_state_init (spectrum_traverse(spectrum),
-			     spectrum_np(spectrum, 0),
-			     spectrum_np(spectrum, 1),
-			     x1, xn, y1, yn,
-			     contour_get_levels(contour),
-			     contour_get_n_contours(contour),
-			     (trace_func_t)painter_trace_line,
-			     painter);
-  else
-    result = NULL;
-
-  return result;
+  return spectrum_is_ready(spectrum) ?
+    fsm_state_init (spectrum->buf,
+		    spectrum_np(spectrum, 0),
+		    spectrum_np(spectrum, 1),
+		    x1, xn, y1, yn,
+		    contour_get_levels(contour),
+		    contour_get_n_contours(contour),
+		    (trace_func_t)painter_trace_line,
+		    painter)
+    : NULL;
 }
 
 /*
