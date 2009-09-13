@@ -97,16 +97,24 @@ main()
   g_thread_create((GThreadFunc)skip_list_jitter, list, FALSE, &error);
   g_assert(error == NULL);
 
-  for (i = 0; i < 500; ++i)
+  static const int n_trial = 500;
+  gint n_success = 0;
+
+  for (i = 0; i < n_trial; ++i)
     {
       g_usleep(10000);
-      g_assert(skip_list_self_consistent(list));
-      g_assert(skip_list_length(list) > (jitter_length_min - 5));
       g_assert(skip_list_length(list) < (jitter_length_min + 5));
-      if ((i % 25) == 0) g_print(".");
+      gint key = g_random_int_range(0, 100);
+      gpointer retrieve = skip_list_lookup(list, key);
+      g_assert((retrieve == NULL) || (GPOINTER_TO_INT(retrieve) == key));
+      if (retrieve != NULL) ++n_success;
+      if ((i % (n_trial / 20)) == 0) g_print(".");
     }
 
-  g_print("OK\n");
+  /* chances of _no_ successes are vanishingly small */
+  g_assert(n_success > 0);
+
+  g_print("OK (%d / %d)\n", n_success, n_trial);
 
   return 0;
 }
