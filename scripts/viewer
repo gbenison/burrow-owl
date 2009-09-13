@@ -3,11 +3,12 @@
 ; Create a basic view of a spectrum.
 ; report chemical shifts when clicked.
 
-(use-modules (burrow hacks)
-	     (oop goops)
-             (gnome gtk)
-             (spectrum)
-	     (spec-extra))
+(use-modules (oop goops)
+	     (gnome gtk)
+	     (burrow hacks)
+	     (burrow spectrum)
+	     (burrow canvas))
+;	     
 
 (sleep-if-requested)
 

@@ -17,8 +17,7 @@ main()
 
   guint np = spectrum_np(S1, 0);
   gdouble theoretical = (np * (np - 1) / 2);
-  gdouble *data = spectrum_traverse_blocking(S2);
-  gdouble actual = *data;
+  gdouble actual = spectrum_peek(S2, 0);
   g_print("S2 value: %f (%f)\n ", actual, theoretical);
 
 #define ABOUT_EQUAL(a, b) (fabs((a) - (b)) < 0.001)

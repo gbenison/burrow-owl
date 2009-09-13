@@ -23,7 +23,6 @@ test_traversal(HosSpectrum* S)
   for (i = 0; i < n_spectra; ++i)
       spectra[i] =
 	spectrum_integrate(spectrum_integrate(S));
-  g_print("Asynchronously traversing %d spectra...", n_spectra);
   for (i = 0; i < n_spectra; ++i)
     spectrum_traverse(spectra[i]);
 
@@ -32,7 +31,7 @@ test_traversal(HosSpectrum* S)
     {
       gint n_finished = 0;
       for (i = 0; i < n_spectra; ++i)
-	if (spectra[i]->buf != NULL)
+	if (spectrum_is_ready(spectra[i]) == TRUE)
 	  {
 	    ++n_finished;
 	    g_assert(spectrum_peek(spectra[i], 0) == test_cube_II_predict(0));
@@ -41,7 +40,7 @@ test_traversal(HosSpectrum* S)
 
       g_print(".", n_finished, n_spectra);
       if (n_finished == n_spectra) break;
-      g_usleep(200000);
+      g_usleep(300000);
     }
   g_print("OK\n");
 }
@@ -54,15 +53,13 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_print("=========== Spectrum caching test ============\n");
-
   GTimer* timer = g_timer_new();
   g_timer_start(timer);
 
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S2 = spectrum_flakify(S1, flake_factor);
 
-  g_print("Without caching:\n");
+  g_print("Testing asynchronous traversal (without caching)");
   gdouble start_time = g_timer_elapsed(timer, NULL);
   test_traversal(S2);
   gdouble end_time = g_timer_elapsed(timer, NULL);
@@ -71,7 +68,7 @@ main()
   HosSpectrum *S3 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S4 = spectrum_flakify(S3, flake_factor);
   
-  g_print("With caching:\n");
+  g_print("Testing asynchronous traversal (with caching)");
   start_time = g_timer_elapsed(timer, NULL);
   spectrum_traverse_blocking(S4);
   test_traversal(S4);
