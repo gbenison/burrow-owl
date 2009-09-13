@@ -24,3 +24,4 @@ starparse
 nmr-utils
 model-subtypes-gen.c
 model-subtypes-gen.h
+*.lo

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2008 Greg Benison
+ *  Copyright (C) 2008, 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -122,7 +122,8 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
       double *y = g_new0(gdouble, np);
 
       /* FIXME add support for deferred drawing? */
-      gdouble *data = spectrum_traverse_blocking(spectrum);
+      spectrum_traverse_blocking(spectrum);
+      gdouble *data = spectrum->buf;
 
       x[0] = spectrum_pt2ppm(spectrum, 0, 0);
       x[1] = spectrum_pt2ppm(spectrum, 0, 1);

@@ -1,16 +1,15 @@
 
 #include "burrow/spectrum.h"
 #include "segment-sim.h"
+#include "test-utils.h"
 
 int
 main()
 {
-  g_print("===== t_segment_async =====\n");
-
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_print("Testing simultaneous asynchronous traversals...\n");
+  g_print("Testing asynchronous traversal of segmented spectra");
 
   gint i;
   HosSpectrum *spec_sim = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
@@ -22,32 +21,19 @@ main()
       spectrum_traverse(readers[i]);
     }
 
-  gint tick = 0;
-  while (1)
-    {
-      g_usleep(500000);
-      ++tick;
-      guint n_remaining = n_readers;
-      for (i = 0; i < n_readers; ++i)
-	if (readers[i]->buf != NULL) --n_remaining;
-      g_message("(%3d) %3d remaining", tick, n_remaining);
-      if (n_remaining == 0)
-	break;
-    }
-
-  /* validate readers */
   gint segment_sim_np = spectrum_np(spec_sim, 0);
   gdouble predicted = 
     ((gdouble)segment_sim_np * (gdouble)(segment_sim_np - 1)) / 2;
+
   for (i = 0; i < n_readers; ++i)
     {
+      g_thread_join(spectrum_monitor(readers[i]));
       gdouble actual = spectrum_peek(readers[i], 0);
       if ((actual > 0) && (predicted > 0))
-	{
-	  g_assert((actual / predicted) > 0.999999);
-	  g_assert((actual / predicted) < 1.000001);
-	}
+	g_assert(IS_ABOUT_EQUAL(actual, predicted));
     }
+
+  g_print("OK\n");
 
   return 0;
 }

@@ -21,7 +21,7 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_printf("==== transpose test ======\n");
+  g_print("Testing spectrum_transpose()");
 
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 1.0 - 2e-4);
@@ -36,6 +36,8 @@ main()
   g_assert(spectrum_sw(S4, 1) == spectrum_sw(S2, 2));
   g_assert(spectrum_sw(S4, 2) == spectrum_sw(S2, 0));
 
+  spectrum_monitor(S4);
+
   gint i;
   for (i = 0; i < 50; ++i)
     {
@@ -45,10 +47,9 @@ main()
       gdouble s4 = grok_point(S4, y, z, x);
       gdouble s2 = grok_point(S2, x, y, z);
       g_assert(fabs(s2 - s4) < 0.01);
-      g_print(".");
     }
 
-  g_print("OK\n\n");
+  g_print("OK\n");
 
   return 0;
 }

@@ -354,6 +354,10 @@ skip_list_has_key(skip_list_t* list, gint key)
     }
 }
 
+/*
+ * Note: not thread-safe; e.g. can crash when another thread is
+ * modifying 'list'.
+ */
 gboolean
 skip_list_self_consistent(skip_list_t* list)
 {
@@ -460,10 +464,13 @@ skip_list_length(skip_list_t* list)
   while (node->down != NULL)
     node = node->down;
 
-  while (node->next != NULL)
+  while (1)
     {
+      skip_node_t *next = node->next;
+      if (next == NULL)
+	break;
       ++result;
-      node = node->next;
+      node = next;
     }
   return result;
 }

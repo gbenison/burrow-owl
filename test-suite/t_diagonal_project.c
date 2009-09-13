@@ -3,6 +3,7 @@
 #include "burrow/spectrum.h"
 #include "spectrum-test-cube.h"
 #include "spectrum-flaky.h"
+#include "test-utils.h"
 
 int
 main()
@@ -10,11 +11,14 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_printf("==== diagonal projection test ======\n");
+  g_print("Testing diagonal projection");
 
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 1.0 - 2e-4);
   HosSpectrum *S3 = spectrum_diagonal_project(S2);
+
+  monitor_interval /= 16;
+  spectrum_monitor(S2);
 
   gint nx = spectrum_np(S3, 0);
 
@@ -50,10 +54,9 @@ main()
 	  DX_IS_BAD(1, 0) &&
 	  DX_IS_BAD(1, 1))
 	g_error("Error: idx %d actual %f, no matching point found\n", i, actual);
-      if ((i % 100) == 0) g_print(".");
     }
   
-  g_print("OK\n\n");
+  g_print("OK\n");
 
   return 0;
 }

@@ -97,3 +97,12 @@ env_get_int(const gchar *name, gint default_value)
   else
     return default_value;
 }
+
+void
+segment_sim_validate (HosSpectrumSegmentSim* self)
+{
+  gint i;
+  for (i = 0; i < spectrum_np(self, 0); ++i)
+    g_assert(segment_sim_predict(HOS_SPECTRUM_SEGMENT_SIM(self), i)
+	     == spectrum_peek(self, i));
+}
