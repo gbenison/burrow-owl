@@ -32,7 +32,7 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_print("==== point cache collision test ======\n");
+  g_print("Testing point cache collisions");
   
   gint i;
 

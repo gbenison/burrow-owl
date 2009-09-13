@@ -18,6 +18,7 @@ main()
 
   HosSpectrum *main_spec = HOS_SPECTRUM(g_object_new(HOS_TYPE_SPECTRUM_SEGMENT_SIM, NULL));
 
+  monitor_interval *= 2;
   GThread *monitor = spectrum_monitor(main_spec);
 
   gint i;
