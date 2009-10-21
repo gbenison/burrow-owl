@@ -695,9 +695,11 @@ contour_plot_set_smoothed(HosContourPlot* self, gboolean smoothed)
  * @brief Change the spectrum associated with a contour plot
  */
 void
-contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum)
+contour_plot_set_spectrum(HosContourPlot *self, HosSpectrum *spectrum_arg)
 {
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
+
+  HosSpectrum *spectrum = spectrum_cap_ndim(spectrum_arg, 2);
 
   HosPainter  *painter = CONTOUR_PLOT_PRIVATE(self, painter);
   g_return_if_fail(HOS_IS_PAINTER(painter));
