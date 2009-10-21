@@ -213,3 +213,20 @@ spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
 {
   return spectrum_project(self, spectrum_ppm2pt(self, 0, ppm));
 }
+
+/**
+ * @ingroup HosSpectrum
+ * @brief   Return a spectrum of no more than @ndim dimensions,
+ *          obtained by projecting the highest dimension of @self
+ *          until only @ndim remain.
+ */
+HosSpectrum*
+spectrum_cap_ndim (HosSpectrum* self, const guint ndim)
+{
+  guint self_ndim = spectrum_ndim(self);
+
+  return self_ndim > ndim ?
+    spectrum_cap_ndim (spectrum_project
+		       (spectrum_transpose (self, self_ndim - 1), 0), ndim) :
+    self;
+}
