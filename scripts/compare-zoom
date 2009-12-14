@@ -179,7 +179,7 @@
 						  (+ y y-delta)))))
       (define (update-integration-label scale)
 	(let ((mean (get-mean)))
-	  (set integration-label 'label (format #f "intensity: ~$ relative: ~$" mean (/ mean scale)))))
+	  (set integration-label 'label (format #f "intensity: ~,2e relative: ~$" mean (/ mean scale)))))
       (let ((hbox (make <gtk-hbox>)))
 	(pack-start hbox thres-spin #f #f 5)
 	(pack-start hbox integration-label #f #f 5)
