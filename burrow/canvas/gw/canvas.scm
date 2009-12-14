@@ -41,6 +41,7 @@
     (canvas-set-focus canvas
 		      (get x-adjustment 'value)
 		      (get y-adjustment 'value)))
+  (canvas:sync)
   (connect x-adjustment 'value-changed canvas:sync)
   (connect y-adjustment 'value-changed canvas:sync)
   (connect canvas 'scroll-focus
