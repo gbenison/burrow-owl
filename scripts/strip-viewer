@@ -31,11 +31,13 @@
       (set! names (cons requested-assignment-file names)))
   (let loop ((fnames names))
     (if (null? fnames)
-	(warn "Could not read any of these assignment files: " names))
-    (if (false-if-exception
-	 (set! assignments (assignments-from-file (car fnames))))
-	(set! assignment-file-name (car fnames))
-	(loop (cdr fnames)))))
+	(warn "Could not read any of these assignment files: " names)
+	(let ((next-file (car fnames))
+	      (rest (cdr fnames)))
+	  (if (false-if-exception
+	       (set! assignments (assignments-from-file next-file)))
+	      (set! assignment-file-name next-file)
+	      (loop rest))))))
 
 (define (canvas-add-assignments canv)
   (if assignments
@@ -46,9 +48,11 @@
 		  (N (find (assignment-predicate 'atom-name 'N) asg))
 		  (label (format #f "~a" resid))
 		  (marker (canvas-add-marker-text canv label)))
-	     (set marker 'sensitive #f)
-	     (set marker 'x (assignment:shift H))
-	     (set marker 'y (assignment:shift N))))
+	     (if (and H N)
+		 (begin
+		   (set marker 'sensitive #f)
+		   (set marker 'x (assignment:shift H))
+		   (set marker 'y (assignment:shift N))))))
 	 #f
 	 residues))))
 

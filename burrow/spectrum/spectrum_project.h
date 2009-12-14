@@ -44,8 +44,11 @@ struct _HosSpectrumProjectedClass
   HosSpectrumClass parent_instance;
 };
 
+GType hos_spectrum_projected_get_type (void);
+
 HosSpectrum* CONSTRUCTOR spectrum_project          (HosSpectrum* self, guint pt);
 HosSpectrum* CONSTRUCTOR spectrum_project_ppm      (HosSpectrum* self, gdouble ppm);
+HosSpectrum* spectrum_cap_ndim (HosSpectrum* self, guint ndim);
 
 G_END_DECLS
 

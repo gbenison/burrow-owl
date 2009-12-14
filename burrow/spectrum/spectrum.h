@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2006, 2008 Greg Benison
+ *  Copyright (C) 2005, 2006, 2008, 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -56,19 +56,19 @@ struct _HosSpectrumClass
 
 };
 
-
-gsize   spectrum_np       (HosSpectrum* spec, guint dim);
-gsize   spectrum_np_total (HosSpectrum* spec);
-gsize   spectrum_ndim     (HosSpectrum* spec);
-gdouble spectrum_sw       (HosSpectrum* spec, guint dim);
-gdouble spectrum_sw_ppm   (HosSpectrum* spec, guint dim);
-gdouble spectrum_sf       (HosSpectrum* spec, guint dim);
-gdouble spectrum_orig     (HosSpectrum* spec, guint dim);
-gdouble spectrum_giro     (HosSpectrum* spec, guint dim);
-gdouble spectrum_orig_ppm (HosSpectrum* spec, guint dim);
-gdouble spectrum_giro_ppm (HosSpectrum* spec, guint dim);
-gdouble spectrum_ppm2pt   (HosSpectrum* spec, guint dim, gdouble ppm);
-gdouble spectrum_pt2ppm   (HosSpectrum* spec, guint dim, gdouble pt);
+gboolean spectrum_is_ready (HosSpectrum *self);
+gsize    spectrum_np       (HosSpectrum* spec, guint dim);
+gsize    spectrum_np_total (HosSpectrum* spec);
+gsize    spectrum_ndim     (HosSpectrum* spec);
+gdouble  spectrum_sw       (HosSpectrum* spec, guint dim);
+gdouble  spectrum_sw_ppm   (HosSpectrum* spec, guint dim);
+gdouble  spectrum_sf       (HosSpectrum* spec, guint dim);
+gdouble  spectrum_orig     (HosSpectrum* spec, guint dim);
+gdouble  spectrum_giro     (HosSpectrum* spec, guint dim);
+gdouble  spectrum_orig_ppm (HosSpectrum* spec, guint dim);
+gdouble  spectrum_giro_ppm (HosSpectrum* spec, guint dim);
+gdouble  spectrum_ppm2pt   (HosSpectrum* spec, guint dim, gdouble ppm);
+gdouble  spectrum_pt2ppm   (HosSpectrum* spec, guint dim, gdouble pt);
 
 /* 
  * The 'CONSTRUCTOR' tag is inserted into function prototypes
@@ -86,11 +86,11 @@ gdouble  spectrum_mean               (HosSpectrum *spec);
 gdouble  spectrum_stddev             (HosSpectrum *spec);
 gdouble  spectrum_peek               (HosSpectrum *spec, guint idx);
 
-gdouble* spectrum_traverse           (HosSpectrum *spec);
-gdouble* spectrum_traverse_blocking  (HosSpectrum *spec);
+gint     spectrum_traverse           (HosSpectrum *spec);
+void     spectrum_traverse_cancel    (HosSpectrum *spec, gint cancel_id);
+void     spectrum_traverse_blocking  (HosSpectrum *spec);
 
-GType hos_spectrum_get_type (void);
-
+GType    hos_spectrum_get_type (void);
 
 G_END_DECLS
 

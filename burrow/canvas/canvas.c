@@ -27,6 +27,19 @@
                                          gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
 
 
+#define CANVAS_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CANVAS, HosCanvasPrivate))
+#define CANVAS_PRIVATE(o, field) ((CANVAS_GET_PRIVATE(o))->field)
+typedef struct _HosCanvasPrivate HosCanvasPrivate;
+
+struct _HosCanvasPrivate
+{
+  gboolean dragging;
+
+  gdouble  save_x;
+  gdouble  save_y;
+};
+
+
 /**
  * @defgroup HosCanvas
  * @brief    A GTK+ widget for displaying NMR spectra and annotations.
@@ -51,7 +64,7 @@
 enum canvas_signals {
   CLICKED,          /**< Mouse has been clicked over the canvas widget. */
   WORLD_CONFIGURE,  /**< The world coordinates of the canvas have changed. */
-  FOCUS,
+  FOCUS,            /**< The scroll focus coordinates have changed. **/
   LAST_SIGNAL
 };
 
@@ -68,17 +81,6 @@ enum canvas_properties {
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
-#define CANVAS_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CANVAS, HosCanvasPrivate))
-#define CANVAS_PRIVATE(o, field) ((CANVAS_GET_PRIVATE(o))->field)
-typedef struct _HosCanvasPrivate HosCanvasPrivate;
-
-struct _HosCanvasPrivate
-{
-  gboolean dragging;
-
-  gdouble  save_x;
-  gdouble  save_y;
-};
 
 static void     hos_canvas_set_property (GObject         *object,
 					 guint            prop_id,

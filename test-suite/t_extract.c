@@ -42,16 +42,18 @@ main()
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 1.0 - 2e-4);
 
-  g_printf("==== extraction test ======\n");
+  g_printf("Testing spectrum_extract()");
+  spectrum_monitor(S2);
   spectrum_traverse_blocking(S2);
 
   gint i;
   for (i = 0; i < 50; ++i)
     {
       extract_test(S2);
-      g_printf(".");
+      g_print(".");
     }
-  g_print("OK\n\n");
+
+  g_print("OK\n");
 
   return 0;
 }

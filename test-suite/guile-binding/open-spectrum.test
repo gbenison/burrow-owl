@@ -1,4 +1,6 @@
-
+#!/bin/sh
+exec guile -s $0
+!#
 (use-modules (burrow spectrum))
 
 (sleep-if-requested)

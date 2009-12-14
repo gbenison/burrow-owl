@@ -3,7 +3,7 @@
 #include <glib/gprintf.h>
 #include "skiplist.h"
 
-skip_list_t* list;
+static const jitter_length_min = 20;
 
 static gint
 skip_list_insert_random(skip_list_t* list)
@@ -19,10 +19,13 @@ skip_list_insert_random(skip_list_t* list)
 static void
 skip_list_jitter(gpointer data)
 {
+  static gint last = -1;
+  skip_list_t* list = (skip_list_t*)data;
   while (1)
     {
-      g_usleep(g_random_int_range(10000, 100000));
-      skip_list_insert_random(list);
+      if ((skip_list_length(list) > jitter_length_min) && (last >= 0))
+	skip_list_pop(list, last);
+      last = skip_list_insert_random(list);
     }
 }
 
@@ -32,52 +35,86 @@ print_node(gpointer data, gchar* fmt)
   g_printf(fmt, GPOINTER_TO_INT(data));
 }
 
+void
+assert_present(gpointer data, skip_list_t *target)
+{
+  g_assert(skip_list_has_key(target, GPOINTER_TO_INT(data)));
+}
+
 int
 main()
 {
-  list = skip_list_new(8, 0.65);
+  g_type_init();
+  if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_thread_init(NULL);
+  g_print("Testing skip lists");
 
-  g_printf("========== Skip list test ===========\n");
+  skip_list_t *list  = skip_list_new(8, 0.65);
+  skip_list_t *list2 = skip_list_new(6, 0.3);
 
+  /* for-each test */
   int i;
   for (i = 0; i < 50; ++i)
-    skip_list_insert_random(list);
-
-  skip_list_print(list);
+    {
+      gint key = skip_list_insert_random(list);
+      skip_list_insert(list2, key, GINT_TO_POINTER(key));
+    }
+  skip_list_foreach (list, (GFunc)assert_present, list2);
+  g_print("...");
 
   for (i = 0; i < 50; ++i)
     {
       gint next = skip_list_insert_random(list);
       gint popped = skip_list_pop_first(list);
-      g_printf("Inserted %d, popped %d\n", next, popped);
-      skip_list_print(list);
     }
+  g_assert(skip_list_self_consistent(list));
 
-  g_printf("==== for-each test =====\n");
-  skip_list_foreach (list, (GFunc)print_node, "--> %d");
-
-  g_printf("\n====== pop test =======\n");
+  /* pop test */
   for (i = 0; i < 500; ++i)
     {
       gint next   = skip_list_insert_random(list);
       gint popped = GPOINTER_TO_INT(skip_list_pop(list, next));
       g_assert(popped == next);
     }
+  g_assert(skip_list_self_consistent(list));
+  g_print("...");
 
-  g_printf("\n====== lookup test =======\n");
+  /* lookup test */
   for (i = 0; i < 500; ++i)
     {
       gint next   = skip_list_insert_random(list);
       gint looked = GPOINTER_TO_INT(skip_list_lookup(list, next));
       g_assert(looked == next);
     }
+  g_assert(skip_list_self_consistent(list));
+  g_print("...");
 
-  g_printf("======== start multithread test =============\n");
-  g_printf("DISABLED\n");
+  g_print("OK\n");
 
-  /*  g_thread_create((GThreadFunc)skip_list_jitter, NULL, FALSE, NULL); */
+  g_print("Testing skiplist thread safety");
+
+  GError *error = NULL;
+  g_thread_create((GThreadFunc)skip_list_jitter, list, FALSE, &error);
+  g_assert(error == NULL);
+
+  static const int n_trial = 500;
+  gint n_success = 0;
+
+  for (i = 0; i < n_trial; ++i)
+    {
+      g_usleep(10000);
+      g_assert(skip_list_length(list) < (jitter_length_min + 5));
+      gint key = g_random_int_range(0, 100);
+      gpointer retrieve = skip_list_lookup(list, key);
+      g_assert((retrieve == NULL) || (GPOINTER_TO_INT(retrieve) == key));
+      if (retrieve != NULL) ++n_success;
+      if ((i % (n_trial / 20)) == 0) g_print(".");
+    }
+
+  /* chances of _no_ successes are vanishingly small */
+  g_assert(n_success > 0);
+
+  g_print("OK (%d / %d)\n", n_success, n_trial);
 
   return 0;
 }

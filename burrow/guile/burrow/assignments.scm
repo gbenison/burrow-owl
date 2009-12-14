@@ -64,6 +64,10 @@
   (if (not (predicate obj))
       (throw 'type-error)))
 
+(define (float-truncate x n)
+  (let ((factor (expt 10 n)))
+    (/ (floor (* x factor)) factor)))
+
 ; ------ the 'assignment' abstract type ------
 
 (define (assignment? obj)
@@ -95,9 +99,20 @@
 
 (define assignment:atom-name    (assignment-getter 'atom-name))
 (define assignment:residue-name (assignment-getter 'residue-name))
-(define assignment:shift        (assignment-getter 'shift))
 (define assignment:residue-type (assignment-getter 'residue-type))
 (define assignment:verified?    (assignment-getter 'verified))
+
+(define assignment:shift
+  (let ((get-raw (assignment-getter 'shift)))
+    (lambda (asg . trunc)
+      (let ((raw (get-raw asg)))
+	(if (not (number? raw))
+	    raw
+	    (cond ((null? trunc)
+		   (float-truncate raw 3))
+		  ((number? (car trunc))
+		   (float-truncate raw (car trunc)))
+		  (else raw)))))))
 
 ; ------ Reading/writing assignments --------
 
@@ -149,7 +164,11 @@
   (let ((format (find extension-predicate assignment-formats)))
     (if format (assignment-format:name format) default-assignment-style)))
 
-(define (assignments-to-file assignments fname)
+(define (assignments-to-file assignments fname . overwrite)
+  (if (or (null? overwrite)
+	  (not (car overwrite)))
+      (if (file-exists? fname)
+	  (throw 'file-exists fname)))
   (with-output-to-file fname
     (lambda ()
       (assignments-write-with-style assignments (fname->format fname)))))

@@ -1,6 +1,7 @@
-;
-; Do we have a working guile-gnome?
-;
+#!/bin/sh
+# Do we have a working guile-gnome?
+exec guile -s $0
+!#
 (use-modules (oop goops)
 	     (burrow hacks)
 	     (gnome gtk))

@@ -1,6 +1,7 @@
-;
-; Can we crash guile-gnome by setting color properties?
-;
+#!/bin/sh
+# Can we crash guile-gnome by setting color properties?
+exec $guile -s $0
+!#
 (use-modules (oop goops)
 	     (burrow hacks)
 	     (gnome gtk))

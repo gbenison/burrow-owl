@@ -3,6 +3,7 @@
 #include "burrow/spectrum.h"
 #include "spectrum-test-cube.h"
 #include "spectrum-flaky.h"
+#include "test-utils.h"
 
 static gdouble
 grok_point(HosSpectrum* S, gint x, gint y, gint z)
@@ -21,7 +22,7 @@ main()
   g_type_init();
   if (!g_thread_supported ()) g_thread_init (NULL);
 
-  g_printf("==== unfolding test ======\n");
+  g_printf("Testing spectrum_unfold()");
 
   HosSpectrum *S1 = HOS_SPECTRUM(spectrum_test_cube_new());
   HosSpectrum *S2 = spectrum_flakify(S1, 1.0 - 2e-4);
@@ -36,6 +37,9 @@ main()
   HosSpectrum *S6 = spectrum_extract_ppm(S4, y1, yn);
   HosSpectrum *S7 = spectrum_extract_ppm(S5, y1, yn);
 
+  monitor_interval /= 10;
+  spectrum_monitor(S7);
+
   gint i;
   for (i = 0; i < 50; ++i)
     {
@@ -45,10 +49,9 @@ main()
       gdouble s6 = grok_point(S6, x, y, z);
       gdouble s7 = grok_point(S7, x, y, z);
       g_assert(fabs(s6 - s7) < 0.01);
-      g_print(".");
     }
 
-  g_print("OK\n\n");
+  g_print("OK\n");
 
   return 0;
 }
