@@ -129,12 +129,16 @@
 (define (fname->panel fname)
   (let* ((spec (spectrum-nih-from-file fname))
 	 (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
-	 (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+	 (thres-spin (make <gtk-spin-button>
+		       #:digits 2
+		       #:adjustment thres
+		       #:tooltip-text "contour threshold level"))
 	 (integration-label (make <gtk-label> #:label "integral"))
 	 (canv (make <hos-canvas> #:width-request 300 #:height-request 200))
 	 (zoom-canv (make <hos-canvas> #:width-request 300 #:height-request 200)))
     (canvas-set-thres canv thres)
     (canvas-set-thres zoom-canv thres)
+    (set zoom-canv 'draggable #t)
     (canvas-set-draw-negative canv #t)
     (canvas-set-spectrum canv spec)
     (canvas-set-spectrum zoom-canv spec)
@@ -143,6 +147,12 @@
       (marker-set-adjustments zoom-marker x-adj y-adj)
       (connect zoom-marker 'dropped (lambda args (emit adjustments 'member-dropped))))
     (canvas-add-assignments canv)
+    (canvas-add-assignments zoom-canv #t)
+    ;; FIXME test connect-after etc.
+    (connect-after zoom-canv 'button-press-event
+	     (lambda args (display "zoom canvas button press\n") #t))
+    (connect zoom-canv 'clicked
+	     (lambda args (display "zoom canvas click\n")))
     (let ((cursor-horiz (canvas-add-cursor-horizontal canv))
 	  (cursor-vert (canvas-add-cursor-vertical canv))
 	  (frame (make <gtk-frame> #:label fname))
@@ -162,7 +172,7 @@
 	(pack-start hbox thres-spin #f #f 5)
 	(pack-start hbox integration-label #f #f 5)
 	(pack-start vbox hbox #f #f 10))
-      (let ((zoom-scale (make <gtk-hscale>)))
+      (let ((zoom-scale (make <gtk-hscale> #:tooltip-text "zoom level")))
 	(set zoom-scale 'adjustment (get zoom-canv 'zoom-adjustment))
 	(pack-start vbox zoom-scale #f #f 5))
       (pack-start vbox canv #t #t 0)
@@ -171,9 +181,13 @@
 	(pack-start vbox sw #t #t 5))
       (cursor-set-adjustment cursor-horiz y-adj)
       (cursor-set-adjustment cursor-vert x-adj)
-; FIXME
-;      (connect zoom-in-button 'clicked (zoom-canv 'zoom-in))
-;      (connect zoom-out-button 'clicked (zoom-canv 'zoom-out))
+
+      (connect zoom-in-button 'clicked
+	       (lambda (b)
+		 (set zoom-canv 'zoom (* 1.5 (get zoom-canv 'zoom)))))
+      (connect zoom-out-button 'clicked
+	       (lambda (b)
+		 (set zoom-canv 'zoom (* 0.5 (get zoom-canv 'zoom)))))
       (connect cursor-horiz 'dropped (lambda args (emit adjustments 'member-dropped)))
       (connect cursor-vert 'dropped (lambda args (emit adjustments 'member-dropped)))
       (connect adjustments 'member-dropped
@@ -229,7 +243,7 @@
 	(define (refresh-label . args)
 	  (let ((x (gtk-adjustment-get-value x-adj))
 		(y (gtk-adjustment-get-value y-adj)))
-	    (set shift-label 'label (format #f "~a, ~a~%" x y)))
+	    (set shift-label 'label (format #f "~$, ~$~%" x y)))
 	  #f)
 	(define refresh-intensities
 	  (let ((get-scale (assoc-ref first-panel 'get-mean)))

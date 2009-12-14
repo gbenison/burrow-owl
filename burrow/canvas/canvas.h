@@ -55,15 +55,16 @@ struct _HosCanvas
   gdouble yn;
 
   /* zoom status */
-  gdouble zoom;
   gdouble x_focus;
   gdouble y_focus;
 
-  GtkAdjustment *zoom_adjustment;
-  
+  gboolean draggable;
+
   GtkAdjustment *horiz_scroll_adjustment;
   GtkAdjustment *vert_scroll_adjustment;
 
+  GtkAdjustment *zoom_adjustment;
+  gdouble zoom;
 };
 
 struct _HosCanvasClass

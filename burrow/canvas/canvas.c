@@ -61,10 +61,23 @@ enum canvas_properties {
   PROP_XN,     /**< rightmost world coordinate    */
   PROP_YN,     /**< topmost world coordinate      */
   PROP_ZOOM,   /**< ratio of world domain to displayed domain */
-  PROP_ZOOM_ADJUSTMENT
+  PROP_ZOOM_ADJUSTMENT, /**< GtkAdjustment tied to zoom factor */
+  PROP_DRAGGABLE /**< Can the canvas be scrolled by dragging the mouse? */
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
+
+#define CANVAS_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CANVAS, HosCanvasPrivate))
+#define CANVAS_PRIVATE(o, field) ((CANVAS_GET_PRIVATE(o))->field)
+typedef struct _HosCanvasPrivate HosCanvasPrivate;
+
+struct _HosCanvasPrivate
+{
+  gboolean dragging;
+
+  gdouble  save_x;
+  gdouble  save_y;
+};
 
 static void     hos_canvas_set_property (GObject         *object,
 					 guint            prop_id,
@@ -76,7 +89,10 @@ static void     hos_canvas_get_property (GObject         *object,
 					 GParamSpec      *pspec);
 
 static gboolean canvas_button_press     (GtkWidget *widget, GdkEventButton *event);
+static gboolean canvas_button_release   (GtkWidget *widget, GdkEventButton *event);
 static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *event);
+static gboolean canvas_motion_notify    (GtkWidget *widget, GdkEventMotion *event);
+
 static void     canvas_realize          (GtkWidget *widget);
 static void     canvas_world_configure  (HosCanvas *self);
 static void     canvas_set_scroll_adjustments (HosCanvas *self,
@@ -124,12 +140,14 @@ hos_canvas_class_init (HosCanvasClass *klass)
   gobject_class->set_property = hos_canvas_set_property;
   gobject_class->get_property = hos_canvas_get_property;
 
-  widget_class->button_press_event = canvas_button_press;
-  widget_class->expose_event       = canvas_expose_event;
-  widget_class->realize            = canvas_realize;
+  widget_class->button_press_event   = canvas_button_press;
+  widget_class->button_release_event = canvas_button_release;
+  widget_class->motion_notify_event  = canvas_motion_notify;
+  widget_class->expose_event         = canvas_expose_event;
+  widget_class->realize              = canvas_realize;
 
-  klass->world_configure           = canvas_world_configure;
-  klass->set_scroll_adjustments    = canvas_set_scroll_adjustments;
+  klass->world_configure        = canvas_world_configure;
+  klass->set_scroll_adjustments = canvas_set_scroll_adjustments;
 
 #define STD_P_SPEC(name, blurb)   g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE | G_PARAM_WRITABLE)
 
@@ -147,6 +165,13 @@ hos_canvas_class_init (HosCanvasClass *klass)
 						       "GtkAdjustment tied to the 'zoom' value",
 						       GTK_TYPE_ADJUSTMENT,
 						       G_PARAM_READABLE | G_PARAM_WRITABLE));
+  g_object_class_install_property(gobject_class,
+				  PROP_DRAGGABLE,
+				  g_param_spec_boolean ("draggable",
+							"draggable",
+							"can the canvas be scrolled by dragging with the mouse?",
+							FALSE,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   signals[CLICKED] =
     g_signal_new("clicked",
@@ -178,6 +203,8 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		  G_TYPE_NONE, 2,
 		  GTK_TYPE_ADJUSTMENT,
 		  GTK_TYPE_ADJUSTMENT);
+
+  g_type_class_add_private (gobject_class, sizeof(HosCanvasPrivate));
 
 }
 
@@ -211,6 +238,42 @@ hos_canvas_init(HosCanvas  *canvas)
   canvas_set_world (canvas, 0, 0, 100, 100);
   canvas->zoom = 1.0;
   canvas_set_zoom_adjustment (canvas, NULL);
+  CANVAS_PRIVATE(canvas, dragging) = FALSE;
+
+}
+
+static gboolean
+canvas_motion_notify (GtkWidget *widget, GdkEventMotion *event)
+{
+  g_assert(HOS_IS_CANVAS(widget));
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  HosCanvasPrivate *priv = CANVAS_GET_PRIVATE(canvas);
+
+  if (priv->dragging)
+    {
+      /* update focus due to mouse drag */
+
+      gdouble x, y;
+      x = event->x;
+      y = event->y;
+      canvas_view2world(canvas, &x, &y);
+
+      canvas_set_focus(canvas,
+		       canvas->x_focus - (x - priv->save_x),
+		       canvas->y_focus - (y - priv->save_y));
+
+      x = event->x;
+      y = event->y;
+      canvas_view2world(canvas, &x, &y);
+
+      priv->save_x = x;
+      priv->save_y = y;
+    }
+
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event(widget, event);
+  else
+    return FALSE;
 
 }
 
@@ -218,16 +281,19 @@ hos_canvas_init(HosCanvas  *canvas)
 static gboolean
 canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 {
-  HosCanvas *canvas = HOS_CANVAS(widget);
-  GList *ptr;
-  gdouble x, y;
-  gulong grab_id = 0;
-
   g_assert(HOS_IS_CANVAS(widget));
-
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  gdouble x, y;
   x = event->x;
   y = event->y;
   canvas_view2world(canvas, &x, &y);
+  
+  if (canvas->draggable)
+    {
+      CANVAS_PRIVATE(canvas, dragging) = TRUE;
+      CANVAS_PRIVATE(canvas, save_x) = x;
+      CANVAS_PRIVATE(canvas, save_y) = y;
+    }
 
   g_signal_emit(canvas,
 		signals[CLICKED],
@@ -235,6 +301,25 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 
   if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event)
     return GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_press_event(widget, event);
+  else
+    return FALSE;
+
+}
+
+static gboolean
+canvas_button_release(GtkWidget *widget, GdkEventButton *event)
+{
+  g_assert(HOS_IS_CANVAS(widget));
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  gdouble x, y;
+  x = event->x;
+  y = event->y;
+  canvas_view2world(canvas, &x, &y);
+
+  CANVAS_PRIVATE(canvas, dragging) = FALSE;
+
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event(widget, event);
   else
     return FALSE;
 
@@ -336,6 +421,9 @@ hos_canvas_set_property (GObject         *object,
     case PROP_ZOOM_ADJUSTMENT:
       canvas_set_zoom_adjustment(canvas, g_value_get_object(value));
       break;
+    case PROP_DRAGGABLE:
+      canvas->draggable = g_value_get_boolean(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -367,6 +455,9 @@ hos_canvas_get_property (GObject         *object,
       break;
     case PROP_ZOOM_ADJUSTMENT:
       g_value_set_object(value, HOS_CANVAS(object)->zoom_adjustment);
+      break;
+    case PROP_DRAGGABLE:
+      g_value_set_boolean(value, HOS_CANVAS(object)->draggable);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
