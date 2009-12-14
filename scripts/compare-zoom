@@ -159,6 +159,10 @@
 	 (integration-label (make <gtk-label> #:label "integral")))
     (canvas-sync-world canv spec)
     (canvas-set-spectrum zoom-canv spec)
+    (if (not zoom-adj)
+	(begin (set! zoom-adj (get zoom-canv 'zoom-adjustment))
+	       (set zoom-scale 'adjustment zoom-adj)))
+    (set zoom-canv 'zoom-adjustment (get zoom-scale 'adjustment))
     (canvas-set-thres zoom-canv thres-adjustment)
     (set zoom-canv 'draggable #t)
     (canvas-set-draw-negative canv #t)
@@ -184,16 +188,12 @@
 	(pack-start hbox thres-spin #f #f 5)
 	(pack-start hbox integration-label #f #f 5)
 	(pack-start vbox hbox #f #f 10))
-      (let ((zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor")))
-	(set zoom-scale 'adjustment (get zoom-canv 'zoom-adjustment))
-	(pack-start vbox zoom-scale #f #f 5))
       (pack-start vbox canv #t #t 0)
       (let ((sw (make <gtk-scrolled-window>)))
 	(add sw zoom-canv)
 	(pack-start vbox sw #t #t 5))
       (cursor-set-adjustment cursor-horiz y-adj)
       (cursor-set-adjustment cursor-vert x-adj)
-
       (connect zoom-in-button 'clicked
 	       (lambda (b)
 		 (set zoom-canv 'zoom (* 1.5 (get zoom-canv 'zoom)))))
@@ -231,6 +231,8 @@
 
 (define zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
 (define zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
+(define zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor"))
+(define zoom-adj #f)
 (define write-button (make <gtk-button> #:label "WRITE ASSIGNMENTS"))
 (connect write-button
 	 'clicked
@@ -280,6 +282,7 @@
 	(pack-start hbox zoom-out-button #f #f 5)
 	(pack-start hbox write-button #f #f 5)
 	(pack-start vbox hbox #f #f 5))
+      (pack-start vbox zoom-scale #f #f 5)
       (pack-start vbox spec-hbox #t #t 0)
       (add main-window vbox)
       (show-all main-window)
