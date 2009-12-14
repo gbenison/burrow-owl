@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007, 2008 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008, 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include "../spectrum/utils.h"
 #include "canvas.h"
 #include "marshal.h"
 
@@ -664,6 +665,14 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->y1 = y1;
   canvas->xn = xn;
   canvas->yn = yn;
+  canvas->x_focus =
+    CLAMP(canvas->x_focus,
+	  LESSER_OF(canvas->x1, canvas->xn),
+	  GREATER_OF(canvas->x1, canvas->xn));
+  canvas->y_focus =
+    CLAMP(canvas->y_focus,
+	  LESSER_OF(canvas->y1, canvas->yn),
+	  GREATER_OF(canvas->y1, canvas->yn));
   g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
 }
 
