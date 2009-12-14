@@ -32,6 +32,22 @@
 		    (spectrum-giro-ppm spec 0)
 		    (spectrum-orig-ppm spec 1)))
 
+;;
+;; Synchronize focus property of @canvas with
+;; <gtk-adjustment>s @x-adjustment @y-adjustment
+;;
+(define-public (canvas-tie-focus canvas x-adjustment y-adjustment)
+  (define (canvas:sync . args)
+    (canvas-set-focus canvas
+		      (get x-adjustment 'value)
+		      (get y-adjustment 'value)))
+  (connect x-adjustment 'value-changed canvas:sync)
+  (connect y-adjustment 'value-changed canvas:sync)
+  (connect canvas 'scroll-focus
+	   (lambda (c x y)
+	     (set x-adjustment 'value x)
+	     (set y-adjustment 'value y))))
+
 (define-public (canvas-set-thres canv thres)
   (warn "use of deprecated function canvas-set-thres")
   (let* ((contour-plot (canvas-ensure-contour-plot canv))

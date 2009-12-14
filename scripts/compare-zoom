@@ -142,22 +142,6 @@
 		    'ok))
 		assignments)))
 
-;;
-;; Synchronize focus property of @canvas with
-;; <gtk-adjustment>s @x-adjustment @y-adjustment
-;;
-(define (canvas-tie-focus canvas x-adjustment y-adjustment)
-  (define (canvas:sync . args)
-    (canvas-set-focus canvas
-		      (get x-adjustment 'value)
-		      (get y-adjustment 'value)))
-  (connect x-adjustment 'value-changed canvas:sync)
-  (connect y-adjustment 'value-changed canvas:sync)
-  (connect canvas 'scroll-focus
-	   (lambda (c x y)
-	     (set x-adjustment 'value x)
-	     (set y-adjustment 'value y))))
-
 (define (fname->panel fname)
   (let* ((spec (spectrum-cap-ndim (spectrum-nih-from-file fname) 2))
 	 (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
