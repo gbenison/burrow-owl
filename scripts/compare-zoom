@@ -144,20 +144,24 @@
 
 (define (fname->panel fname)
   (let* ((spec (spectrum-cap-ndim (spectrum-nih-from-file fname) 2))
-	 (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
+	 (canv (make <hos-canvas> #:width-request 300 #:height-request 200))
+	 (contour-plot
+	  (canvas-add-item canv
+			   (make <hos-contour-plot> #:spectrum spec)))
+	 (thres-adjustment (contour-plot->thres-adjustment contour-plot))
+	 (zoom-canv (make <hos-canvas>
+		      #:width-request 300
+		      #:height-request 200))
 	 (thres-spin (make <gtk-spin-button>
 		       #:digits 2
-		       #:adjustment thres
+		       #:adjustment thres-adjustment
 		       #:tooltip-text "contour threshold level"))
-	 (integration-label (make <gtk-label> #:label "integral"))
-	 (canv (make <hos-canvas> #:width-request 300 #:height-request 200))
-	 (zoom-canv (make <hos-canvas> #:width-request 300 #:height-request 200)))
-    (canvas-set-thres canv thres)
-    (canvas-set-thres zoom-canv thres)
+	 (integration-label (make <gtk-label> #:label "integral")))
+    (canvas-sync-world canv spec)
+    (canvas-set-spectrum zoom-canv spec)
+    (canvas-set-thres zoom-canv thres-adjustment)
     (set zoom-canv 'draggable #t)
     (canvas-set-draw-negative canv #t)
-    (canvas-set-spectrum canv spec)
-    (canvas-set-spectrum zoom-canv spec)
     (canvas-set-zoom zoom-canv 4)
     (canvas-add-assignments canv)
     (canvas-add-assignments zoom-canv #t)
