@@ -51,6 +51,7 @@
 enum canvas_signals {
   CLICKED,          /**< Mouse has been clicked over the canvas widget. */
   WORLD_CONFIGURE,  /**< The world coordinates of the canvas have changed. */
+  FOCUS,
   LAST_SIGNAL
 };
 
@@ -183,6 +184,19 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_NONE, 2,
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
+  g_assert(signals[CLICKED] != 0);
+
+  signals[FOCUS] =
+    g_signal_new("scroll-focus",
+		 G_OBJECT_CLASS_TYPE(gobject_class),
+		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		 G_STRUCT_OFFSET(HosCanvasClass, focus),
+		 NULL, NULL,
+		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
+		 G_TYPE_NONE, 2,
+		 G_TYPE_DOUBLE,
+		 G_TYPE_DOUBLE);
+  g_assert(signals[FOCUS] != 0);
 
   signals[WORLD_CONFIGURE] =
     g_signal_new("world-configure",
@@ -192,6 +206,7 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 NULL, NULL,
 		 g_cclosure_marshal_VOID__VOID,
 		 G_TYPE_NONE, 0);
+  g_assert(signals[WORLD_CONFIGURE] != 0);
 
   widget_class->set_scroll_adjustments_signal =
     g_signal_new ("set_scroll_adjustments",
@@ -636,6 +651,7 @@ canvas_set_focus(HosCanvas *canvas, gdouble x, gdouble y)
       canvas->x_focus = x;
       canvas->y_focus = y;
       g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
+      g_signal_emit(canvas, signals[FOCUS], 0, x, y);
     }
 }
 

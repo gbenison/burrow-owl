@@ -74,6 +74,7 @@ struct _HosCanvasClass
 
   void (*clicked)         (HosCanvas *canvas, gdouble x, gdouble y);
   void (*world_configure) (HosCanvas *canvas);
+  void (*focus)           (HosCanvas *canvas, gdouble x, gdouble y);
 
   void	(*set_scroll_adjustments)	(HosCanvas	*canvas,
 					 GtkAdjustment	*hadjustment,
