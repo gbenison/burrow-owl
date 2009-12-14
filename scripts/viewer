@@ -58,6 +58,9 @@
 		     (set shift-label 'label
 			  (format #f "~$, ~$~%" x y))
 		     #f))
+	  (canvas-set-focus canv
+			    (get marker 'x)
+			    (get marker 'y))
 	  (connect marker 'dropped
 		   (lambda (m x y)
 		     (canvas-set-focus canv x y)))
