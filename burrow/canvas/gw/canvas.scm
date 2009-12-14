@@ -23,7 +23,8 @@
 (define-public (canvas-set-spectrum canv spec)
   (let ((contour-plot (canvas-ensure-contour-plot canv)))
     (canvas-sync-world canv spec)
-    (set contour-plot 'spectrum spec)))
+    (set contour-plot 'spectrum spec)
+    contour-plot))
 
 (define-public (canvas-sync-world canv spec)
   (canvas-set-world canv
@@ -54,6 +55,23 @@
   (let* ((contour-plot (canvas-ensure-contour-plot canv))
 	 (contour (get contour-plot 'contour)))
     (contour-set-thres-adjustment contour thres)))
+
+;;
+;; Accept the current threshold level of @contour-plot as the default
+;; level; create a new GtkAdjustment spanning the default value and tie
+;; it to the contour threshold.
+;;
+(define-public (contour-plot->thres-adjustment contour-plot)
+  (let* ((contour (get contour-plot 'contour))
+	 (default-threshold (get contour 'threshold))
+	 (thres-adjustment
+	  (make <gtk-adjustment>
+	    #:lower (- default-threshold 2)
+	    #:upper (+ default-threshold 5)
+	    #:value default-threshold
+	    #:step-increment 0.1)))
+    (contour-set-thres-adjustment contour thres-adjustment)
+    thres-adjustment))
 
 (define-public (canvas-set-draw-negative canv neg?)
   (warn "use of deprecated function canvas-set-draw-negative")

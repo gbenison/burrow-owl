@@ -25,63 +25,66 @@
 	      (spectrum-transpose raw-spec 1)
 	      raw-spec)))
     (confess "spectrum loaded")
-    (let* ((thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
-	   (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
-	   (plane-spin (make <gtk-spin-button>)))
+    (let* ((plane-spin (make <gtk-spin-button>))
+	   (plane-label (make <gtk-label>))
+	   (canv (make <hos-canvas>
+		   #:width-request 500	
+		   #:height-request 500))
+	   (contour-plot (canvas-set-spectrum canv spec))
+	   (thres-spin (make <gtk-spin-button>
+			 #:digits 2
+			 #:adjustment
+			 (contour-plot->thres-adjustment contour-plot)))
+	   (zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor"))
+	   (grid (canvas-add-item canv (make <hos-grid>))))
+      (define (goto-plane! plane)
+	(canvas-set-spectrum canv
+			     (spectrum-project-pt spec plane))
+	(set plane-label
+	     'label
+	     (format #f "~$" (spectrum-pt2ppm spec 0 plane))))
       (gtk-spin-button-set-range plane-spin 0 (- (spectrum-np spec 0) 1))
       (gtk-spin-button-set-increments plane-spin 1 10)
-      (let* ((plane-label (make <gtk-label>))
-	     (canv (make <hos-canvas>
-		     #:width-request 500	
-		     #:height-request 500))
-	     (zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor"))
-	     (grid (canvas-add-item canv (make <hos-grid>))))
-	(define (goto-plane! plane)
-	  (canvas-set-spectrum canv
-			       (spectrum-project-pt spec plane))
-	  (set plane-label 'label (number->string (spectrum-pt2ppm spec 0 plane))))
-	(set zoom-scale 'adjustment (get canv 'zoom-adjustment))
-	(set canv 'draggable #t)
-	(canvas-set-thres canv thres)
-	(canvas-set-draw-negative canv #t)
-	(if (> (spectrum-ndim spec) 2)
-	    (goto-plane! 0)
-	    (canvas-set-spectrum canv spec))
-	(connect plane-spin 'value-changed
-		 (lambda args (goto-plane!
-			       (inexact->exact
-				(gtk-spin-button-get-value plane-spin))) #f))
-	(let* ((shift-label (make <gtk-label>))
-	       (marker (canvas-add-marker canv)))
-	  (connect marker 'dropped
-		   (lambda (m x y)
-		     (set shift-label 'label
-			  (format #f "~$, ~$~%" x y))
-		     #f))
-	  (canvas-set-focus canv
-			    (get marker 'x)
-			    (get marker 'y))
-	  (connect marker 'dropped
-		   (lambda (m x y)
-		     (canvas-set-focus canv x y)))
-	  (connect canv 'scroll-focus
-		   (lambda (c x y)
-		     (set marker 'x x)
-		     (set marker 'y y)))
-	  (let ((vbox (make <gtk-vbox>))
-		(spec-frame (make <gtk-frame> #:label spec-name)))
-	    (add spec-frame canv)
-	    (pack-start vbox shift-label #f #f 10)
-	    (pack-start vbox zoom-scale)
-	    (let ((hbox (make <gtk-hbox>)))
-	      (pack-start hbox thres-spin #f #f 5)
-	      (if (> (spectrum-ndim spec) 2)
-		  (begin
-		    (pack-start hbox plane-spin #f #f 5)
-		    (pack-start hbox plane-label #f #f 5)))
-	      (pack-start vbox hbox #f #f 10))
-	    (pack-start vbox spec-frame #t #t 0)
-	    vbox))))))
+      (set zoom-scale 'adjustment (get canv 'zoom-adjustment))
+      (set canv 'draggable #t)
+      (canvas-set-draw-negative canv #t)
+      (if (> (spectrum-ndim spec) 2)
+	  (goto-plane! 0))
+      (connect plane-spin 'value-changed
+	       (lambda args (goto-plane!
+			     (inexact->exact
+			      (gtk-spin-button-get-value plane-spin))) #f))
+      (let* ((shift-label (make <gtk-label>))
+	     (marker (canvas-add-marker canv)))
+	(connect marker 'dropped
+		 (lambda (m x y)
+		   (set shift-label 'label
+			(format #f "~$, ~$~%" x y))
+		   #f))
+	(canvas-set-focus canv
+			  (get marker 'x)
+			  (get marker 'y))
+	(connect marker 'dropped
+		 (lambda (m x y)
+		   (canvas-set-focus canv x y)))
+	(connect canv 'scroll-focus
+		 (lambda (c x y)
+		   (set marker 'x x)
+		   (set marker 'y y)))
+	(let ((vbox (make <gtk-vbox>))
+	      (spec-frame (make <gtk-frame> #:label spec-name)))
+	  (add spec-frame canv)
+	  (pack-start vbox shift-label #f #f 10)
+	  (pack-start vbox zoom-scale)
+	  (let ((hbox (make <gtk-hbox>)))
+	    (pack-start hbox thres-spin #f #f 5)
+	    (if (> (spectrum-ndim spec) 2)
+		(begin
+		  (pack-start hbox plane-spin #f #f 5)
+		  (pack-start hbox plane-label #f #f 5)))
+	    (pack-start vbox hbox #f #f 10))
+	  (pack-start vbox spec-frame #t #t 0)
+	  vbox)))))
 
 (define (main)
   (let ((main-window (make <gtk-window> #:title "burrow viewer")))
