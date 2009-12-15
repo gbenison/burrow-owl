@@ -353,13 +353,21 @@ canvas_sync_scroll_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment, gdou
       adjustment->page_increment = 0.9;
       adjustment->step_increment = 0.1;
       adjustment->lower = 0;
-      adjustment->upper = canvas->zoom;
-
-      gdouble zoom_min = calc_zoom_min (x1, xn, canvas->zoom, focus);
-      adjustment->value = (zoom_min - x1) / (xn - x1) * canvas->zoom;
+      if (adjustment->upper != canvas->zoom)
+	{
+	  adjustment->upper = canvas->zoom;
+	  gtk_adjustment_changed(adjustment);
+	}
 
       g_signal_handlers_block_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
-      gtk_adjustment_value_changed(adjustment);
+
+      gdouble zoom_min  = calc_zoom_min (x1, xn, canvas->zoom, focus);
+      gdouble new_value = (zoom_min - x1) / (xn - x1) * canvas->zoom;
+      if (adjustment->value != new_value)
+	{
+	  adjustment->value = new_value;
+	  gtk_adjustment_value_changed(adjustment);
+	}
       g_signal_handlers_unblock_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
 
     }
