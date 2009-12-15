@@ -30,6 +30,9 @@
 	   (canv (make <hos-canvas>
 		   #:width-request 500	
 		   #:height-request 500))
+	   (sw (make <gtk-scrolled-window>
+		 #:hscrollbar-policy 'automatic
+		 #:vscrollbar-policy 'automatic))
 	   (contour-plot (canvas-set-spectrum canv spec))
 	   (thres-spin (make <gtk-spin-button>
 			 #:digits 2
@@ -43,6 +46,7 @@
 	(set plane-label
 	     'label
 	     (format #f "~$" (spectrum-pt2ppm spec 0 plane))))
+      (add sw canv)
       (gtk-spin-button-set-range plane-spin 0 (- (spectrum-np spec 0) 1))
       (gtk-spin-button-set-increments plane-spin 1 10)
       (set zoom-scale 'adjustment (get canv 'zoom-adjustment))
@@ -73,7 +77,7 @@
 		   (set marker 'y y)))
 	(let ((vbox (make <gtk-vbox>))
 	      (spec-frame (make <gtk-frame> #:label spec-name)))
-	  (add spec-frame canv)
+	  (add spec-frame sw)
 	  (pack-start vbox shift-label #f #f 10)
 	  (pack-start vbox zoom-scale)
 	  (let ((hbox (make <gtk-hbox>)))
