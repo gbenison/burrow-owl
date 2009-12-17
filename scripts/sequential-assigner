@@ -281,6 +281,13 @@
    "hsqc picker"
    'hsqc))
 
+(define (contour-plot-calibrate-threshold contour-plot)
+  (let ((contour (get contour-plot 'contour))
+	(spec (spectrum-cap-ndim (get contour-plot 'spectrum) 2)))
+    (set contour
+	 'threshold
+	 (log10 (spectrum-get-percentile spec 0.95)))))
+
 ;;
 ;; Create a canvas with scroll bars containing a contour plot and a marker.
 ;; @spec: <hos-spectrum> to draw
@@ -324,6 +331,7 @@
     (define (zoom-by factor)
       (lambda args (set canvas 'zoom (* factor (get canvas 'zoom)))))
     (sync-label!)
+    (contour-plot-calibrate-threshold contour-plot)
     (if (not (hash-ref thres-table thres-key))
 	(hash-set! thres-table
 		   thres-key
@@ -468,14 +476,14 @@
   (if strip
       (let ((CA-adj ((strip 'get-adj) 'CA))
 	    (CB-adj ((strip 'get-adj) 'CB))
-	    (spec-conv (assoc-ref spectra spec-name))
-	    (conv-thres (get-thres-adjustment spec-name)))
+	    (spec-conv (assoc-ref spectra spec-name)))
 	(define (grab-spec!)
 	  (let ((ca (get-value CA-adj))
 		(cb (get-value CB-adj)))
 	    (spectrum-project-ppm
 	     (spectrum-project-ppm spec-conv cb) ca)))
-	(let* ((amide-window (make-amide-window title (grab-spec!) conv-thres))
+	(let* ((amide-window
+		(spectrum->amide-window/defaults (grab-spec!) title spec-name))
 	       (refresh-signal (connect CA-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f)))
 	       (refresh-signal-cb (connect CB-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f))))
 	  (connect (amide-window 'window)
