@@ -227,14 +227,15 @@
 (define (make-default-thres-adjustment)
   (make <gtk-adjustment> #:lower 2 #:upper 20 #:value 5.5 #:step-increment 0.1))
 
-(define *thres-table* (list))
+(define *thres-table* (make-hash-table))
+(define *thres-table/depr* (list))
 (define (get-thres-adjustment name)
-  (or (assoc-ref *thres-table* name)
+  (or (assoc-ref *thres-table/depr* name)
       (let* ((spec (assoc-ref spectra name))
 	     (thres (if spec
 			(spectrum->thres spec)
 			(make-default-thres-adjustment))))
-	(set! *thres-table* (cons (cons name thres) *thres-table*))
+	(set! *thres-table/depr* (cons (cons name thres) *thres-table/depr*))
 	thres)))
 
 ;; ensure that there is a threshold for all spectra, at start-up.
@@ -251,7 +252,7 @@
 	(pack-start hbox sb #f #f 5)
 	(pack-start hbox (make <gtk-label> #:label text) #f #f 5)
 	(pack-start vbox hbox #f #f 5)))
-    (for-each add-spin-button (map car *thres-table*))
+    (for-each add-spin-button (map car *thres-table/depr*))
     (add window vbox)
     window))
 
@@ -275,7 +276,103 @@
   (for-each add-label-from-strip residues))
 
 (define (run-hsqc-pick action)
-  (make-amide-window "hsqc picker" (assoc-ref spectra 'hsqc)(get-thres-adjustment 'hsqc)))
+  (spectrum->amide-window/defaults
+   (assoc-ref spectra 'hsqc)
+   "hsqc picker"
+   'hsqc))
+
+;;
+;; Create a canvas with scroll bars containing a contour plot and a marker.
+;; @spec: <hos-spectrum> to draw
+;; @title: string; label to put on the plot
+;; @name:  name corresponding to H-adj, N-adj
+;; @H-adj, @N-adj: GtkAdjustments tied to the position of the marker
+;; @thres-table, @thres-key: hash-table and key.  If set, use as the
+;;         adjustment tied to the contour plot.  Otherwise, set to the
+;;         default contour level adjustment of the contour plot.
+;;
+(define (spectrum->amide-window spec title name H-adj N-adj thres-table thres-key)
+  (let* ((window (make <gtk-window>
+		   #:title (string-append title (format #f " -- residue ~a" name))
+		   #:default-width 500
+		   #:default-height 500))
+	 (sw (make <gtk-scrolled-window>
+	       #:hscrollbar-policy 'automatic
+	       #:vscrollbar-policy 'automatic))
+	 (canvas (make <hos-canvas> #:draggable #t))
+	 (contour-plot (canvas-set-spectrum canvas spec))
+	 (zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
+	 (zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
+	 (zoom-scale
+	  (make <gtk-hscale>
+	    #:tooltip-text "zoom factor"
+	    #:adjustment (get canvas 'zoom-adjustment)))
+	 (grid (canvas-add-item canvas (make <hos-grid>)))
+	 (shift-label (make <gtk-label>))
+	 (marker (canvas-add-marker canvas))
+
+	 (close-button (make <gtk-button> #:label "close"))
+	 (nametag (make <gtk-label> #:label (format #f "~a" name)))
+	 (thres-spin (make <gtk-spin-button>
+		       #:digits 2
+		       #:tooltip-text "contour threshold level")))
+    (define (sync-label! . args)
+      (set shift-label 'label (format #f
+				      "~$, ~$"
+				      (get H-adj 'value)
+				      (get N-adj 'value))))
+    (define (zoom-by factor)
+      (lambda args (set canvas 'zoom (* factor (get canvas 'zoom)))))
+    (sync-label!)
+    (if (not (hash-ref thres-table thres-key))
+	(hash-set! thres-table
+		   thres-key
+		   (contour-plot->thres-adjustment contour-plot)))
+    (set thres-spin 'adjustment (hash-ref thres-table thres-key))
+    (marker-set-adjustments marker H-adj N-adj)
+    (connect marker 'dropped sync-label!)
+    (canvas-tie-focus-to-marker canvas marker)
+    (connect zoom-in-button 'clicked (zoom-by 1.5))
+    (connect zoom-out-button 'clicked (zoom-by 0.5))
+    (add sw canvas)
+    (let ((vbox (make <gtk-vbox>))
+	  (top-hbox (make <gtk-hbox>)))
+      (add window vbox)
+      (pack-start vbox top-hbox #f #f 5)
+      (pack-start top-hbox nametag #f #f 5)
+      (pack-start top-hbox zoom-in-button #f #f 5)
+      (pack-start top-hbox zoom-out-button #f #f 5)
+      (pack-start top-hbox thres-spin #f #f 5)
+      (pack-start top-hbox shift-label)
+      (pack-start vbox zoom-scale #f #f 5)
+      (pack-start vbox sw #t #t 0)
+      (pack-start vbox close-button #f #f 5)
+      (connect close-button
+	       'clicked
+	       (lambda args (gtk-widget-destroy window) #f))
+      (show-all window)
+      (lambda (req)
+	(case req
+	  ((canv) canvas)
+	  ((window) window)
+	  (else (error "amide window: unknown request " req)))))))
+
+;;
+;; Create a window with a contour plot of @spec,
+;; using chemical shift information from global "strip-selection".
+;; Add default chemical shift assignments to the canvas.
+;;
+(define (spectrum->amide-window/defaults spec title key)
+  (let ((result (spectrum->amide-window
+		 spec
+		 title
+		 (strip-selection 'name)
+		 ((strip-selection 'get-adj) 'H)
+		 ((strip-selection 'get-adj) 'N)
+		 *thres-table*
+		 key)))
+    (canvas-add-assignment-labels (result 'canv))
+    result))
 
 (define (make-amide-window title spec thres)
   (if strip-selection
@@ -345,9 +442,11 @@
 	  (marker-set-adjustments marker H-adj N-adj))
 	(show-all window)
 	(lambda (req)
-	  (cond ((eq? req 'canv) canv)
-		((eq? req 'window) window)
-		(else (error "amide window: unknown request " req)))))))
+	  (case req
+	    ((canv) canv)
+	    ((window) window)
+	    (else (error "amide window: unknown request " req)))))))
+
 
 (define (run-noesy-search action)
   (let* ((H (get-value ((strip-selection 'get-adj) 'H)))
