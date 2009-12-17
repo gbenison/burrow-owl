@@ -337,6 +337,8 @@
 		   thres-key
 		   (contour-plot->thres-adjustment contour-plot)))
     (set thres-spin 'adjustment (hash-ref thres-table thres-key))
+    (contour-set-thres-adjustment (get contour-plot 'contour)
+				  (hash-ref thres-table thres-key))
     (marker-set-adjustments marker H-adj N-adj)
     (connect marker 'dropped sync-label!)
     (canvas-tie-focus-to-marker canvas marker)
@@ -455,22 +457,28 @@
 	    ((window) window)
 	    (else (error "amide window: unknown request " req)))))))
 
-
 (define (run-noesy-search action)
   (let* ((H (get-value ((strip-selection 'get-adj) 'H)))
 	 (N (get-value ((strip-selection 'get-adj) 'N)))
 	 (spec (spectrum-project-ppm
 		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
-	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
-	(show-all (amide-window 'window))))
+	 (amide-window
+	  (spectrum->amide-window/defaults spec
+					   "noesy search"
+					   'noesy-convoluted)))
+    (show-all (amide-window 'window))))
 
 (define (run-noesy-search-prev action)
   (let* ((H (get-value (((strip-selection 'prev) 'get-adj) 'H)))
 	 (N (get-value (((strip-selection 'prev) 'get-adj) 'N)))
 	 (spec (spectrum-project-ppm
-		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
-	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
-	(show-all (amide-window 'window))))
+		(spectrum-project-ppm
+		 (assoc-ref spectra 'noesy-convoluted) H) N))
+	 (amide-window
+	  (spectrum->amide-window/defaults spec
+					   "noesy search (i-1)"
+					   'noesy-convoluted)))
+    (show-all (amide-window 'window))))
 
 (define (run-convoluted-search title strip spec-name)
   (if strip
