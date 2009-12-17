@@ -50,6 +50,24 @@
 	     (set x-adjustment 'value x)
 	     (set y-adjustment 'value y))))
 
+;;
+;; Synchronize focus property of @canvas with
+;; position of @marker
+;;
+(define-public (canvas-tie-focus-to-marker canvas marker)
+  (canvas-set-focus canvas
+		    (get marker 'x)
+		    (get marker 'y))
+  (connect marker
+	   'dropped
+	   (lambda (m x y)
+	     (canvas-set-focus canvas x y)))
+  (connect canvas
+	   'scroll-focus
+	   (lambda (c x y)
+	     (set marker 'x x)
+	     (set marker 'y y))))
+
 (define-public (canvas-set-thres canv thres)
   (warn "use of deprecated function canvas-set-thres")
   (let* ((contour-plot (canvas-ensure-contour-plot canv))

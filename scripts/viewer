@@ -64,16 +64,7 @@
 		   (set shift-label 'label
 			(format #f "~$, ~$~%" x y))
 		   #f))
-	(canvas-set-focus canv
-			  (get marker 'x)
-			  (get marker 'y))
-	(connect marker 'dropped
-		 (lambda (m x y)
-		   (canvas-set-focus canv x y)))
-	(connect canv 'scroll-focus
-		 (lambda (c x y)
-		   (set marker 'x x)
-		   (set marker 'y y)))
+	(canvas-tie-focus-to-marker canv marker)
 	(let ((vbox (make <gtk-vbox>))
 	      (spec-frame (make <gtk-frame> #:label fname)))
 	  (add spec-frame sw)
