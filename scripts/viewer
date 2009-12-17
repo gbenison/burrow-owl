@@ -18,8 +18,7 @@
   '(<spectrum>))
 
 (define (make-spectrum-display fname)
-  (let* ((spec-name (cadr (command-line)))
-	 (raw-spec (spectrum-nih-from-file spec-name))
+  (let* ((raw-spec (spectrum-nih-from-file fname))
 	 (spec
 	  (if (> (spectrum-ndim raw-spec) 2)
 	      (spectrum-transpose raw-spec 1)
@@ -76,7 +75,7 @@
 		   (set marker 'x x)
 		   (set marker 'y y)))
 	(let ((vbox (make <gtk-vbox>))
-	      (spec-frame (make <gtk-frame> #:label spec-name)))
+	      (spec-frame (make <gtk-frame> #:label fname)))
 	  (add spec-frame sw)
 	  (pack-start vbox shift-label #f #f 10)
 	  (pack-start vbox zoom-scale)
