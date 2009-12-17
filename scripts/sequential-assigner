@@ -281,12 +281,23 @@
    "hsqc picker"
    'hsqc))
 
+;;
+;; Trim number @x to no more than @n digits past the
+;; decimal point
+;;
+(define (->sig-figs x n)
+  (let ((factor (expt 10 n)))
+    (/ (floor (* x factor)) factor)))
+
 (define (contour-plot-calibrate-threshold contour-plot)
-  (let ((contour (get contour-plot 'contour))
+  (let ((supplement 0.5)
+	(contour (get contour-plot 'contour))
 	(spec (spectrum-cap-ndim (get contour-plot 'spectrum) 2)))
     (set contour
 	 'threshold
-	 (log10 (spectrum-get-percentile spec 0.95)))))
+	 (+ (->sig-figs (log10 (spectrum-stddev spec)) 1)
+	    supplement))))
+
 
 ;;
 ;; Create a canvas with scroll bars containing a contour plot and a marker.
