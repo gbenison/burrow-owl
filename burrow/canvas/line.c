@@ -20,6 +20,18 @@
 #include "line.h"
 // #include <string.h>
 
+/**
+ * @defgroup HosLine
+ * @brief A continuous curve drawn on a #HosCanvas
+ *
+ * A @HosLine draws an arbitrary curve on a #HosCanvas.
+ * The curve is determined by an ordered set of (x, y) data points
+ * which can be set all at once with #line_set_points,
+ * or built up incrementally with #line_append_point.
+ *
+ * @{
+ */
+
 /* signals & properties */
 enum {
   ENTER,
@@ -323,6 +335,13 @@ line_paint_default(HosLine* line, HosCanvas *canvas)
     }
 }
 
+/**
+ * @brief replace the data points with a new set
+ *
+ * Replace the points defining #line with 
+ * a new set of points determined by the arrays 'x' and 'y',
+ * which both are of length 'np'.
+ */
 void
 line_set_points(HosLine* line, double* x, double* y, guint np)
 {
@@ -340,6 +359,14 @@ line_set_points(HosLine* line, double* x, double* y, guint np)
   canvas_item_configure(HOS_CANVAS_ITEM(line));
 }
 
+/**
+ * @brief    append a single point
+ * @returns  number of points including the new one
+ *
+ * Append point #x, #y to the set of data points
+ * determining the shape of #line.
+ *
+ */
 guint
 line_append_point(HosLine* line, double x, double y)
 {
@@ -366,3 +393,5 @@ line_set_color(HosLine* line, GdkColor *color)
 
   canvas_item_configure(HOS_CANVAS_ITEM(line));
 }
+
+/** @} */

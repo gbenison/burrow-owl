@@ -19,13 +19,23 @@
 
 #include "spectrum-profile.h"
 
+/**
+ * @defgroup HosSpectrumProfile
+ * @brief    Visual representation of a 1D spectrum
+ *
+ * Draws a 1D #HosSpectrum as a continuous curve (chemical shift vs.
+ * intensity) on a #HosCanvas.
+ *
+ * @{
+ */
+
 enum {
   LAST_SIGNAL
 };
 
 enum {
   PROP_0,
-  PROP_SPECTRUM
+  PROP_SPECTRUM     /**< The spectrum being represented */
 };
 
 /* guint spectrum_profile_signals[LAST_SIGNAL] = { 0 }; */
@@ -142,4 +152,4 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
     }
 }
 
-
+/** @} */
