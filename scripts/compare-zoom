@@ -200,7 +200,10 @@
 (define (fname->panel fname)
   (let* ((spec (spectrum-cap-ndim (spectrum-nih-from-file fname) 2))
 	 (thres (make <gtk-adjustment> #:lower 2 #:upper 7 #:value 5.5 #:step-increment 0.1))
-	 (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
+	 (thres-spin (make <gtk-spin-button>
+		       #:digits 2
+		       #:adjustment thres
+		       #:tooltip-text "contour threshold level"))
 	 (integration-label (make <gtk-label> #:label "integral"))
 	 (zoom-canv (spec->zoom-canvas spec))
 	 (zoom-marker (canvas-add-marker (zoom-canv 'canv)))
