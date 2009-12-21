@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2008 Greg Benison
+ *  Copyright (C) 2005-2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,8 +47,9 @@
 
 enum cursor_properties {
   PROP_0,
-  PROP_POSITION,   /**< the position in world coordinates */
-  PROP_ADJUSTMENT  /**< the GtkAdjustment tied to the position */
+  PROP_POSITION,    /**< the position in world coordinates */
+  PROP_ADJUSTMENT,  /**< the GtkAdjustment tied to the position */
+  PROP_ORIENTATION  /**< orientation: horizontal or vertical */
 };
 
 enum cursor_signals {
@@ -112,6 +113,15 @@ hos_cursor_class_init (HosCursorClass *klass)
 							GTK_TYPE_ADJUSTMENT,
 							G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class,
+				   PROP_ORIENTATION,
+				   g_param_spec_enum ("orientation",
+						      "Orientation",
+						      "horizontal or vertical",
+						      HOS_TYPE_ORIENTATION_TYPE,
+						      HOS_HORIZONTAL,
+						      G_PARAM_READWRITE));
+
   signals[DROPPED] =
     g_signal_new("dropped",
 		 G_OBJECT_CLASS_TYPE(gobject_class),
@@ -155,6 +165,9 @@ hos_cursor_set_property (GObject         *object,
     case PROP_ADJUSTMENT:
       cursor_set_adjustment(HOS_CURSOR(object), GTK_ADJUSTMENT(g_value_get_object(value)));
       break;
+    case PROP_ORIENTATION:
+      cursor_set_orientation(HOS_CURSOR(object), g_value_get_enum(value));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -174,6 +187,9 @@ hos_cursor_get_property (GObject         *object,
       break;
     case PROP_ADJUSTMENT:
       g_value_set_object(value, G_OBJECT(cursor_get_adjustment(HOS_CURSOR(object))));
+      break;
+    case PROP_ORIENTATION:
+      g_value_set_enum(value, HOS_CURSOR(object)->orientation);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -205,7 +221,7 @@ cursor_paint(HosOrnament *self, HosCanvas *canvas)
 			     GDK_CAP_BUTT,
 			     GDK_JOIN_MITER);
 
-  if (cursor->orientation == VERTICAL)
+  if (cursor->orientation == HOS_VERTICAL)
     {
       canvas_world2view(canvas, &pos, NULL);
       gdk_draw_line(widget->window,
@@ -213,7 +229,7 @@ cursor_paint(HosOrnament *self, HosCanvas *canvas)
     }
   else
     {
-      assert(cursor->orientation == HORIZONTAL);
+      assert(cursor->orientation == HOS_HORIZONTAL);
       canvas_world2view(canvas, NULL, &pos);
       gdk_draw_line(widget->window,
 		    gc, 0, pos, 1000000, pos);
@@ -227,7 +243,7 @@ static void
 cursor_move_relative(HosOrnament *self, gdouble x, gdouble y)
 {
   HosCursor *cursor = HOS_CURSOR(self);
-  gdouble delta = cursor->orientation == VERTICAL ? x : y;
+  gdouble delta = cursor->orientation == HOS_VERTICAL ? x : y;
   if (GTK_IS_ADJUSTMENT(cursor->adjustment))
     gtk_adjustment_set_value(cursor->adjustment,
 			     gtk_adjustment_get_value(cursor->adjustment) +
@@ -249,14 +265,14 @@ cursor_release_method(HosOrnament *self)
  * @brief Add a cursor to a HosCanvas
  */
 HosCursor*
-canvas_add_cursor(HosCanvas *canvas, guint orientation)
+canvas_add_cursor(HosCanvas *canvas, HosOrientationType orientation)
 {
   HosCursor* result = g_object_new(HOS_TYPE_CURSOR, NULL);
 
   cursor_set_orientation(result, orientation);
 
   cursor_set_adjustment(result,
-			orientation == VERTICAL ?
+			orientation == HOS_VERTICAL ?
 			adjustment_for_canvas_x(canvas) :
 			adjustment_for_canvas_y(canvas));
 
@@ -271,7 +287,7 @@ canvas_add_cursor(HosCanvas *canvas, guint orientation)
  */
 
 void
-cursor_set_orientation(HosCursor *cursor, guint orientation)
+cursor_set_orientation(HosCursor *cursor, HosOrientationType orientation)
 {
   g_return_if_fail(HOS_IS_CURSOR(cursor));
   if (orientation != cursor->orientation)
@@ -345,7 +361,7 @@ cursor_calculate_region(HosOrnament *self)
       /* recalculate the update region */
       GdkRectangle rect;
       gdouble pos = gtk_adjustment_get_value(adjustment);
-      if (cursor->orientation == VERTICAL)
+      if (cursor->orientation == HOS_VERTICAL)
 	{
 	  canvas_world2view(canvas, &pos, NULL);
 	  rect.x = pos - (CLICK_RADIUS / 2);
@@ -353,7 +369,7 @@ cursor_calculate_region(HosOrnament *self)
 	  rect.y = 0;
 	  rect.height = G_MAXINT;
 	}
-      else /* HORIZONTAL */
+      else /* HOS_HORIZONTAL */
 	{
 	  canvas_world2view(canvas, NULL, &pos);
 	  rect.y = pos - (CLICK_RADIUS / 2);
@@ -389,18 +405,6 @@ cursor_get_position(HosCursor *cursor)
   return gtk_adjustment_get_value(cursor->adjustment);
 }
 
-
-HosCursor*
-canvas_add_cursor_horizontal(HosCanvas *canvas)
-{
-  return canvas_add_cursor(canvas, HORIZONTAL);
-}
-
-HosCursor*
-canvas_add_cursor_vertical(HosCanvas *canvas)
-{
-  return canvas_add_cursor(canvas, VERTICAL);
-}
 
 
 

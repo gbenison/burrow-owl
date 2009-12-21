@@ -133,6 +133,14 @@
   (warn "use of deprecated function cursor-set-movable; use 'sensitive' property")
   (set cursor 'sensitive movable))
 
+(define-public (canvas-add-cursor-horizontal canv)
+  (warn "use of deprecated function canvas-add-cursor-horizontal; use 'orientation' property")
+  (canvas-add-cursor canv 'horizontal))
+
+(define-public (canvas-add-cursor-vertical canv)
+  (warn "use of deprecated function canvas-add-cursor-vertical; use 'orientation' property")
+  (canvas-add-cursor canv 'vertical))
+
 (define-public (marker-text-set-color marker red green blue)
   (warn "use of deprecated function marker-text-set-color; use 'color' property")
   (set marker 'color (vector red green blue)))

@@ -9,7 +9,7 @@ SUBDIRS=. gw
 # box.c 
 # box.h 
 
-canvas_c_built_sources= marshal.c
+canvas_c_built_sources= marshal.c canvas-enums.c
 
 canvas_c_sources=        \
 contour-color.c          \
@@ -57,11 +57,23 @@ libburrow_canvas_la_SOURCES=$(canvas_c_sources) $(canvas_c_built_sources) \
 
 libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L../spectrum -lburrow
 
+## FIXME use found location of glib-genmarshal
+## FIXME skip this step if glib-genmarshal absent
 marshal.h: marshal.cmd
 	glib-genmarshal --header @srcdir@/marshal.cmd > $@
 
 marshal.c: marshal.cmd
 	glib-genmarshal --body @srcdir@/marshal.cmd > $@
+
+enum_headers=canvas-enums.h
+
+## FIXME use found location of GLIB_MKENUMS
+canvas-enums.c: canvas-enums.template $(enum_headers)
+	( cd @srcdir@ && glib-mkenums \
+		 --template canvas-enums.template \
+                 $(enum_headers) ) > xgen-enums \
+	&& cp xgen-enums $@ \
+	&& rm -f xgen-enums
 
 CLEANFILES += marshal.c marshal.h
 EXTRA_DIST += marshal.cmd

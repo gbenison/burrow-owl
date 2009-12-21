@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2008 Greg Benison
+ *  Copyright (C) 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,19 +17,26 @@
  *
  */
 
-/* The public C api for the graphical part of burrow-owl. */
+#ifndef _HOS_HAVE_CANVAS_ENUMS_H
+#define _HOS_HAVE_CANVAS_ENUMS_H
 
-#include <burrow/canvas/canvas-enums.h>
-#include <burrow/canvas/canvas.h>
-#include <burrow/canvas/canvasitem.h>
-#include <burrow/canvas/contourplot.h>
-#include <burrow/canvas/contour-color.h>
-/* #include <burrow/canvas/box.h> */
-#include <burrow/canvas/cursor.h>
-#include <burrow/canvas/grid.h>
-#include <burrow/canvas/line.h>
-#include <burrow/canvas/marker.h>
-#include <burrow/canvas/marker_text.h>
-#include <burrow/canvas/ornament.h>
-#include <burrow/canvas/spectrum-profile.h>
+/**
+ * @defgroup canvas-enums
+ * @brief standard enumerations for the graphical component of burrow-owl
+ *
+ * @{
+ */
 
+#include <glib-object.h>
+
+typedef enum {
+  HOS_HORIZONTAL,
+  HOS_VERTICAL
+} HosOrientationType;
+
+GType hos_orientation_type_get_type (void) G_GNUC_CONST;
+#define HOS_TYPE_ORIENTATION_TYPE (hos_orientation_type_get_type())
+
+/** @} */
+
+#endif /* not  _HOS_HAVE_CANVAS_ENUMS_H */
