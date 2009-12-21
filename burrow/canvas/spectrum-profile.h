@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2008 Greg Benison
+ *  Copyright (C) 2008, 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include <glib-object.h>
 #include "burrow/spectrum.h"
+#include "canvas-enums.h"
 #include "line.h"
 
 typedef struct _HosSpectrumProfile       HosSpectrumProfile;
@@ -46,9 +47,14 @@ struct _HosSpectrumProfile
 {
   HosLine parent_instance;
 
-  HosSpectrum *spectrum;
-
+  HosOrientationType  orientation;
+  HosSpectrum        *spectrum;
 };
+
+void spectrum_profile_set_orientation (HosSpectrumProfile *self,
+				       HosOrientationType  orientation);
+void spectrum_profile_set_spectrum    (HosSpectrumProfile *self,
+				       HosSpectrum        *spectrum);
 
 GType hos_spectrum_profile_get_type (void);
 
