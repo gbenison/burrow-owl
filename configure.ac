@@ -17,12 +17,15 @@ AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 
 AC_PATH_PROG(DOXYGEN, doxygen, no)
 
-PKG_CHECK_MODULES(GLIB,      gobject-2.0)
+PKG_CHECK_MODULES(GLIB,      [glib-2.0 gobject-2.0])
 PKG_CHECK_MODULES(GDK,       gdk-2.0)
 PKG_CHECK_MODULES(GTK,       gtk+-2.0)
 PKG_CHECK_MODULES(GTHREAD,   gthread-2.0)
 PKG_CHECK_MODULES(STARPARSE, starparse)
 PKG_CHECK_MODULES(GUILE_CAIRO, guile-cairo)
+
+GLIB_MKENUMS=`$PKG_CONFIG --variable glib_mkenums glib-2.0`;
+GLIB_GENMARSHAL=`$PKG_CONFIG --variable glib_genmarshal glib-2.0`;
 
 GUILE_GNOME_API=none;
 PKG_CHECK_MODULES(GUILE_GNOME_0, guile-gnome-glib-0 >= 2.15, GUILE_GNOME_API=0, true);
