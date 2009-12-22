@@ -27,6 +27,9 @@ PKG_CHECK_MODULES(GUILE_CAIRO, guile-cairo)
 GLIB_MKENUMS=`$PKG_CONFIG --variable glib_mkenums glib-2.0`;
 GLIB_GENMARSHAL=`$PKG_CONFIG --variable glib_genmarshal glib-2.0`;
 
+AC_SUBST(GLIB_MKENUMS)
+AC_SUBST(GLIB_GENMARSHAL)
+
 GUILE_GNOME_API=none;
 PKG_CHECK_MODULES(GUILE_GNOME_0, guile-gnome-glib-0 >= 2.15, GUILE_GNOME_API=0, true);
 PKG_CHECK_MODULES(GUILE_GNOME_2, guile-gnome-glib-2 >= 2.15, GUILE_GNOME_API=2, true);

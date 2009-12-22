@@ -60,15 +60,15 @@ libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L../spectrum -lburrow
 
 marshal.h: marshal.cmd
 	( cd @srcdir@ && $(GLIB_GENMARSHAL) \
-	 --header marshal.cmd > xgen-marshal \
+	 --header marshal.cmd ) > xgen-marshal \
 	&& cp xgen-marshal $@ \
-	&& rm -f xgen-marshal
+	&& rm -f xgen-marshal 
 
 marshal.c: marshal.cmd
 	( cd @srcdir@ && $(GLIB_GENMARSHAL) \
-	--body marshal.cmd > xgen-marshal \
+	--body marshal.cmd ) > xgen-marshal \
 	&& cp xgen-marshal $@ \
-	&& rm -f xgen-marshal
+	&& rm -f xgen-marshal 
 
 enum_headers=canvas-enums.h
 
