@@ -51,6 +51,7 @@ static void spectrum_profile_get_property   (GObject         *object,
 					     GParamSpec      *pspec);
 
 static void spectrum_profile_configure      (HosCanvasItem *self);
+static void sync_points                     (HosSpectrumProfile *self);
 
 G_DEFINE_TYPE (HosSpectrumProfile, hos_spectrum_profile, HOS_TYPE_LINE)
 
@@ -137,12 +138,15 @@ spectrum_profile_get_property (GObject      *object,
 static void
 spectrum_profile_configure(HosCanvasItem *self)
 {
-  HosSpectrumProfile *spectrum_profile = HOS_SPECTRUM_PROFILE(self);
-  HosSpectrum        *spectrum         = spectrum_profile->spectrum;
+}
+
+static void
+sync_points(HosSpectrumProfile *self)
+{
+  HosSpectrum        *spectrum         = self->spectrum;
 
   if (HOS_IS_SPECTRUM(spectrum))
     {
-      /* sync line points with spectrum */
       /* FIXME: here is the place to implement different vertical sync modes */
       int np = spectrum_np(spectrum, 0);
       gdouble *x = g_new0(gdouble, np);
@@ -162,7 +166,7 @@ spectrum_profile_configure(HosCanvasItem *self)
 	  y[i] = data[i];
 	}
 
-      switch (spectrum_profile->orientation)
+      switch (self->orientation)
 	{
 	case HOS_HORIZONTAL:
 	  line_set_points(HOS_LINE(self), x, y, np);
@@ -189,7 +193,7 @@ spectrum_profile_set_orientation(HosSpectrumProfile *self,
   if (self->orientation != orientation)
     {
       self->orientation = orientation;
-      canvas_item_configure(HOS_CANVAS_ITEM(self));
+      sync_points(self);
     }
 }
 
@@ -219,8 +223,10 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
 	  
 	  self->spectrum = spectrum;
 	  g_object_ref(self->spectrum);
+	  sync_points(self);
 	}
-      canvas_item_configure(HOS_CANVAS_ITEM(self));
+      else
+	canvas_item_configure(HOS_CANVAS_ITEM(self));
     }
 }
 

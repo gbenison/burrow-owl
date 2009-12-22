@@ -29,6 +29,14 @@
 	   (canv (make <hos-canvas>
 		   #:width-request 500	
 		   #:height-request 500))
+	   (canv-bottom (make <hos-canvas>
+			  #:width-request 500
+			  #:height-request 100))
+	   (profile-bottom (make <hos-spectrum-profile>))
+	   (canv-right (make <hos-canvas>
+			  #:width-request 100
+			  #:height-request 500))
+	   (profile-right (make <hos-spectrum-profile>))
 	   (sw (make <gtk-scrolled-window>
 		 #:hscrollbar-policy 'automatic
 		 #:vscrollbar-policy 'automatic))
@@ -39,6 +47,16 @@
 			 (contour-plot->thres-adjustment contour-plot)))
 	   (zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor"))
 	   (grid (canvas-add-item canv (make <hos-grid>))))
+      (define (sync-profile! x y)
+	(set profile-bottom
+	     'spectrum
+	     (spectrum-project-ppm
+	      (spectrum-transpose (get contour-plot 'spectrum) 1)
+	      y))
+	(set profile-right
+	     'spectrum
+	     (spectrum-project-ppm
+	      (get contour-plot 'spectrum) x)))
       (define (goto-plane! plane)
 	(canvas-set-spectrum canv
 			     (spectrum-project-pt spec plane))
@@ -61,6 +79,7 @@
 	     (marker (canvas-add-marker canv)))
 	(connect marker 'dropped
 		 (lambda (m x y)
+		   (sync-profile! x y)
 		   (set shift-label 'label
 			(format #f "~$, ~$~%" x y))
 		   #f))
