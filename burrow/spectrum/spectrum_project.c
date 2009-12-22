@@ -214,6 +214,8 @@ spectrum_project_ppm(HosSpectrum* self, const gdouble ppm)
   return spectrum_project(self, spectrum_ppm2pt(self, 0, ppm));
 }
 
+extern HosSpectrum* spectrum_transpose (HosSpectrum*, guint);
+
 /**
  * @ingroup HosSpectrum
  * @brief   Return a spectrum of no more than @ndim dimensions,

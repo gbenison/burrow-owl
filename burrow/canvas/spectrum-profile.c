@@ -36,7 +36,12 @@ enum {
 enum {
   PROP_0,
   PROP_SPECTRUM,     /**< The spectrum being represented */
-  PROP_ORIENTATION   /**< orientation of chemical shift axis */
+  PROP_ORIENTATION,  /**< orientation of chemical shift axis */
+  PROP_VMODE,        /**< How #voffset, #vrange, and #vzoom
+                          determine vertical size */
+  PROP_VOFFSET,
+  PROP_VRANGE,
+  PROP_VZOOM
 };
 
 /* guint spectrum_profile_signals[LAST_SIGNAL] = { 0 }; */

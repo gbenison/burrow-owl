@@ -21,7 +21,7 @@
 #define _HOS_HAVE_CANVAS_ENUMS_H
 
 /**
- * @defgroup canvas-enums
+ * @defgroup canvas_enums
  * @brief standard enumerations for the graphical component of burrow-owl
  *
  * @{
@@ -36,6 +36,14 @@ typedef enum {
 
 GType hos_orientation_type_get_type (void) G_GNUC_CONST;
 #define HOS_TYPE_ORIENTATION_TYPE (hos_orientation_type_get_type())
+
+typedef enum {
+  HOS_STRETCH,
+  HOS_LITERAL
+} HosVScalingPolicy;
+
+GType hos_vscaling_policy_get_type (void) G_GNUC_CONST;
+#define HOS_TYPE_VSCALING_POLICY (hos_vscaling_policy_get_type())
 
 /** @} */
 
