@@ -107,7 +107,9 @@ static gboolean contour_plot_smooth_ready      (HosContourPlot *self);
 
 static gboolean contour_plot_canvas_configure  (GtkWidget *widget,
 						GdkEventConfigure *event, HosContourPlot *self);
-static void     contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self);
+static void     contour_plot_canvas_world_configure (HosCanvasItem *self,
+						     HosCanvas     *canvas);
+
 static void     contour_plot_set_smoothed      (HosContourPlot* self, gboolean smoothed);
 static void     contour_plot_sync_painters     (HosContourPlot *self);
 static void     contour_plot_trace_cairo       (HosContourPlot *self);
@@ -131,6 +133,7 @@ hos_contour_plot_class_init(HosContourPlotClass *klass)
   canvas_item_class->expose         = contour_plot_expose;
   canvas_item_class->configure      = contour_plot_configure;
   canvas_item_class->set_canvas     = contour_plot_set_canvas;
+  canvas_item_class->canvas_world_configure = contour_plot_canvas_world_configure;
 
   g_object_class_install_property (gobject_class,
                                    PROP_SPECTRUM,
@@ -646,9 +649,6 @@ contour_plot_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *c
       g_signal_connect (canvas, "configure-event",
 			G_CALLBACK (contour_plot_canvas_configure),
 			self);
-      g_signal_connect (canvas, "world-configure",
-			G_CALLBACK (contour_plot_canvas_world_configure),
-			self);
     }
 }
 
@@ -670,13 +670,20 @@ contour_plot_canvas_configure(GtkWidget *widget, GdkEventConfigure *event, HosCo
 }
 
 static void
-contour_plot_canvas_world_configure(HosCanvas *canvas, HosContourPlot *self)
+contour_plot_canvas_world_configure(HosCanvasItem *self, HosCanvas *canvas)
 {
   g_return_if_fail(HOS_IS_CANVAS(canvas));
   g_return_if_fail(HOS_IS_CONTOUR_PLOT(self));
 
   ++CONTOUR_PLOT_PRIVATE(self, configure_id);
-  contour_plot_invalidate_xform(self);
+  contour_plot_invalidate_xform(HOS_CONTOUR_PLOT(self));
+
+  HosCanvasItemClass *parent_class =
+    HOS_CANVAS_ITEM_CLASS(hos_contour_plot_parent_class);
+
+  if (parent_class->canvas_world_configure)
+    (parent_class->canvas_world_configure)(self, canvas);
+
 }
 
 static void

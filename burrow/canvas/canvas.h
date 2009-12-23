@@ -87,6 +87,8 @@ HosCanvasItem* canvas_get_item          (HosCanvas *self, guint idx);
 void           canvas_set_world         (HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble yn);
 void           canvas_world2view        (HosCanvas *canvas, gdouble *x, gdouble *y);
 void           canvas_view2world        (HosCanvas *canvas, gdouble *x, gdouble *y);
+gint           canvas_view_width        (HosCanvas *canvas);
+gint           canvas_view_height       (HosCanvas *canvas);
 void           canvas_invalidate_region (HosCanvas *canvas, GdkRegion *region);
 cairo_t*       canvas_get_cairo_context (HosCanvas *canvas);
 

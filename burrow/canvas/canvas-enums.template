@@ -1,0 +1,52 @@
+
+#include "canvas-enums.h"
+
+/*** BEGIN file-header ***/
+
+/* enumerations from @filename@ */
+#include "@filename@"
+
+/*** END file-header ***/
+
+
+/*** BEGIN  enumeration-production ***/
+
+/* @EnumName@ */
+
+/*** END    enumeration-production ***/
+
+/*** BEGIN  value-header ***/
+
+GType
+@enum_name@_get_type (void)
+{
+  static GType etype = 0;
+  if (etype == 0) {
+    static const GEnumValue values[] = {
+/*** END    value-header ***/
+
+/*** BEGIN  value-production ***/
+      { @VALUENAME@, "@VALUENAME@", "@valuenick@" },
+/*** END    value-production ***/
+
+
+/*** BEGIN  value-tail ***/
+      { 0, NULL, NULL }
+    };
+    etype = g_enum_register_static ("@EnumName@", values);
+  }
+  return etype;
+}
+
+/*** END    value-tail ***/
+
+
+
+/*** BEGIN  ***/
+/*** END    ***/
+
+
+
+
+
+

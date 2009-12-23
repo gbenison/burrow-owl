@@ -9,7 +9,7 @@ SUBDIRS=. gw
 # box.c 
 # box.h 
 
-canvas_c_built_sources= marshal.c
+canvas_c_built_sources= marshal.c canvas-enums.c
 
 canvas_c_sources=        \
 contour-color.c          \
@@ -41,6 +41,7 @@ canvas_public_headers=   \
 contour-color.h          \
 canvas.h		 \
 canvasitem.h		 \
+canvas-enums.h           \
 contourplot.h		 \
 cursor.h		 \
 grid.h			 \
@@ -58,13 +59,28 @@ libburrow_canvas_la_SOURCES=$(canvas_c_sources) $(canvas_c_built_sources) \
 libburrow_canvas_la_LDFLAGS=@GTK_LIBS@ @GTHREAD_LIBS@ -L../spectrum -lburrow
 
 marshal.h: marshal.cmd
-	glib-genmarshal --header @srcdir@/marshal.cmd > $@
+	( cd @srcdir@ && $(GLIB_GENMARSHAL) \
+	 --header marshal.cmd ) > xgen-marshal \
+	&& cp xgen-marshal $@ \
+	&& rm -f xgen-marshal 
 
 marshal.c: marshal.cmd
-	glib-genmarshal --body @srcdir@/marshal.cmd > $@
+	( cd @srcdir@ && $(GLIB_GENMARSHAL) \
+	--body marshal.cmd ) > xgen-marshal \
+	&& cp xgen-marshal $@ \
+	&& rm -f xgen-marshal 
 
-CLEANFILES += marshal.c marshal.h
-EXTRA_DIST += marshal.cmd
+enum_headers=canvas-enums.h
+
+canvas-enums.c: canvas-enums.template $(enum_headers)
+	( cd @srcdir@ && $(GLIB_MKENUMS) \
+		 --template canvas-enums.template \
+                 $(enum_headers) ) > xgen-enums \
+	&& cp xgen-enums $@ \
+	&& rm -f xgen-enums
+
+CLEANFILES += $(canvas_c_built_sources) $(canvas_private_built_headers)
+EXTRA_DIST += marshal.cmd canvas-enums.template
 
 burrowincludedir=$(includedir)/burrow/canvas
 burrowinclude_HEADERS=$(canvas_public_headers)

@@ -17,6 +17,9 @@
   "Display a contour plot of a 2D spectrum or sections of a 3D spectrum"
   '(<spectrum>))
 
+(define (mean . args)
+  (/ (apply + args)(length args)))
+
 (define (make-spectrum-display fname)
   (let* ((raw-spec (spectrum-nih-from-file fname))
 	 (spec
@@ -26,12 +29,38 @@
     (confess "spectrum loaded")
     (let* ((plane-spin (make <gtk-spin-button>))
 	   (plane-label (make <gtk-label>))
+	   (default-height 400)
+	   (default-width 400)
+	   (default-range (* (spectrum-stddev spec) 20))
 	   (canv (make <hos-canvas>
-		   #:width-request 500	
-		   #:height-request 500))
+		   #:width-request default-width
+		   #:height-request default-height))
+	   (canv-bottom (make <hos-canvas>
+			  #:y1 -0.1
+			  #:yn 1
+			  #:width-request default-width
+			  #:height-request 100))
+	   (profile-bottom (canvas-add-item
+			    canv-bottom
+			    (make <hos-spectrum-profile>
+			      #:vpolicy 'stretch
+			      #:voffset 0.1
+			      #:vrange default-range)))
+	   (canv-right (make <hos-canvas>
+			 #:x1 -0.1
+			 #:xn 1
+			 #:width-request 100
+			 #:height-request default-height))
+	   (profile-right (canvas-add-item
+			   canv-right
+			   (make <hos-spectrum-profile>
+			     #:orientation 'vertical
+			     #:vpolicy 'stretch
+			     #:voffset 0.1
+			     #:vrange default-range)))
 	   (sw (make <gtk-scrolled-window>
-		 #:hscrollbar-policy 'automatic
-		 #:vscrollbar-policy 'automatic))
+		 #:hscrollbar-policy 'never
+		 #:vscrollbar-policy 'never))
 	   (contour-plot (canvas-set-spectrum canv spec))
 	   (thres-spin (make <gtk-spin-button>
 			 #:digits 2
@@ -39,12 +68,37 @@
 			 (contour-plot->thres-adjustment contour-plot)))
 	   (zoom-scale (make <gtk-hscale> #:tooltip-text "zoom factor"))
 	   (grid (canvas-add-item canv (make <hos-grid>))))
+      (define (sync-profile! x y)
+	(set profile-bottom
+	     'spectrum
+	     (spectrum-project-ppm
+	      (spectrum-transpose (get contour-plot 'spectrum) 1)
+	      y))
+	(set profile-right
+	     'spectrum
+	     (spectrum-project-ppm
+	      (get contour-plot 'spectrum) x))
+	'ok)
       (define (goto-plane! plane)
 	(canvas-set-spectrum canv
 			     (spectrum-project-pt spec plane))
 	(set plane-label
 	     'label
 	     (format #f "~$" (spectrum-pt2ppm spec 0 plane))))
+      (connect canv
+	       'world-configure
+	       (lambda (c)
+		 (set canv-right 'y1 (get c 'y1))
+		 (set canv-right 'yn (get c 'yn))
+		 (set canv-right 'zoom (get c 'zoom))
+		 (set canv-bottom 'x1 (get c 'x1))
+		 (set canv-bottom 'xn (get c 'xn))
+		 (set canv-bottom 'zoom (get c 'zoom))))
+      (connect canv
+	       'scroll-focus
+	       (lambda (c x y)
+		 (canvas-set-focus canv-right 0 y)
+		 (canvas-set-focus canv-bottom x 0)))
       (add sw canv)
       (gtk-spin-button-set-range plane-spin 0 (- (spectrum-np spec 0) 1))
       (gtk-spin-button-set-increments plane-spin 1 10)
@@ -59,15 +113,25 @@
 			      (gtk-spin-button-get-value plane-spin))) #f))
       (let* ((shift-label (make <gtk-label>))
 	     (marker (canvas-add-marker canv)))
+	(sync-profile! (get marker 'x)(get marker 'y))
 	(connect marker 'dropped
 		 (lambda (m x y)
+		   (sync-profile! x y)
 		   (set shift-label 'label
 			(format #f "~$, ~$~%" x y))
 		   #f))
 	(canvas-tie-focus-to-marker canv marker)
 	(let ((vbox (make <gtk-vbox>))
+	      (table (make <gtk-table>
+		       #:n-rows 2
+		       #:n-columns 2
+		       #:column-spacing 10
+		       #:row-spacing 10))
 	      (spec-frame (make <gtk-frame> #:label fname)))
-	  (add spec-frame sw)
+	  (gtk-table-attach table sw 0 1 0 1)
+	  (gtk-table-attach table canv-bottom 0 1 1 2)
+	  (gtk-table-attach table canv-right 1 2 0 1)
+	  (add spec-frame table)
 	  (pack-start vbox shift-label #f #f 10)
 	  (pack-start vbox zoom-scale)
 	  (let ((hbox (make <gtk-hbox>)))

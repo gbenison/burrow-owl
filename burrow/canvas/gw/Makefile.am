@@ -14,6 +14,7 @@ all-local:
 	$(INSTALL_DATA) $(srcdir)/canvas.scm canvas-gw.scm $(preinstalldir)/share/guile/burrow
 
 HEADERS_1=                         \
+$(headers_dir)/canvas-enums.h      \
 $(headers_dir)/canvas.h		   \
 $(headers_dir)/canvasitem.h	   \
 $(headers_dir)/contourplot.h	   \
