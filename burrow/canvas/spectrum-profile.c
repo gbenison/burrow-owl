@@ -55,6 +55,8 @@ static void spectrum_profile_get_property   (GObject         *object,
 					     GValue          *value,
 					     GParamSpec      *pspec);
 
+static void spectrum_profile_canvas_world_configure (HosCanvasItem *self,
+						     HosCanvas     *canvas);
 static void spectrum_profile_configure      (HosCanvasItem *self);
 static void sync_points                     (HosSpectrumProfile *self);
 
@@ -79,6 +81,8 @@ hos_spectrum_profile_class_init(HosSpectrumProfileClass *klass)
   gobject_class->get_property = spectrum_profile_get_property;
 
   canvas_item_class->configure = spectrum_profile_configure;
+  canvas_item_class->canvas_world_configure =
+    spectrum_profile_canvas_world_configure;
 
   g_object_class_install_property (gobject_class,
                                    PROP_SPECTRUM,
@@ -188,6 +192,18 @@ spectrum_profile_get_property (GObject      *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
+}
+
+static void
+spectrum_profile_canvas_world_configure(HosCanvasItem *self, HosCanvas *canvas)
+{
+  sync_points(HOS_SPECTRUM_PROFILE(self));
+
+  HosCanvasItemClass *parent_class =
+    HOS_CANVAS_ITEM_CLASS(hos_spectrum_profile_parent_class);
+  
+  if (parent_class->canvas_world_configure)
+    (parent_class->canvas_world_configure)(self, canvas);
 }
 
 static void

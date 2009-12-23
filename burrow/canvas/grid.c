@@ -56,7 +56,8 @@ static void  grid_set_canvas      (HosCanvasItem *self,
 static gboolean grid_canvas_configure       (GtkWidget *widget,
 					     GdkEventConfigure *event, HosGrid *self);
 static gboolean grid_canvas_realize         (GtkWidget *widget, HosGrid *self);
-static void     grid_canvas_world_configure (HosCanvas *canvas, HosGrid *self);
+static void     grid_canvas_world_configure (HosCanvasItem *self,
+					     HosCanvas     *canvas);
 
 static gdouble  round_sig_figs              (gdouble x, gint sig_figs);
 static void     grid_set_spacing_horizontal (HosGrid* self, gdouble spacing);
@@ -84,6 +85,7 @@ hos_grid_class_init(HosGridClass *klass)
   canvas_item_class->expose         = grid_expose;
   canvas_item_class->configure      = grid_configure;
   canvas_item_class->set_canvas     = grid_set_canvas;
+  canvas_item_class->canvas_world_configure = grid_canvas_world_configure;
 
   g_object_class_install_property (gobject_class,
                                    PROP_ANCHOR_HORIZONTAL,
@@ -375,9 +377,15 @@ grid_canvas_realize(GtkWidget *widget, HosGrid *self)
 }
 
 static void
-grid_canvas_world_configure(HosCanvas *canvas, HosGrid *self)
+grid_canvas_world_configure(HosCanvasItem *self, HosCanvas *canvas)
 {
-  grid_auto_configure(self);
+  grid_auto_configure(HOS_GRID(self));
+
+  HosCanvasItemClass *parent_class =
+    HOS_CANVAS_ITEM_CLASS(hos_grid_parent_class);
+
+  if (parent_class->canvas_world_configure)
+    (parent_class->canvas_world_configure)(self, canvas);
 }
 
 static void
@@ -403,9 +411,6 @@ grid_set_canvas(HosCanvasItem *self,
 			self);
       g_signal_connect (canvas, "realize",
 			G_CALLBACK (grid_canvas_realize),
-			self);
-      g_signal_connect (canvas, "world-configure",
-			G_CALLBACK (grid_canvas_world_configure),
 			self);
     }
   canvas_item_configure(self);

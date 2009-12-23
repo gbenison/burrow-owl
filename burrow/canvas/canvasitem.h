@@ -45,9 +45,15 @@ G_BEGIN_DECLS
 struct _HosCanvasItemClass
 {
   GObjectClass parent_class;
-  void (*expose)         (HosCanvasItem* self, GdkEventExpose *event);
-  void (*configure)      (HosCanvasItem* self);
-  void (*set_canvas)     (HosCanvasItem* self, HosCanvas *old_canvas, HosCanvas *canvas);
+  void (*expose)         (HosCanvasItem  *self,
+			  GdkEventExpose *event);
+  void (*configure)      (HosCanvasItem  *self);
+  void (*set_canvas)     (HosCanvasItem  *self,
+			  HosCanvas      *old_canvas,
+			  HosCanvas      *canvas);
+
+  void (*canvas_world_configure) (HosCanvasItem *self,
+				  HosCanvas     *canvas);
 };
 
 struct _HosCanvasItem

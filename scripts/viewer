@@ -17,6 +17,9 @@
   "Display a contour plot of a 2D spectrum or sections of a 3D spectrum"
   '(<spectrum>))
 
+(define (mean . args)
+  (/ (apply + args)(length args)))
+
 (define (make-spectrum-display fname)
   (let* ((raw-spec (spectrum-nih-from-file fname))
 	 (spec
@@ -28,12 +31,12 @@
 	   (plane-label (make <gtk-label>))
 	   (default-height 400)
 	   (default-width 400)
-	   (default-range (* (spectrum-stddev spec) 10))
+	   (default-range (* (spectrum-stddev spec) 20))
 	   (canv (make <hos-canvas>
 		   #:width-request default-width
 		   #:height-request default-height))
 	   (canv-bottom (make <hos-canvas>
-			  #:y1 -0.1
+			  #:y1 -1
 			  #:yn 1
 			  #:width-request default-width
 			  #:height-request 100))
@@ -43,7 +46,7 @@
 			      #:vpolicy 'stretch
 			      #:vrange default-range)))
 	   (canv-right (make <hos-canvas>
-			 #:x1 -0.1
+			 #:x1 -1
 			 #:xn 1
 			 #:width-request 100
 			 #:height-request default-height))

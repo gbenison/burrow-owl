@@ -63,7 +63,9 @@ static gboolean line_point_in               (HosLine* self, gint x, gint y);
 static gboolean line_canvas_motion_notify   (GtkWidget *widget, GdkEventMotion *event, HosLine* self);
 static gboolean line_canvas_configure       (GtkWidget *widget, GdkEventConfigure *event, HosLine *self);
 static void     line_canvas_realize         (GtkWidget *widget, HosLine* self);
-static void     line_canvas_world_configure (GtkWidget *widget, HosLine* self);
+static void     line_canvas_world_configure (HosCanvasItem *self,
+					     HosCanvas     *canvas);
+
 static void     line_paint_default          (HosLine* line, HosCanvas *canvas);
 static void     line_set_color              (HosLine* line, GdkColor *color);
 
@@ -93,6 +95,7 @@ hos_line_class_init (HosLineClass *klass)
   canvas_item_class->expose     = line_expose;
   canvas_item_class->set_canvas = line_set_canvas;
   canvas_item_class->configure  = line_configure;
+  canvas_item_class->canvas_world_configure = line_canvas_world_configure;
 
   klass->paint      = line_paint_default;
 
@@ -212,9 +215,6 @@ line_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canvas)
       g_signal_connect (canvas, "realize",
 			G_CALLBACK (line_canvas_realize),
 			self);
-      g_signal_connect (canvas, "world-configure",
-			G_CALLBACK (line_canvas_world_configure),
-			self);
     }
 
 }
@@ -297,12 +297,16 @@ line_canvas_realize(GtkWidget *widget, HosLine* self)
 }
 
 static void
-line_canvas_world_configure(GtkWidget *widget, HosLine* self)
+line_canvas_world_configure(HosCanvasItem *self, HosCanvas *canvas)
 {
-  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
   g_return_if_fail(HOS_IS_LINE(self));
 
-  /* FIXME */
+  HosCanvasItemClass *parent_class =
+    HOS_CANVAS_ITEM_CLASS(hos_line_parent_class);
+  
+  if (parent_class->canvas_world_configure)
+    (parent_class->canvas_world_configure)(self, canvas);
 }
 
 static void
