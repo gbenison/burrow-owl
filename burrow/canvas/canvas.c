@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2007, 2008 Greg Benison
+ *  Copyright (C) 2005, 2007, 2008, 2009 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,11 +19,26 @@
 
 
 #include <assert.h>
+#include <math.h>
+#include "../spectrum/utils.h"
 #include "canvas.h"
 #include "marshal.h"
 
 #define ENSURE_ORDER_GDOUBLE(_a_, _b_) { if (_a_ > _b_) { \
                                          gdouble tmp = _a_; _a_ = _b_; _b_ = tmp; }}
+
+
+#define CANVAS_GET_PRIVATE(o)    (G_TYPE_INSTANCE_GET_PRIVATE ((o), HOS_TYPE_CANVAS, HosCanvasPrivate))
+#define CANVAS_PRIVATE(o, field) ((CANVAS_GET_PRIVATE(o))->field)
+typedef struct _HosCanvasPrivate HosCanvasPrivate;
+
+struct _HosCanvasPrivate
+{
+  gboolean dragging;
+
+  gdouble  save_x;
+  gdouble  save_y;
+};
 
 
 /**
@@ -50,6 +65,7 @@
 enum canvas_signals {
   CLICKED,          /**< Mouse has been clicked over the canvas widget. */
   WORLD_CONFIGURE,  /**< The world coordinates of the canvas have changed. */
+  FOCUS,            /**< The scroll focus coordinates have changed. **/
   LAST_SIGNAL
 };
 
@@ -58,10 +74,14 @@ enum canvas_properties {
   PROP_X1,     /**< leftmost world coordinate     */
   PROP_Y1,     /**< bottom-most world coordinate  */
   PROP_XN,     /**< rightmost world coordinate    */
-  PROP_YN      /**< topmost world coordinate      */
+  PROP_YN,     /**< topmost world coordinate      */
+  PROP_ZOOM,   /**< ratio of world domain to displayed domain */
+  PROP_ZOOM_ADJUSTMENT, /**< GtkAdjustment tied to zoom factor */
+  PROP_DRAGGABLE /**< Can the canvas be scrolled by dragging the mouse? */
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
+
 
 static void     hos_canvas_set_property (GObject         *object,
 					 guint            prop_id,
@@ -73,9 +93,40 @@ static void     hos_canvas_get_property (GObject         *object,
 					 GParamSpec      *pspec);
 
 static gboolean canvas_button_press     (GtkWidget *widget, GdkEventButton *event);
+static gboolean canvas_button_release   (GtkWidget *widget, GdkEventButton *event);
 static gboolean canvas_expose_event     (GtkWidget *widget, GdkEventExpose *event);
+static gboolean canvas_motion_notify    (GtkWidget *widget, GdkEventMotion *event);
+
 static void     canvas_realize          (GtkWidget *widget);
 static void     canvas_world_configure  (HosCanvas *self);
+static void     canvas_set_scroll_adjustments (HosCanvas *self,
+					       GtkAdjustment *hadhjustment,
+					       GtkAdjustment *vadjustment);
+
+static void     canvas_disconnect_scroll_adjustment  (HosCanvas *self,
+					       GtkAdjustment *adjustment);
+static void     canvas_connect_scroll_adjustment     (HosCanvas *self,
+					       GtkAdjustment *adjustment);
+static gboolean canvas_scroll_adjustment_value_changed      (GtkAdjustment *adjustment,
+						      gpointer data);
+static gboolean canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment,
+						      gpointer data);
+static gdouble  world2view              (gdouble world,
+					 gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus,
+					 gdouble view_range);
+static gdouble  view2world              (gdouble view,
+					 gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus,
+					 gdouble view_range);
+static gdouble  calc_zoom_min           (gdouble world_min,
+					 gdouble world_max,
+					 gdouble zoom,
+					 gdouble focus);
 
 static gboolean canvas_is_double_buffered = TRUE;
 
@@ -93,11 +144,14 @@ hos_canvas_class_init (HosCanvasClass *klass)
   gobject_class->set_property = hos_canvas_set_property;
   gobject_class->get_property = hos_canvas_get_property;
 
-  widget_class->button_press_event = canvas_button_press;
-  widget_class->expose_event       = canvas_expose_event;
-  widget_class->realize            = canvas_realize;
+  widget_class->button_press_event   = canvas_button_press;
+  widget_class->button_release_event = canvas_button_release;
+  widget_class->motion_notify_event  = canvas_motion_notify;
+  widget_class->expose_event         = canvas_expose_event;
+  widget_class->realize              = canvas_realize;
 
-  klass->world_configure           = canvas_world_configure;
+  klass->world_configure        = canvas_world_configure;
+  klass->set_scroll_adjustments = canvas_set_scroll_adjustments;
 
 #define STD_P_SPEC(name, blurb)   g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE | G_PARAM_WRITABLE)
 
@@ -106,6 +160,22 @@ hos_canvas_class_init (HosCanvasClass *klass)
 
   g_object_class_install_property(gobject_class, PROP_XN, STD_P_SPEC("xn", "X right limit"));
   g_object_class_install_property(gobject_class, PROP_YN, STD_P_SPEC("yn", "Y upper limit"));
+
+  g_object_class_install_property(gobject_class, PROP_ZOOM, STD_P_SPEC("zoom", "zoom ratio"));
+  g_object_class_install_property(gobject_class,
+				  PROP_ZOOM_ADJUSTMENT,
+				  g_param_spec_object ("zoom-adjustment",
+						       "zoom-adjustment",
+						       "GtkAdjustment tied to the 'zoom' value",
+						       GTK_TYPE_ADJUSTMENT,
+						       G_PARAM_READABLE | G_PARAM_WRITABLE));
+  g_object_class_install_property(gobject_class,
+				  PROP_DRAGGABLE,
+				  g_param_spec_boolean ("draggable",
+							"draggable",
+							"can the canvas be scrolled by dragging with the mouse?",
+							FALSE,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   signals[CLICKED] =
     g_signal_new("clicked",
@@ -117,6 +187,19 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 G_TYPE_NONE, 2,
 		 G_TYPE_DOUBLE,
 		 G_TYPE_DOUBLE);
+  g_assert(signals[CLICKED] != 0);
+
+  signals[FOCUS] =
+    g_signal_new("scroll-focus",
+		 G_OBJECT_CLASS_TYPE(gobject_class),
+		 G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		 G_STRUCT_OFFSET(HosCanvasClass, focus),
+		 NULL, NULL,
+		 g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
+		 G_TYPE_NONE, 2,
+		 G_TYPE_DOUBLE,
+		 G_TYPE_DOUBLE);
+  g_assert(signals[FOCUS] != 0);
 
   signals[WORLD_CONFIGURE] =
     g_signal_new("world-configure",
@@ -126,6 +209,20 @@ hos_canvas_class_init (HosCanvasClass *klass)
 		 NULL, NULL,
 		 g_cclosure_marshal_VOID__VOID,
 		 G_TYPE_NONE, 0);
+  g_assert(signals[WORLD_CONFIGURE] != 0);
+
+  widget_class->set_scroll_adjustments_signal =
+    g_signal_new ("set_scroll_adjustments",
+		  G_OBJECT_CLASS_TYPE (gobject_class),
+		  G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET (HosCanvasClass, set_scroll_adjustments),
+		  NULL, NULL,
+		  g_cclosure_user_marshal_VOID__OBJECT_OBJECT,
+		  G_TYPE_NONE, 2,
+		  GTK_TYPE_ADJUSTMENT,
+		  GTK_TYPE_ADJUSTMENT);
+
+  g_type_class_add_private (gobject_class, sizeof(HosCanvasPrivate));
 
 }
 
@@ -156,7 +253,45 @@ hos_canvas_init(HosCanvas  *canvas)
     gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
   }
 
-  canvas_set_world(canvas, 0, 0, 100, 100);
+  canvas_set_world (canvas, 0, 0, 100, 100);
+  canvas->zoom = 1.0;
+  canvas_set_zoom_adjustment (canvas, NULL);
+  CANVAS_PRIVATE(canvas, dragging) = FALSE;
+
+}
+
+static gboolean
+canvas_motion_notify (GtkWidget *widget, GdkEventMotion *event)
+{
+  g_assert(HOS_IS_CANVAS(widget));
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  HosCanvasPrivate *priv = CANVAS_GET_PRIVATE(canvas);
+
+  if (priv->dragging)
+    {
+      /* update focus due to mouse drag */
+
+      gdouble x, y;
+      x = event->x;
+      y = event->y;
+      canvas_view2world(canvas, &x, &y);
+
+      canvas_set_focus(canvas,
+		       canvas->x_focus - (x - priv->save_x),
+		       canvas->y_focus - (y - priv->save_y));
+
+      x = event->x;
+      y = event->y;
+      canvas_view2world(canvas, &x, &y);
+
+      priv->save_x = x;
+      priv->save_y = y;
+    }
+
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->motion_notify_event(widget, event);
+  else
+    return FALSE;
 
 }
 
@@ -164,16 +299,19 @@ hos_canvas_init(HosCanvas  *canvas)
 static gboolean
 canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 {
-  HosCanvas *canvas = HOS_CANVAS(widget);
-  GList *ptr;
-  gdouble x, y;
-  gulong grab_id = 0;
-
   g_assert(HOS_IS_CANVAS(widget));
-
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  gdouble x, y;
   x = event->x;
   y = event->y;
   canvas_view2world(canvas, &x, &y);
+  
+  if (canvas->draggable)
+    {
+      CANVAS_PRIVATE(canvas, dragging) = TRUE;
+      CANVAS_PRIVATE(canvas, save_x) = x;
+      CANVAS_PRIVATE(canvas, save_y) = y;
+    }
 
   g_signal_emit(canvas,
 		signals[CLICKED],
@@ -186,10 +324,64 @@ canvas_button_press(GtkWidget *widget, GdkEventButton *event)
 
 }
 
+static gboolean
+canvas_button_release(GtkWidget *widget, GdkEventButton *event)
+{
+  g_assert(HOS_IS_CANVAS(widget));
+  HosCanvas *canvas = HOS_CANVAS(widget);
+  gdouble x, y;
+  x = event->x;
+  y = event->y;
+  canvas_view2world(canvas, &x, &y);
+
+  CANVAS_PRIVATE(canvas, dragging) = FALSE;
+
+  if(GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event)
+    return GTK_WIDGET_CLASS(hos_canvas_parent_class)->button_release_event(widget, event);
+  else
+    return FALSE;
+
+}
+
+static void
+canvas_sync_scroll_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment, gdouble x1, gdouble xn, gdouble focus)
+{
+  if (GTK_IS_ADJUSTMENT(adjustment))
+    {
+
+      adjustment->page_size = 1;
+      adjustment->page_increment = 0.9;
+      adjustment->step_increment = 0.1;
+      adjustment->lower = 0;
+      if (adjustment->upper != canvas->zoom)
+	{
+	  adjustment->upper = canvas->zoom;
+	  gtk_adjustment_changed(adjustment);
+	}
+
+      g_signal_handlers_block_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
+
+      gdouble zoom_min  = calc_zoom_min (x1, xn, canvas->zoom, focus);
+      gdouble new_value = (zoom_min - x1) / (xn - x1) * canvas->zoom;
+      if (adjustment->value != new_value)
+	{
+	  adjustment->value = new_value;
+	  gtk_adjustment_value_changed(adjustment);
+	}
+      g_signal_handlers_unblock_by_func (adjustment, canvas_scroll_adjustment_value_changed, canvas);
+
+    }
+}
+
 static void
 canvas_world_configure(HosCanvas *self)
 {
   g_return_if_fail(HOS_IS_CANVAS(self));
+  GtkWidget *widget = GTK_WIDGET(self);
+
+  canvas_sync_scroll_adjustment(self, self->horiz_scroll_adjustment, self->x1, self->xn, self->x_focus);
+  canvas_sync_scroll_adjustment(self, self->vert_scroll_adjustment, self->y1, self->yn, self->y_focus);
+
   gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
@@ -249,6 +441,15 @@ hos_canvas_set_property (GObject         *object,
     case PROP_YN:
       canvas_set_world(canvas, canvas->x1, canvas->y1, canvas->xn, g_value_get_double(value));
       break;
+    case PROP_ZOOM:
+      canvas_set_zoom(canvas, g_value_get_double(value));
+      break;
+    case PROP_ZOOM_ADJUSTMENT:
+      canvas_set_zoom_adjustment(canvas, g_value_get_object(value));
+      break;
+    case PROP_DRAGGABLE:
+      canvas->draggable = g_value_get_boolean(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -274,6 +475,15 @@ hos_canvas_get_property (GObject         *object,
       break;
     case PROP_YN:
       g_value_set_double(value, HOS_CANVAS(object)->yn);
+      break;
+    case PROP_ZOOM:
+      g_value_set_double(value, HOS_CANVAS(object)->zoom);
+      break;
+    case PROP_ZOOM_ADJUSTMENT:
+      g_value_set_object(value, HOS_CANVAS(object)->zoom_adjustment);
+      break;
+    case PROP_DRAGGABLE:
+      g_value_set_boolean(value, HOS_CANVAS(object)->draggable);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -338,11 +548,9 @@ canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
 			  &window_width, &window_height);
       
       if (x != NULL)
-	*x = (*x / window_width)
-	  * (canvas->xn - canvas->x1) + canvas->x1;
+	*x = view2world(*x, canvas->x1, canvas->xn, canvas->zoom, canvas->x_focus, window_width);
       if (y != NULL)
-	*y = (*y / window_height)
-	  * (canvas->yn - canvas->y1) + canvas->y1;
+	*y = view2world(*y, canvas->y1, canvas->yn, canvas->zoom, canvas->y_focus, window_height);
     }
   else
     {
@@ -363,19 +571,99 @@ canvas_world2view(HosCanvas *canvas, gdouble *x, gdouble *y)
 			  &window_width, &window_height);
       
       if (x != NULL)
-	*x = ((*x - canvas->x1) / (canvas->xn - canvas->x1))
-	  * window_width;
+	*x = world2view(*x, canvas->x1, canvas->xn, canvas->zoom, canvas->x_focus, window_width);
       
       if (y != NULL)
-	*y = ((*y - canvas->y1) / (canvas->yn - canvas->y1))
-	  * window_height;
+	*y = world2view(*y, canvas->y1, canvas->yn, canvas->zoom, canvas->y_focus, window_height);
+
     }
   else
     {
       if (x != NULL) *x = 0;
       if (y != NULL) *y = 0;
     }
+}
 
+static gdouble
+calc_zoom_min(gdouble world_min,
+	      gdouble world_max,
+	      gdouble zoom,
+	      gdouble focus)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range = world_range / zoom;
+  gdouble zoom_min = focus - (zoom_range / 2);
+
+  if (fabs(world_max - zoom_min) > fabs(world_range))
+    zoom_min = world_min;
+  if (fabs(zoom_min + zoom_range - world_min) > fabs(world_range))
+    zoom_min = world_max - zoom_range;
+
+  return zoom_min;
+}
+
+static gdouble
+world2view(gdouble world,
+	   gdouble world_min,
+	   gdouble world_max,
+	   gdouble zoom,
+	   gdouble focus,
+	   gdouble view_range)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range  = world_range / zoom;
+  gdouble zoom_min    = calc_zoom_min(world_min, world_max, zoom, focus);
+
+  return ((world - zoom_min) / zoom_range) * view_range;
+}
+
+static gdouble
+view2world(gdouble view,
+	   gdouble world_min,
+	   gdouble world_max,
+	   gdouble zoom,
+	   gdouble focus,
+	   gdouble view_range)
+{
+  gdouble world_range = world_max - world_min;
+  gdouble zoom_range  = world_range / zoom;
+  gdouble zoom_min    = calc_zoom_min(world_min, world_max, zoom, focus);
+
+  return zoom_min + (view / view_range) * zoom_range;
+}
+
+/**
+ * @brief change the zoom level of 'canvas'.
+ */
+void
+canvas_set_zoom (HosCanvas *canvas, gdouble zoom)
+{
+  gdouble old_zoom = canvas->zoom;
+
+  /* sanity checks */
+  if (zoom < 1.0) zoom = 1.0;
+  if (zoom > 1e6) zoom = 1e6;
+
+  if (zoom != old_zoom)
+    {
+      canvas->zoom = zoom;
+      if (GTK_IS_ADJUSTMENT(canvas->zoom_adjustment))
+	gtk_adjustment_set_value (canvas->zoom_adjustment, zoom);
+
+      g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
+    }
+}
+
+void
+canvas_set_focus(HosCanvas *canvas, gdouble x, gdouble y)
+{
+  if ((x != canvas->x_focus) || (y != canvas->y_focus))
+    {
+      canvas->x_focus = x;
+      canvas->y_focus = y;
+      g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
+      g_signal_emit(canvas, signals[FOCUS], 0, x, y);
+    }
 }
 
 void
@@ -385,8 +673,15 @@ canvas_set_world(HosCanvas *canvas, gdouble x1, gdouble y1, gdouble xn, gdouble 
   canvas->y1 = y1;
   canvas->xn = xn;
   canvas->yn = yn;
+  canvas->x_focus =
+    CLAMP(canvas->x_focus,
+	  LESSER_OF(canvas->x1, canvas->xn),
+	  GREATER_OF(canvas->x1, canvas->xn));
+  canvas->y_focus =
+    CLAMP(canvas->y_focus,
+	  LESSER_OF(canvas->y1, canvas->yn),
+	  GREATER_OF(canvas->y1, canvas->yn));
   g_signal_emit(canvas, signals[WORLD_CONFIGURE], 0);
-  gtk_widget_queue_draw(GTK_WIDGET(canvas));
 }
 
 cairo_t*
@@ -422,3 +717,97 @@ adjustment_for_canvas_y(HosCanvas* canvas)
 					   0, 0));
 }
 
+static void
+canvas_connect_scroll_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+{
+  g_return_if_fail (HOS_IS_CANVAS(self));
+  if (!adjustment)
+    adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (0.0, 0.0, 1.0, 0.1, 0.1, 0.1));
+  g_return_if_fail (GTK_IS_ADJUSTMENT(adjustment));
+  g_object_ref_sink (adjustment);
+
+  g_signal_connect (adjustment, "value_changed",
+		    G_CALLBACK (canvas_scroll_adjustment_value_changed),
+		    self);
+
+}
+
+void
+canvas_set_zoom_adjustment(HosCanvas *canvas, GtkAdjustment *adjustment)
+{
+  g_return_if_fail (HOS_IS_CANVAS(canvas));
+  if (!adjustment)
+    adjustment = GTK_ADJUSTMENT (gtk_adjustment_new (1.0, 1.0, 10.0, 0.1, 0.0, 0.0));
+  if (adjustment != canvas->zoom_adjustment)
+    {
+      if (GTK_IS_ADJUSTMENT(canvas->zoom_adjustment))
+	{
+	  g_signal_handlers_disconnect_by_func (canvas->zoom_adjustment,
+						canvas_zoom_adjustment_value_changed,
+						canvas);
+	  g_object_unref(canvas->zoom_adjustment);
+	}
+      canvas->zoom_adjustment = adjustment;
+
+      g_signal_connect (adjustment, "value-changed",
+			G_CALLBACK (canvas_zoom_adjustment_value_changed),
+			canvas);
+      g_object_ref_sink (adjustment);
+    }
+}
+
+static gboolean
+canvas_zoom_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
+{
+  g_return_val_if_fail(GTK_IS_ADJUSTMENT(adjustment), FALSE);
+  HosCanvas *canvas = HOS_CANVAS(data);
+  canvas_set_zoom(canvas, adjustment->value);
+}
+
+static void
+canvas_disconnect_scroll_adjustment(HosCanvas *self, GtkAdjustment *adjustment)
+{
+  g_return_if_fail(HOS_IS_CANVAS(self));
+  if (adjustment)
+    {
+      g_return_if_fail(GTK_IS_ADJUSTMENT(adjustment));
+      g_signal_handlers_disconnect_by_func (adjustment,
+					    canvas_scroll_adjustment_value_changed,
+					    self);
+      g_object_unref(adjustment);
+    }
+}
+
+static gboolean
+canvas_scroll_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data)
+{
+  HosCanvas *canvas = HOS_CANVAS(data);
+  gdouble x_focus = canvas->x_focus;
+  gdouble y_focus = canvas->y_focus;
+
+  if (adjustment == canvas->horiz_scroll_adjustment)
+    x_focus = (canvas->xn - canvas->x1) * (adjustment->value + 0.5) / canvas->zoom
+      + canvas->x1;
+  else if (adjustment == canvas->vert_scroll_adjustment)
+    y_focus = (canvas->yn - canvas->y1) * (adjustment->value + 0.5) / canvas->zoom
+      + canvas->y1;
+  else g_warn("canvas: internal scroll inconsistency");
+
+  canvas_set_focus(canvas, x_focus, y_focus);
+}
+
+static void
+canvas_set_scroll_adjustments (HosCanvas *self,
+			       GtkAdjustment *hadjustment,
+			       GtkAdjustment *vadjustment)
+{
+  canvas_disconnect_scroll_adjustment(self, self->horiz_scroll_adjustment);
+  canvas_connect_scroll_adjustment(self, hadjustment);
+  self->horiz_scroll_adjustment = hadjustment;
+
+  canvas_disconnect_scroll_adjustment(self, self->vert_scroll_adjustment);
+  canvas_connect_scroll_adjustment(self, vadjustment);
+  self->vert_scroll_adjustment = vadjustment;
+
+  g_signal_emit(self, signals[WORLD_CONFIGURE], 0);
+}

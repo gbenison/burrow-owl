@@ -57,6 +57,8 @@ enum marker_properties {
   PROP_0,     
   PROP_X,     /**< X position in world coordinates */
   PROP_Y,     /**< Y position in world coordinates */
+  PROP_X_ADJUSTMENT, /**< #GtkAdjustment tied to X position */
+  PROP_Y_ADJUSTMENT, /**< #GtkAdjustment tied to Y position */
   PROP_SIZE   /**< size in view coordinates */
 };
 
@@ -120,16 +122,10 @@ marker_set_size(HosMarker *marker, guint size)
 void
 marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjustment *adjustment_y)
 {
-  gdouble new_x;
-  gdouble new_y;
-
   gboolean need_configure = FALSE;
 
-  new_x = GTK_IS_ADJUSTMENT(adjustment_x) ? gtk_adjustment_get_value(adjustment_x) : 0;
-  new_y = GTK_IS_ADJUSTMENT(adjustment_y) ? gtk_adjustment_get_value(adjustment_y) : 0;
-
   g_return_if_fail(HOS_IS_MARKER(marker));
-  if (marker->adjustment_x != adjustment_x)
+  if (GTK_IS_ADJUSTMENT(adjustment_x) && (marker->adjustment_x != adjustment_x))
     {
       need_configure = TRUE;
       if (marker->adjustment_x)
@@ -150,7 +146,7 @@ marker_set_adjustments(HosMarker *marker, GtkAdjustment *adjustment_x, GtkAdjust
         }
 
     }
-  if (marker->adjustment_y != adjustment_y)
+  if (GTK_IS_ADJUSTMENT(adjustment_y) && (marker->adjustment_y != adjustment_y))
     {
       need_configure = TRUE;
       if (marker->adjustment_y)
@@ -229,6 +225,14 @@ hos_marker_class_init (HosMarkerClass *klass)
 							G_PARAM_READWRITE));
 
   g_object_class_install_property (gobject_class,
+				   PROP_X_ADJUSTMENT,
+				   g_param_spec_object ("x-adjustment",
+							"x-adjustment",
+							"GtkAdjustment tied to X position",
+							GTK_TYPE_ADJUSTMENT,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
+
+  g_object_class_install_property (gobject_class,
                                    PROP_Y,
                                    g_param_spec_double ("y",
 							"Y",
@@ -237,6 +241,14 @@ hos_marker_class_init (HosMarkerClass *klass)
 							G_MAXDOUBLE,
 							0.0,
 							G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class,
+				   PROP_Y_ADJUSTMENT,
+				   g_param_spec_object ("y-adjustment",
+							"y-adjustment",
+							"GtkAdjustment tied to Y position",
+							GTK_TYPE_ADJUSTMENT,
+							G_PARAM_READABLE | G_PARAM_WRITABLE));
 
   g_object_class_install_property (gobject_class,
                                    PROP_SIZE,
@@ -394,9 +406,19 @@ hos_marker_set_property (GObject         *object,
       gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_x,
 			       g_value_get_double(value));
       break;
+    case PROP_X_ADJUSTMENT:
+      marker_set_adjustments(HOS_MARKER(object),
+			     GTK_ADJUSTMENT(g_value_get_object(value)),
+			     NULL);
+      break;
     case PROP_Y:
       gtk_adjustment_set_value(HOS_MARKER(object)->adjustment_y,
 			       g_value_get_double(value));
+      break;
+    case PROP_Y_ADJUSTMENT:
+      marker_set_adjustments(HOS_MARKER(object),
+			     NULL,
+			     GTK_ADJUSTMENT(g_value_get_object(value)));
       break;
     case PROP_SIZE:
       marker_set_size(HOS_MARKER(object),
@@ -419,8 +441,14 @@ hos_marker_get_property (GObject         *object,
     case PROP_X:
       g_value_set_double(value, marker_get_x(HOS_MARKER(object)));
       break;
+    case PROP_X_ADJUSTMENT:
+      g_value_set_object(value, HOS_MARKER(object)->adjustment_x);
+      break;
     case PROP_Y:
       g_value_set_double(value, marker_get_y(HOS_MARKER(object)));
+      break;
+    case PROP_Y_ADJUSTMENT:
+      g_value_set_object(value, HOS_MARKER(object)->adjustment_y);
       break;
     case PROP_SIZE:
       g_value_set_uint(value, HOS_MARKER(object)->size);

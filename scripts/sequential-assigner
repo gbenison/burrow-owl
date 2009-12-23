@@ -227,14 +227,15 @@
 (define (make-default-thres-adjustment)
   (make <gtk-adjustment> #:lower 2 #:upper 20 #:value 5.5 #:step-increment 0.1))
 
-(define *thres-table* (list))
+(define *thres-table* (make-hash-table))
+(define *thres-table/depr* (list))
 (define (get-thres-adjustment name)
-  (or (assoc-ref *thres-table* name)
+  (or (assoc-ref *thres-table/depr* name)
       (let* ((spec (assoc-ref spectra name))
 	     (thres (if spec
 			(spectrum->thres spec)
 			(make-default-thres-adjustment))))
-	(set! *thres-table* (cons (cons name thres) *thres-table*))
+	(set! *thres-table/depr* (cons (cons name thres) *thres-table/depr*))
 	thres)))
 
 ;; ensure that there is a threshold for all spectra, at start-up.
@@ -251,7 +252,7 @@
 	(pack-start hbox sb #f #f 5)
 	(pack-start hbox (make <gtk-label> #:label text) #f #f 5)
 	(pack-start vbox hbox #f #f 5)))
-    (for-each add-spin-button (map car *thres-table*))
+    (for-each add-spin-button (map car *thres-table/depr*))
     (add window vbox)
     window))
 
@@ -275,108 +276,160 @@
   (for-each add-label-from-strip residues))
 
 (define (run-hsqc-pick action)
-  (make-amide-window "hsqc picker" (assoc-ref spectra 'hsqc)(get-thres-adjustment 'hsqc)))
+  (spectrum->amide-window/defaults
+   (assoc-ref spectra 'hsqc)
+   "hsqc picker"
+   'hsqc))
 
-(define (make-amide-window title spec thres)
-  (if strip-selection
-      (let* ((sw (make <gtk-scrolled-window>))
-	     (H-adj ((strip-selection 'get-adj) 'H))
-	     (N-adj ((strip-selection 'get-adj) 'N))
-	     (H-spin (make <gtk-spin-button> #:digits 2))
-	     (N-spin (make <gtk-spin-button> #:digits 2))
-	     (thres-spin (make <gtk-spin-button> #:digits 2 #:adjustment thres))
-	     (zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
-	     (zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
-	     (name (strip-selection 'name))
-	     (window (make <gtk-window>
-		       #:title (string-append title (format #f " -- residue ~a" name))
-		       #:default-width 500
-		       #:default-height 500))
-	     (canv (make <hos-canvas>))
-	     (contour-plot (canvas-add-item canv (make <hos-contour-plot> #:spectrum spec)))
-	     (vbox (make <gtk-vbox>)))
-	(define sync-window!
-	  (let ((sw-hadj (gtk-scrolled-window-get-hadjustment sw))
-		(sw-vadj (gtk-scrolled-window-get-vadjustment sw)))
-	    (lambda ()
-	      (let* ((canv-allocation (gtk-widget-get-allocation canv))
-		     (canv-width (vector-ref canv-allocation 2))
-		     (canv-height (vector-ref canv-allocation 3))
-		     (sw-allocation (gtk-widget-get-allocation sw))
-		     (sw-width (vector-ref sw-allocation 2))
-		     (sw-height (vector-ref sw-allocation 3))
-		     (H (get H-adj 'value))
-		     (H-fraction (/ (- (spectrum-orig-ppm spec 0) H)
-				    (spectrum-sw-ppm spec 0)))
-		     (N (get N-adj 'value))
-		     (N-fraction (/ (- N (spectrum-giro-ppm spec 1))
-				    (spectrum-sw-ppm spec 1))))
-		(set sw-hadj 'value (* H-fraction canv-width))
-		(set sw-vadj 'value (* N-fraction canv-height))))))
-	(assert spec "make-amide-window: no spectrum" title)
-	(canvas-sync-world canv spec)
-	(contour-set-thres-adjustment (get contour-plot 'contour) thres)
-	(canvas-add-assignment-labels canv)
-	(set H-spin 'adjustment H-adj)
-	(set N-spin 'adjustment N-adj)
-	(add window vbox)
-	(let ((button (make <gtk-button> #:label "close"))
-	      (top-hbox (make <gtk-hbox>))
-	      (nametag (make <gtk-label> #:label (format #f "~a" name))))
-	  (define (zoomer factor)
-	    (lambda(b)
-	      (canvas-zoom canv factor)
-	      (sync-window!)
-	      #f))
-	  (pack-start vbox top-hbox #f #f 5)
-	  (pack-start top-hbox nametag #f #f 5)
-	  (pack-start top-hbox zoom-in-button #f #f 5)
-	  (pack-start top-hbox zoom-out-button #f #f 5)
-	  (pack-start top-hbox thres-spin #f #f 5)
-	  (pack-start top-hbox H-spin #f #f 5)
-	  (pack-start top-hbox N-spin #f #f 5)
-	  (gtk-scrolled-window-add-with-viewport sw canv)
-	  (pack-start vbox sw #t #t 0)
-	  (pack-start vbox button #f #f 5)
-	  (connect zoom-in-button 'clicked (zoomer 1.2))
-	  (connect zoom-out-button 'clicked (zoomer (/ 1.0 1.2)))
-	  (connect button 'clicked (lambda args (gtk-widget-destroy window) #f)))
-	(let ((marker (canvas-add-marker canv)))
-	  (marker-set-adjustments marker H-adj N-adj))
-	(show-all window)
-	(lambda (req)
-	  (cond ((eq? req 'canv) canv)
-		((eq? req 'window) window)
-		(else (error "amide window: unknown request " req)))))))
+;;
+;; Trim number @x to no more than @n digits past the
+;; decimal point
+;;
+(define (->sig-figs x n)
+  (let ((factor (expt 10 n)))
+    (/ (floor (* x factor)) factor)))
+
+(define (contour-plot-calibrate-threshold contour-plot)
+  (let ((supplement 0.5)
+	(contour (get contour-plot 'contour))
+	(spec (spectrum-cap-ndim (get contour-plot 'spectrum) 2)))
+    (set contour
+	 'threshold
+	 (+ (->sig-figs (log10 (spectrum-stddev spec)) 1)
+	    supplement))))
+
+
+;;
+;; Create a canvas with scroll bars containing a contour plot and a marker.
+;; @spec: <hos-spectrum> to draw
+;; @title: string; label to put on the plot
+;; @name:  name corresponding to H-adj, N-adj
+;; @H-adj, @N-adj: GtkAdjustments tied to the position of the marker
+;; @thres-table, @thres-key: hash-table and key.  If set, use as the
+;;         adjustment tied to the contour plot.  Otherwise, set to the
+;;         default contour level adjustment of the contour plot.
+;;
+(define (spectrum->amide-window spec title name H-adj N-adj thres-table thres-key)
+  (let* ((window (make <gtk-window>
+		   #:title (string-append title (format #f " -- residue ~a" name))
+		   #:default-width 500
+		   #:default-height 500))
+	 (sw (make <gtk-scrolled-window>
+	       #:hscrollbar-policy 'automatic
+	       #:vscrollbar-policy 'automatic))
+	 (canvas (make <hos-canvas> #:draggable #t))
+	 (contour-plot (canvas-set-spectrum canvas spec))
+	 (zoom-in-button (make <gtk-button> #:label "ZOOM IN"))
+	 (zoom-out-button (make <gtk-button> #:label "ZOOM OUT"))
+	 (zoom-scale
+	  (make <gtk-hscale>
+	    #:tooltip-text "zoom factor"
+	    #:adjustment (get canvas 'zoom-adjustment)))
+	 (grid (canvas-add-item canvas (make <hos-grid>)))
+	 (shift-label (make <gtk-label>))
+	 (marker (canvas-add-marker canvas))
+
+	 (close-button (make <gtk-button> #:label "close"))
+	 (nametag (make <gtk-label> #:label (format #f "~a" name)))
+	 (thres-spin (make <gtk-spin-button>
+		       #:digits 2
+		       #:tooltip-text "contour threshold level")))
+    (define (sync-label! . args)
+      (set shift-label 'label (format #f
+				      "~$, ~$"
+				      (get H-adj 'value)
+				      (get N-adj 'value))))
+    (define (zoom-by factor)
+      (lambda args (set canvas 'zoom (* factor (get canvas 'zoom)))))
+    (sync-label!)
+    (contour-plot-calibrate-threshold contour-plot)
+    (if (not (hash-ref thres-table thres-key))
+	(hash-set! thres-table
+		   thres-key
+		   (contour-plot->thres-adjustment contour-plot)))
+    (set thres-spin 'adjustment (hash-ref thres-table thres-key))
+    (contour-set-thres-adjustment (get contour-plot 'contour)
+				  (hash-ref thres-table thres-key))
+    (marker-set-adjustments marker H-adj N-adj)
+    (connect marker 'dropped sync-label!)
+    (canvas-tie-focus-to-marker canvas marker)
+    (connect zoom-in-button 'clicked (zoom-by 1.5))
+    (connect zoom-out-button 'clicked (zoom-by 0.5))
+    (add sw canvas)
+    (let ((vbox (make <gtk-vbox>))
+	  (top-hbox (make <gtk-hbox>)))
+      (add window vbox)
+      (pack-start vbox top-hbox #f #f 5)
+      (pack-start top-hbox nametag #f #f 5)
+      (pack-start top-hbox zoom-in-button #f #f 5)
+      (pack-start top-hbox zoom-out-button #f #f 5)
+      (pack-start top-hbox thres-spin #f #f 5)
+      (pack-start top-hbox shift-label)
+      (pack-start vbox zoom-scale #f #f 5)
+      (pack-start vbox sw #t #t 0)
+      (pack-start vbox close-button #f #f 5)
+      (connect close-button
+	       'clicked
+	       (lambda args (gtk-widget-destroy window) #f))
+      (show-all window)
+      (lambda (req)
+	(case req
+	  ((canv) canvas)
+	  ((window) window)
+	  (else (error "amide window: unknown request " req)))))))
+
+;;
+;; Create a window with a contour plot of @spec,
+;; using chemical shift information from global "strip-selection".
+;; Add default chemical shift assignments to the canvas.
+;;
+(define (spectrum->amide-window/defaults spec title key)
+  (let ((result (spectrum->amide-window
+		 spec
+		 title
+		 (strip-selection 'name)
+		 ((strip-selection 'get-adj) 'H)
+		 ((strip-selection 'get-adj) 'N)
+		 *thres-table*
+		 key)))
+    (canvas-add-assignment-labels (result 'canv))
+    result))
 
 (define (run-noesy-search action)
   (let* ((H (get-value ((strip-selection 'get-adj) 'H)))
 	 (N (get-value ((strip-selection 'get-adj) 'N)))
 	 (spec (spectrum-project-ppm
 		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
-	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
-	(show-all (amide-window 'window))))
+	 (amide-window
+	  (spectrum->amide-window/defaults spec
+					   "noesy search"
+					   'noesy-convoluted)))
+    (show-all (amide-window 'window))))
 
 (define (run-noesy-search-prev action)
   (let* ((H (get-value (((strip-selection 'prev) 'get-adj) 'H)))
 	 (N (get-value (((strip-selection 'prev) 'get-adj) 'N)))
 	 (spec (spectrum-project-ppm
-		(spectrum-project-ppm (assoc-ref spectra 'noesy-convoluted) H) N))
-	 (amide-window (make-amide-window "noesy search" spec (get-thres-adjustment 'noesy-convoluted))))
-	(show-all (amide-window 'window))))
+		(spectrum-project-ppm
+		 (assoc-ref spectra 'noesy-convoluted) H) N))
+	 (amide-window
+	  (spectrum->amide-window/defaults spec
+					   "noesy search (i-1)"
+					   'noesy-convoluted)))
+    (show-all (amide-window 'window))))
 
 (define (run-convoluted-search title strip spec-name)
   (if strip
       (let ((CA-adj ((strip 'get-adj) 'CA))
 	    (CB-adj ((strip 'get-adj) 'CB))
-	    (spec-conv (assoc-ref spectra spec-name))
-	    (conv-thres (get-thres-adjustment spec-name)))
+	    (spec-conv (assoc-ref spectra spec-name)))
 	(define (grab-spec!)
 	  (let ((ca (get-value CA-adj))
 		(cb (get-value CB-adj)))
 	    (spectrum-project-ppm
 	     (spectrum-project-ppm spec-conv cb) ca)))
-	(let* ((amide-window (make-amide-window title (grab-spec!) conv-thres))
+	(let* ((amide-window
+		(spectrum->amide-window/defaults (grab-spec!) title spec-name))
 	       (refresh-signal (connect CA-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f)))
 	       (refresh-signal-cb (connect CB-adj 'value-changed (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f))))
 	  (connect (amide-window 'window)
@@ -395,14 +448,15 @@
 	    (if strip
 		(let ((CA-adj ((if (null? prev?)
 				   (strip 'get-adj)
-				   ((strip 'prev) 'get-adj)) 'CA))
-		      (thres (get-thres-adjustment 'hnca-search)))
+				   ((strip 'prev) 'get-adj)) 'CA)))
 		  (define (grab-spec!)
 		    (spectrum-project-ppm hnca-chn (get-value CA-adj)))
 		  (confess "run-hnca-search-inner check 1")
-		  (let* ((amide-window (make-amide-window
-					(if (null? prev?) "HNCA search" "HNCA(i-1) search")
-					(grab-spec!) thres))
+		  (let* ((amide-window
+			  (spectrum->amide-window/defaults
+			   (grab-spec!)
+			   (if (null? prev?) "HNCA search" "HNCA(i-1) search")
+			   'hnca))
 			 (refresh-signal
 			  (connect CA-adj 'value-changed
 				   (lambda args (canvas-set-spectrum (amide-window 'canv) (grab-spec!)) #f))))

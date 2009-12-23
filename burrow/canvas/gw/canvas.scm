@@ -23,7 +23,8 @@
 (define-public (canvas-set-spectrum canv spec)
   (let ((contour-plot (canvas-ensure-contour-plot canv)))
     (canvas-sync-world canv spec)
-    (set contour-plot 'spectrum spec)))
+    (set contour-plot 'spectrum spec)
+    contour-plot))
 
 (define-public (canvas-sync-world canv spec)
   (canvas-set-world canv
@@ -32,11 +33,63 @@
 		    (spectrum-giro-ppm spec 0)
 		    (spectrum-orig-ppm spec 1)))
 
+;;
+;; Synchronize focus property of @canvas with
+;; <gtk-adjustment>s @x-adjustment @y-adjustment
+;;
+(define-public (canvas-tie-focus canvas x-adjustment y-adjustment)
+  (define (canvas:sync . args)
+    (canvas-set-focus canvas
+		      (get x-adjustment 'value)
+		      (get y-adjustment 'value)))
+  (canvas:sync)
+  (connect x-adjustment 'value-changed canvas:sync)
+  (connect y-adjustment 'value-changed canvas:sync)
+  (connect canvas 'scroll-focus
+	   (lambda (c x y)
+	     (set x-adjustment 'value x)
+	     (set y-adjustment 'value y))))
+
+;;
+;; Synchronize focus property of @canvas with
+;; position of @marker
+;;
+(define-public (canvas-tie-focus-to-marker canvas marker)
+  (canvas-set-focus canvas
+		    (get marker 'x)
+		    (get marker 'y))
+  (connect marker
+	   'dropped
+	   (lambda (m x y)
+	     (canvas-set-focus canvas x y)))
+  (connect canvas
+	   'scroll-focus
+	   (lambda (c x y)
+	     (set marker 'x x)
+	     (set marker 'y y))))
+
 (define-public (canvas-set-thres canv thres)
   (warn "use of deprecated function canvas-set-thres")
   (let* ((contour-plot (canvas-ensure-contour-plot canv))
 	 (contour (get contour-plot 'contour)))
     (contour-set-thres-adjustment contour thres)))
+
+;;
+;; Accept the current threshold level of @contour-plot as the default
+;; level; create a new GtkAdjustment spanning the default value and tie
+;; it to the contour threshold.
+;;
+(define-public (contour-plot->thres-adjustment contour-plot)
+  (let* ((contour (get contour-plot 'contour))
+	 (default-threshold (get contour 'threshold))
+	 (thres-adjustment
+	  (make <gtk-adjustment>
+	    #:lower (- default-threshold 2)
+	    #:upper (+ default-threshold 5)
+	    #:value default-threshold
+	    #:step-increment 0.1)))
+    (contour-set-thres-adjustment contour thres-adjustment)
+    thres-adjustment))
 
 (define-public (canvas-set-draw-negative canv neg?)
   (warn "use of deprecated function canvas-set-draw-negative")
