@@ -28,22 +28,31 @@
 	   (plane-label (make <gtk-label>))
 	   (default-height 400)
 	   (default-width 400)
+	   (default-range (* (spectrum-stddev spec) 10))
 	   (canv (make <hos-canvas>
 		   #:width-request default-width
 		   #:height-request default-height))
 	   (canv-bottom (make <hos-canvas>
+			  #:y1 -0.1
+			  #:yn 1
 			  #:width-request default-width
 			  #:height-request 100))
 	   (profile-bottom (canvas-add-item
 			    canv-bottom
-			    (make <hos-spectrum-profile>)))
+			    (make <hos-spectrum-profile>
+			      #:vpolicy 'stretch
+			      #:vrange default-range)))
 	   (canv-right (make <hos-canvas>
-			  #:width-request 100
-			  #:height-request default-height))
+			 #:x1 -0.1
+			 #:xn 1
+			 #:width-request 100
+			 #:height-request default-height))
 	   (profile-right (canvas-add-item
 			   canv-right
 			   (make <hos-spectrum-profile>
-			     #:orientation 'vertical)))
+			     #:orientation 'vertical
+			     #:vpolicy 'stretch
+			     #:vrange default-range)))
 	   (sw (make <gtk-scrolled-window>
 		 #:hscrollbar-policy 'never
 		 #:vscrollbar-policy 'never))
@@ -71,11 +80,6 @@
 	(set plane-label
 	     'label
 	     (format #f "~$" (spectrum-pt2ppm spec 0 plane))))
-      (let ((stddev (spectrum-stddev spec)))
-	(set canv-right 'x1  (* stddev -1))
-	(set canv-right 'xn  (* stddev  1))
-	(set canv-bottom 'y1 (* stddev -10))
-	(set canv-bottom 'yn (* stddev  10)))
       (connect canv
 	       'world-configure
 	       (lambda (c)

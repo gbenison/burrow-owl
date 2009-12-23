@@ -49,12 +49,27 @@ struct _HosSpectrumProfile
 
   HosOrientationType  orientation;
   HosSpectrum        *spectrum;
+
+  HosVScalingPolicy   vpolicy;
+  gdouble             voffset;
+  gdouble             vrange;
+  gdouble             vzoom;
 };
 
 void spectrum_profile_set_orientation (HosSpectrumProfile *self,
 				       HosOrientationType  orientation);
 void spectrum_profile_set_spectrum    (HosSpectrumProfile *self,
 				       HosSpectrum        *spectrum);
+
+void spectrum_profile_set_vpolicy     (HosSpectrumProfile *self,
+				       HosVScalingPolicy   vpolicy);
+void spectrum_profile_set_voffset     (HosSpectrumProfile *self,
+				       gdouble             voffset);
+void spectrum_profile_set_vrange      (HosSpectrumProfile *self,
+				       gdouble             vrange);
+void spectrum_profile_set_vzoom       (HosSpectrumProfile *self,
+				       gdouble             vzoom);
+
 
 GType hos_spectrum_profile_get_type (void);
 

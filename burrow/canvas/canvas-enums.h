@@ -39,6 +39,7 @@ GType hos_orientation_type_get_type (void) G_GNUC_CONST;
 
 typedef enum {
   HOS_STRETCH,
+  HOS_FIXED,
   HOS_LITERAL
 } HosVScalingPolicy;
 

@@ -37,7 +37,7 @@ enum {
   PROP_0,
   PROP_SPECTRUM,     /**< The spectrum being represented */
   PROP_ORIENTATION,  /**< orientation of chemical shift axis */
-  PROP_VMODE,        /**< How #voffset, #vrange, and #vzoom
+  PROP_VPOLICY,      /**< How #voffset, #vrange, and #vzoom
                           determine vertical size */
   PROP_VOFFSET,
   PROP_VRANGE,
@@ -63,6 +63,9 @@ G_DEFINE_TYPE (HosSpectrumProfile, hos_spectrum_profile, HOS_TYPE_LINE)
 static void
 hos_spectrum_profile_init(HosSpectrumProfile *self)
 {
+  self->vzoom = 1;
+  self->vrange = 1;
+  self->voffset = 0;
 }
 
 static void
@@ -94,6 +97,21 @@ hos_spectrum_profile_class_init(HosSpectrumProfileClass *klass)
 						      HOS_HORIZONTAL,
 						      G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class,
+				   PROP_VPOLICY,
+				   g_param_spec_enum ("vpolicy",
+						      "vpolicy",
+						      "policy for intensity scaling",
+						      HOS_TYPE_VSCALING_POLICY,
+						      HOS_STRETCH,
+						      G_PARAM_READWRITE));
+
+#define INSTALL_DOUBLE_PROPERTY(_prop_, name, blurb, _default)   {g_object_class_install_property(gobject_class, _prop_, g_param_spec_double (name, name, blurb, -G_MAXDOUBLE, G_MAXDOUBLE, _default, G_PARAM_READABLE | G_PARAM_WRITABLE));}
+
+  INSTALL_DOUBLE_PROPERTY(PROP_VOFFSET, "voffset", "intensity scaling 'offset' parameter", 0);
+  INSTALL_DOUBLE_PROPERTY(PROP_VRANGE, "vrange", "intensity scaling 'range' parameter", 1);
+  INSTALL_DOUBLE_PROPERTY(PROP_VZOOM, "vzoom", "intensity scaling 'zoom' parameter", 1);
+
 }
 
 static void
@@ -111,6 +129,22 @@ spectrum_profile_set_property (GObject      *object,
     case PROP_ORIENTATION:
       spectrum_profile_set_orientation(HOS_SPECTRUM_PROFILE(object),
 				       g_value_get_enum(value));
+      break;
+    case PROP_VPOLICY:
+      spectrum_profile_set_vpolicy(HOS_SPECTRUM_PROFILE(object),
+				   g_value_get_enum(value));
+      break;
+    case PROP_VOFFSET:
+      spectrum_profile_set_voffset(HOS_SPECTRUM_PROFILE(object),
+				   g_value_get_double(value));
+      break;
+    case PROP_VRANGE:
+      spectrum_profile_set_vrange(HOS_SPECTRUM_PROFILE(object),
+				  g_value_get_double(value));
+      break;
+    case PROP_VZOOM:
+      spectrum_profile_set_vzoom(HOS_SPECTRUM_PROFILE(object),
+				 g_value_get_double(value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -134,6 +168,22 @@ spectrum_profile_get_property (GObject      *object,
       g_value_set_enum(value,
 		       HOS_SPECTRUM_PROFILE(object)->orientation);
       break;
+    case PROP_VPOLICY:
+      g_value_set_enum(value,
+		       HOS_SPECTRUM_PROFILE(object)->vpolicy);
+      break;
+    case PROP_VOFFSET:
+      g_value_set_double(value,
+			 HOS_SPECTRUM_PROFILE(object)->voffset);
+      break;
+    case PROP_VRANGE:
+      g_value_set_double(value,
+			 HOS_SPECTRUM_PROFILE(object)->vrange);
+      break;
+    case PROP_VZOOM:
+      g_value_set_double(value,
+			 HOS_SPECTRUM_PROFILE(object)->vzoom);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -148,11 +198,46 @@ spectrum_profile_configure(HosCanvasItem *self)
 static void
 sync_points(HosSpectrumProfile *self)
 {
-  HosSpectrum        *spectrum         = self->spectrum;
+  HosSpectrum  *spectrum = self->spectrum;
+  HosCanvas    *canvas;
+
+  gdouble actual_offset = 0;
+  gdouble actual_range = 1;
+  gdouble actual_zoom = 1;
+
+  /* Y = I * Z / R + O */
+
+  switch (self->vpolicy)
+    {
+    case HOS_STRETCH:
+      canvas = HOS_CANVAS_ITEM(self)->canvas;
+      if (HOS_IS_CANVAS(canvas))
+	{
+	  gdouble span =
+	    ((self->orientation == HOS_VERTICAL) ? 
+	     canvas->xn - canvas->x1 :
+	     canvas->yn - canvas->y1)
+	    / canvas->zoom;
+	  
+	  actual_zoom   = self->vzoom;
+	  actual_offset = self->voffset;
+	  actual_range  = self->vrange / span;
+	}
+      break;
+    case HOS_LITERAL:
+      /* nothing to do */
+      break;
+    case HOS_FIXED:
+      actual_offset = self->voffset;
+      actual_range  = self->vrange;
+      actual_zoom   = self->vzoom;
+      break;
+    default:
+      g_warn("invalid vpolicy");
+    }
 
   if (HOS_IS_SPECTRUM(spectrum))
     {
-      /* FIXME: here is the place to implement different vertical sync modes */
       int np = spectrum_np(spectrum, 0);
       gdouble *x = g_new0(gdouble, np);
       gdouble *y = g_new0(gdouble, np);
@@ -168,7 +253,7 @@ sync_points(HosSpectrumProfile *self)
       for (i = 0; i < np; ++i)
 	{
 	  x[i] = x[0] + (i * dx);
-	  y[i] = data[i];
+	  y[i] = data[i] * actual_zoom / actual_range + actual_offset;
 	}
 
       switch (self->orientation)
@@ -234,5 +319,73 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
 	canvas_item_configure(HOS_CANVAS_ITEM(self));
     }
 }
+
+/**
+ *
+ * @brief set vertical scaling behavior
+ *
+ * @HosSpectrumProfile #self can adjust its intensity scale by
+ * translating the raw spectrum intensity into a world coordinate value.
+ *
+ * @HOS_LITERAL: intensity values are interpreted as literal world coordinates.
+ *
+ * @HOS_FIXED:   calculate world coordinate according to:
+ *               world = intensity / vrange * vzoom + voffset
+ *               There is no automatic scaling with canvas world configuration.
+ *
+ * @HOS_STRETCH: (default)
+ *               The world coordinate 'voffset' maps to intensity = 0.
+ *               The intensity interval 'vrange' maps to the world coordinate
+ *               interval equal to the canvas span * vzoom.
+ */
+void
+spectrum_profile_set_vpolicy (HosSpectrumProfile *self,
+			      HosVScalingPolicy   vpolicy)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM_PROFILE(self));
+  if (self->vpolicy != vpolicy)
+    {
+      self->vpolicy = vpolicy;
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
+    }
+}
+
+void
+spectrum_profile_set_voffset (HosSpectrumProfile *self,
+			      gdouble             voffset)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM_PROFILE(self));
+  if (self->voffset != voffset)
+    {
+      self->voffset = voffset;
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
+    }
+}
+
+void
+spectrum_profile_set_vrange (HosSpectrumProfile *self,
+			     gdouble             vrange)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM_PROFILE(self));
+  if (self->vrange != vrange)
+    {
+      self->vrange = vrange;
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
+    }
+}
+
+void
+spectrum_profile_set_vzoom (HosSpectrumProfile *self,
+			    gdouble             vzoom)
+{
+  g_return_if_fail(HOS_IS_SPECTRUM_PROFILE(self));
+  if (self->vzoom != vzoom)
+    {
+      self->vzoom = vzoom;
+      canvas_item_configure(HOS_CANVAS_ITEM(self));
+    }
+}
+
+
 
 /** @} */
