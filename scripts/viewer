@@ -36,7 +36,7 @@
 		   #:width-request default-width
 		   #:height-request default-height))
 	   (canv-bottom (make <hos-canvas>
-			  #:y1 -1
+			  #:y1 -0.1
 			  #:yn 1
 			  #:width-request default-width
 			  #:height-request 100))
@@ -44,9 +44,10 @@
 			    canv-bottom
 			    (make <hos-spectrum-profile>
 			      #:vpolicy 'stretch
+			      #:voffset 0.1
 			      #:vrange default-range)))
 	   (canv-right (make <hos-canvas>
-			 #:x1 -1
+			 #:x1 -0.1
 			 #:xn 1
 			 #:width-request 100
 			 #:height-request default-height))
@@ -55,6 +56,7 @@
 			   (make <hos-spectrum-profile>
 			     #:orientation 'vertical
 			     #:vpolicy 'stretch
+			     #:voffset 0.1
 			     #:vrange default-range)))
 	   (sw (make <gtk-scrolled-window>
 		 #:hscrollbar-policy 'never

@@ -229,6 +229,31 @@ sync_points(HosSpectrumProfile *self)
       canvas = HOS_CANVAS_ITEM(self)->canvas;
       if (HOS_IS_CANVAS(canvas))
 	{
+	  gdouble span;
+
+	  switch (self->orientation)
+	    {
+	    case HOS_HORIZONTAL:
+	      span = (canvas->yn - canvas->y1) / canvas->zoom;
+	      actual_offset = self->voffset * canvas_view_height(canvas);
+	      canvas_view2world(canvas, NULL, &actual_offset);
+	      break;
+	    case HOS_VERTICAL:
+	      span = (canvas->xn - canvas->x1) / canvas->zoom;
+	      actual_offset = self->voffset * canvas_view_width(canvas);
+	      canvas_view2world(canvas, &actual_offset, NULL);
+	      break;
+	    default:
+	      g_warn("orientation value is hinky");
+	    }
+	  actual_zoom   = self->vzoom;
+	  actual_range  = self->vrange / span;
+	}
+      break;
+    case HOS_STICKY:
+      canvas = HOS_CANVAS_ITEM(self)->canvas;
+      if (HOS_IS_CANVAS(canvas))
+	{
 	  gdouble span =
 	    ((self->orientation == HOS_VERTICAL) ? 
 	     canvas->xn - canvas->x1 :
@@ -349,10 +374,18 @@ spectrum_profile_set_spectrum(HosSpectrumProfile *self, HosSpectrum *spectrum)
  *               world = intensity / vrange * vzoom + voffset
  *               There is no automatic scaling with canvas world configuration.
  *
- * @HOS_STRETCH: (default)
- *               The world coordinate 'voffset' maps to intensity = 0.
+ * @HOS_STRETCH:(default)
+ *               useful for 'sidebar'-type 1D spectrum panels.
  *               The intensity interval 'vrange' maps to the world coordinate
  *               interval equal to the canvas span * vzoom.
+ *               voffset is interpreted as the view coordinate in (0, 1)
+ *               mapping to intensity = 0.
+ *
+ * @HOS_STICKY:  The world coordinate 'voffset' maps to intensity = 0.
+ *               The intensity interval 'vrange' maps to the world coordinate
+ *               interval equal to the canvas span * vzoom.
+ *               The canvas world coordinate 'voffset' maps to intensity = 0.
+ *               Useful for a 'spectrum stuck to a cursor'-type display.
  */
 void
 spectrum_profile_set_vpolicy (HosSpectrumProfile *self,
