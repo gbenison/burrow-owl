@@ -87,7 +87,8 @@ static gboolean ornament_canvas_button_release  (GtkWidget *widget, GdkEventButt
 static gboolean ornament_canvas_button_press    (GtkWidget *widget, GdkEventButton *event, HosOrnament* self);
 static gboolean ornament_canvas_configure       (GtkWidget *widget, GdkEventConfigure *event, HosOrnament* self);
 static void     ornament_canvas_realize         (GtkWidget *widget, HosOrnament* self);
-static void     ornament_canvas_world_configure (GtkWidget *widget, HosOrnament* self);
+static void     ornament_canvas_world_configure (HosCanvasItem *self,
+						 HosCanvas     *canvas);
 
 static void ornament_set_grabbed      (HosOrnament *self, gboolean grabbed);
 static void ornament_set_mouse_over   (HosOrnament *self, gboolean mouse_over);
@@ -121,6 +122,7 @@ hos_ornament_class_init (HosOrnamentClass *klass)
   canvas_item_class->expose     = ornament_expose;
   canvas_item_class->set_canvas = ornament_set_canvas;
   canvas_item_class->configure  = ornament_configure;
+  canvas_item_class->canvas_world_configure = ornament_canvas_world_configure;
 
   g_object_class_install_property (gobject_class,
                                    PROP_MOUSE_OVER,
@@ -444,9 +446,6 @@ ornament_set_canvas(HosCanvasItem *self, HosCanvas *old_canvas, HosCanvas *canva
       g_signal_connect (canvas, "realize",
 			G_CALLBACK (ornament_canvas_realize),
 			self);
-      g_signal_connect (canvas, "world-configure",
-			G_CALLBACK (ornament_canvas_world_configure),
-			self);
     }
 }
 
@@ -492,13 +491,21 @@ ornament_canvas_realize(GtkWidget *widget, HosOrnament* self)
 }
 
 static void
-ornament_canvas_world_configure(GtkWidget *widget, HosOrnament* self)
+ornament_canvas_world_configure(HosCanvasItem *self, HosCanvas *canvas)
 {
-  g_return_if_fail(HOS_IS_CANVAS(widget));
+  g_return_if_fail(HOS_IS_CANVAS(canvas));
   g_return_if_fail(HOS_IS_ORNAMENT(self));
 
-  gdk_region_destroy(self->region);
-  self->region = ornament_calculate_region(self);
+  HosOrnament *ornament = HOS_ORNAMENT(self);
+
+  gdk_region_destroy(ornament->region);
+  ornament->region = ornament_calculate_region(ornament);
+
+  HosCanvasItemClass *parent_class =
+    HOS_CANVAS_ITEM_CLASS(hos_ornament_parent_class);
+
+  if (parent_class->canvas_world_configure)
+    (parent_class->canvas_world_configure)(self, canvas);
 }
 
 /*

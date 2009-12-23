@@ -22,6 +22,7 @@
 
 #include <glib-object.h>
 #include <gtk/gtkadjustment.h>
+#include "canvas-enums.h"
 #include "canvas.h"
 #include "ornament.h"
 
@@ -41,40 +42,33 @@ G_BEGIN_DECLS
 typedef struct _HosCursor       HosCursor;
 typedef struct _HosCursorClass  HosCursorClass;
 
-/**
- * @brief    HosCursor orientation
- * @ingroup  HosCursor
- */
-enum cursor_orientation {
-  HORIZONTAL,
-  VERTICAL
-};
-
 struct _HosCursor
 {
   HosOrnament parent_instance;
 
   GtkAdjustment *adjustment;
 
-  guint orientation;  /* HORIZONTAL or VERTICAL */
-
+  HosOrientationType orientation;
 };
 
 struct _HosCursorClass
 {
   HosOrnamentClass parent_class;
 
-  void (*moved)(HosCursor *Cursor, gdouble position);
-  void (*dropped)(HosCursor *Cursor, gdouble position);
+  void (*moved)   (HosCursor *Cursor, gdouble position);
+  void (*dropped) (HosCursor *Cursor, gdouble position);
 
 };
 
-void           cursor_set_orientation        (HosCursor *cursor, guint orientation);
+void           cursor_set_orientation        (HosCursor *cursor,
+					      HosOrientationType orientation);
 GtkAdjustment* cursor_get_adjustment         (HosCursor *cursor);
-void           cursor_set_adjustment         (HosCursor *cursor, GtkAdjustment *adjustment);
-void           cursor_set_pos                (HosCursor *cursor, gdouble position);
-HosCursor*     canvas_add_cursor_horizontal  (HosCanvas *canvas);
-HosCursor*     canvas_add_cursor_vertical    (HosCanvas *canvas);
+void           cursor_set_adjustment         (HosCursor *cursor,
+					      GtkAdjustment *adjustment);
+void           cursor_set_pos                (HosCursor *cursor,
+					      gdouble position);
+HosCursor*     canvas_add_cursor             (HosCanvas *canvas,
+					      HosOrientationType orientation);
 gdouble        cursor_get_position           (HosCursor *cursor);
 
 GType hos_cursor_get_type(void);

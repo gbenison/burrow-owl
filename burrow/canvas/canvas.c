@@ -536,6 +536,34 @@ canvas_invalidate_region(HosCanvas *canvas, GdkRegion *region)
     gdk_window_invalidate_region(GTK_WIDGET(canvas)->window, region, TRUE);
 }
 
+/**
+ * @brief return the on-screen width of @canvas, in pixels
+ */
+gint
+canvas_view_width(HosCanvas *canvas)
+{
+  gint window_width = 0, window_height = 0;
+  if (GTK_WIDGET_REALIZED(canvas))
+    gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			&window_width, &window_height);
+
+  return window_width;
+}
+
+/**
+ * @brief return the on-screen width of @canvas, in pixels
+ */
+gint
+canvas_view_height(HosCanvas *canvas)
+{
+  gint window_width = 0, window_height = 0;
+  if (GTK_WIDGET_REALIZED(canvas))
+    gdk_window_get_size(GTK_WIDGET(canvas)->window,
+			&window_width, &window_height);
+
+  return window_height;
+}
+
 void
 canvas_view2world(HosCanvas *canvas, gdouble *x, gdouble *y)
 {

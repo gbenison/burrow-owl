@@ -45,6 +45,7 @@ enum canvas_item_properties {
 };
 
 enum canvas_item_signals {
+  CANVAS_WORLD_CONFIGURE,  /**< The canvas coordinate system has changed */
   ITEM_CONFIGURE,   /**< HosCanvasItem has been changed and needs to be redrawn */
   LAST_SIGNAL
 };
@@ -57,6 +58,9 @@ static void canvas_item_get_property (GObject         *object,
 				       guint            prop_id,
 				       GValue          *value,
 				       GParamSpec      *pspec);
+
+static void canvas_item_canvas_world_configure (HosCanvas     *canvas,
+						HosCanvasItem *self);
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
@@ -79,6 +83,17 @@ hos_canvas_item_class_init(HosCanvasItemClass *klass)
 		  NULL, NULL,
 		  g_cclosure_marshal_VOID__VOID,
 		  G_TYPE_NONE, 0);
+
+  signals[CANVAS_WORLD_CONFIGURE] =
+    g_signal_new ("canvas-world-configure",
+		  G_OBJECT_CLASS_TYPE(klass),
+		  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+		  G_STRUCT_OFFSET(HosCanvasItemClass, canvas_world_configure),
+		  NULL, NULL,
+		  g_cclosure_marshal_VOID__OBJECT,
+		  G_TYPE_NONE,
+		  1,
+		  HOS_TYPE_CANVAS);
 
   g_object_class_install_property (gobject_class,
                                    PROP_CANVAS,
@@ -150,8 +165,17 @@ canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
       if(HOS_CANVAS_ITEM_GET_CLASS(self)->set_canvas)
 	HOS_CANVAS_ITEM_GET_CLASS(self)->set_canvas(self, self->canvas, canvas);
 
-      if (self->canvas)
-	g_object_unref(self->canvas);
+      if (self->canvas != NULL)
+	{
+	  g_signal_handlers_disconnect_matched (self->canvas,
+						G_SIGNAL_MATCH_DATA,
+						0,      /* id */
+						0,      /* detail */
+						NULL,   /* closure */
+						NULL,   /* func */
+						self);  /* data */
+	  g_object_unref(self->canvas);
+	}
 
       self->canvas = canvas;
 
@@ -159,9 +183,18 @@ canvas_item_set_canvas(HosCanvasItem *self, HosCanvas *canvas)
 	{
 	  g_object_ref(canvas);
        	  canvas_add_item(canvas, self);
+	  g_signal_connect(canvas, "world-configure",
+			   G_CALLBACK (canvas_item_canvas_world_configure),
+			   self);
 	  g_object_notify (G_OBJECT (self), "canvas");
 	}
     }
+}
+
+static void
+canvas_item_canvas_world_configure(HosCanvas *canvas, HosCanvasItem *self)
+{
+  g_signal_emit(self, signals[CANVAS_WORLD_CONFIGURE], 0, canvas);
 }
 
 /** @} */
