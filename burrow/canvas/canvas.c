@@ -819,7 +819,7 @@ canvas_scroll_adjustment_value_changed (GtkAdjustment *adjustment, gpointer data
   else if (adjustment == canvas->vert_scroll_adjustment)
     y_focus = (canvas->yn - canvas->y1) * (adjustment->value + 0.5) / canvas->zoom
       + canvas->y1;
-  else g_warn("canvas: internal scroll inconsistency");
+  else g_warning("canvas: internal scroll inconsistency");
 
   canvas_set_focus(canvas, x_focus, y_focus);
 }

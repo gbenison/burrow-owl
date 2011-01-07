@@ -244,7 +244,7 @@ sync_points(HosSpectrumProfile *self)
 	      canvas_view2world(canvas, &actual_offset, NULL);
 	      break;
 	    default:
-	      g_warn("orientation value is hinky");
+	      g_warning("orientation value is hinky");
 	    }
 	  actual_zoom   = self->vzoom;
 	  actual_range  = self->vrange / span;
@@ -274,7 +274,7 @@ sync_points(HosSpectrumProfile *self)
       actual_zoom   = self->vzoom;
       break;
     default:
-      g_warn("invalid vpolicy");
+      g_warning("invalid vpolicy");
     }
 
   if (HOS_IS_SPECTRUM(spectrum))
