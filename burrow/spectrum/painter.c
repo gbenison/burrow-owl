@@ -171,6 +171,7 @@ painter_set_spectrum(HosPainter *painter, HosSpectrum *spectrum)
 {
   g_return_if_fail(HOS_IS_PAINTER(painter));
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
+  g_return_if_fail(spectrum_ndim(spectrum) >= 2);
 
   if (painter->spectrum != spectrum)
     {
@@ -181,6 +182,16 @@ painter_set_spectrum(HosPainter *painter, HosSpectrum *spectrum)
 						painter);
 	  g_object_unref(painter->spectrum);
 	}
+
+      if (spectrum_ndim(spectrum) > 2)
+	{
+	  g_warning("painter given >2d spectrum: 1st plane will be used");
+	  while (spectrum_ndim(spectrum) > 2)
+	    spectrum = spectrum_project(spectrum_transpose(spectrum, 2), 0);
+	}
+
+      g_assert(spectrum_ndim(spectrum) == 2);
+
       painter->spectrum = spectrum;
       g_object_ref(spectrum);
       g_signal_connect (painter->spectrum, "ready",
