@@ -388,6 +388,7 @@ painter_redraw_region(HosPainter* painter,
   HosSpectrum *spectrum = painter->spectrum;
   g_return_if_fail(HOS_IS_SPECTRUM(spectrum));
 
+  spectrum_traverse_blocking(spectrum);
   fsm_state_t* state = painter_redraw_init(painter,
 					   MIN(x_lower, x_upper),
 					   MAX(x_lower, x_upper),

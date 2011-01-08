@@ -3,11 +3,13 @@ check_PROGRAMS=t_spectrum t_integrate t_flake t_convolute t_async \
                t_skiplist t_segment_simple t_segment   \
                t_segment_async t_project     \
                t_diagonal_project t_extract t_transpose t_unfold  \
+               t_painter_redraw \
                t_cache \
                t_collision \
                t_traverse_blocking \
                t_cancel \
                t_traverse_override
+TESTS_ENVIRONMENT=EXAMPLE_DIR=@srcdir@/data
 TESTS = $(check_PROGRAMS)
 SUBDIRS=. guile-binding
 
