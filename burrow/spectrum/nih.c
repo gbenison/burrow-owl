@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005, 2008 Greg Benison
+ *  Copyright (C) 2005 - 2011 Greg Benison
  * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "nih.h"
 #include "spectrum_transpose.h"
 #include "spectrum_project.h"
-#include "endian.h"
+#include "burrow_endian.h"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>

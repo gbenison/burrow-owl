@@ -26,7 +26,7 @@ nih.c  			       \
 painter_bwps.c  	       \
 painter.c  		       \
 ticket.c  		       \
-endian.c 		       \
+burrow_endian.c 	       \
 version.c                      \
 $(burrow_c_built_sources)
 
@@ -40,7 +40,7 @@ skiplist.h 		       \
 spectrum_priv.h 	       \
 painter_bwps.h  	       \
 painter.h  		       \
-endian.h 		       \
+burrow_endian.h		       \
 $(burrow_private_built_headers)
 
 # headers included from <burrow/spectrum.h>
