@@ -15,7 +15,26 @@ AC_PROG_LIBTOOL
 
 AC_CHECK_PROGS(INDENT, indent, [# ** indent not available **])
 
-AC_PATH_PROG(DOXYGEN, doxygen, no)
+dnl Check if doxygen documentation is requested; if so test for presence of doxygen program.
+dnl default to program name 'doxygen' if none specified.
+AC_ARG_WITH([doxygen],
+            [AS_HELP_STRING([--with-doxygen],
+                            [build fancy API documentation in html format])],
+            [],
+            [with_doxygen=doxygen])
+
+dnl Search for requested doxygen program (allow absolute paths)
+if test "$with_doxygen" = no; then
+  DOXYGEN=["@echo '* doxygen documentation disabled during configuration *'"]
+else
+  AC_PATH_PROG([DOXYGEN], [$with_doxygen], [not-found], [$PATH:/])
+  if test "$DOXYGEN" = "not-found"; then
+    AC_MSG_ERROR(
+[documentation generator $with_doxygen not found;
+ specify location using '--with-doxygen' or disable
+ using '--without-doxygen'])
+  fi
+fi
 
 PKG_CHECK_MODULES(GLIB,      [glib-2.0 gobject-2.0])
 PKG_CHECK_MODULES(GDK,       gdk-2.0)
