@@ -948,7 +948,7 @@ point_cache_store(HosSpectrum *spec, gsize idx, gdouble value)
     {
       struct _point_cache_slot *slot = point_cache + point_cache_hash(spec, idx);
       
-      gint old_version = g_atomic_pointer_get(&(slot->version));
+      gint old_version = g_atomic_int_get(&(slot->version));
       slot->spec = NULL;
       g_atomic_int_set(&(slot->version), old_version + 1);
       slot->idx   = idx;
