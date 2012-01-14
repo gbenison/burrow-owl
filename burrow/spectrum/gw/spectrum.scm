@@ -122,21 +122,77 @@
 ; ------------- deperecated & disabled commands -----------
 
 (define-macro (declare-disabled-symbol symbol)
-  `(if (not (defined? (quote ,symbol)))
-       (begin
-	 (define ,symbol
-	   (lambda args
-	     (error
-	      (format #f "use of disabled symbol \"~a\" -- is this an old script? burrow version is ~a" (quote ,symbol)(burrow-version)))))
-	 (export ,symbol))))
+  (if (not (defined? symbol))
+      `(define-public ,symbol
+	 (lambda args
+	   (error
+	    (format #f "use of disabled symbol \"~a\" -- is this an old script? burrow version is ~a" (quote ,symbol)(burrow-version)))))))
 
-(define-macro (declare-disabled-symbols symbols)
-  (cons 'begin (map (lambda (symbol)(list 'declare-disabled-symbol symbol)) symbols)))
-
-;; check for disabled symbols from burrow-1.2
-(declare-disabled-symbols
-  (get connect-after unblock connected? create-signal get-properties set emit block disconnect invoke get-signals get-property-names find-property contour-get-nlvl  painter-redraw dimension-sim-new hos-marker-text-get-type spectrum-project-pt spectrum-stddev   painter-set-xform  spectrum-project-ppm spectrum-peek   painter-view-ppm    spectrum-np spectrum-transpose spectrum-traverse   painter-view-world  spectrum-ndim spectrum-extract spectrum-traverse-blocking contour-set-color-positive hos-painter-get-type  backing-sim-new  spectrum-sw spectrum-extract-ppm hos-spectrum-get-type contour-set-color-negative backing-sim-append-dimension <sim-peak*>  spectrum-sw-ppm spectrum-diagonal-project spectrum-nih-from-file    backing-sim-generate-spectrum  spectrum-sf spectrum-convolute spectrum-nih-2d-from-file  cursor-set-pos  backing-sim-set-pos <sim-profile*> marker-get-pos spectrum-orig spectrum-integrate spectrum-nih-unfold   painter-bwps-new-file  backing-sim-append-peak  spectrum-giro spectrum-cache contour-get-n-contours contour-get-type <gdouble*>  hos-painter-bwps-get-type  sim-peak-product-new  spectrum-orig-ppm spectrum-get-ranked contour-get-levels painter-set-spectrum cursor-get-position  ornament-get-group-id sim-profile-gaussian-new  spectrum-giro-ppm spectrum-get-max contour-set-draw-negative painter-set-contour   sim-peak-product-append-profile  spectrum-ppm2pt spectrum-get-min contour-get-thres  painter-get-contour  hos-backing-sim-get-type  spectrum-pt2ppm spectrum-get-percentile contour-get-factor  painter-cancel-redraws  hos-dimension-sim-get-type  spectrum-project spectrum-mean painter-set-thres sleep-if-requested painter-set-nlvl  usage-message bruker-transpose   file->list spectrum-extract-2d-ppm define-usage assignment-get-from-list spectrum-plane-multiply confess assignment-verified?  write-line command-line-argument  painter-set-factor assignment-get-ppm  assignment-distance standard-syms))
-
-
+(declare-disabled-symbol  <sim-peak*>                           )
+(declare-disabled-symbol  <sim-profile*>			)
+(declare-disabled-symbol  assignment-distance			)
+(declare-disabled-symbol  assignment-get-from-list		)
+(declare-disabled-symbol  assignment-get-ppm			)
+(declare-disabled-symbol  assignment-verified?			)
+(declare-disabled-symbol  backing-sim-append-dimension		)
+(declare-disabled-symbol  backing-sim-append-peak		)
+(declare-disabled-symbol  backing-sim-generate-spectrum		)
+(declare-disabled-symbol  backing-sim-new			)
+(declare-disabled-symbol  backing-sim-set-pos			)
+(declare-disabled-symbol  box-get-x1				)
+(declare-disabled-symbol  box-get-xn				)
+(declare-disabled-symbol  box-get-y1				)
+(declare-disabled-symbol  box-get-yn				)
+(declare-disabled-symbol  canvas-add-box			)
+(declare-disabled-symbol  canvas-add-ornament			)
+(declare-disabled-symbol  canvas-get-painter			)
+(declare-disabled-symbol  canvas-get-spectrum			)
+(declare-disabled-symbol  canvas-ppm2view			)
+(declare-disabled-symbol  canvas-pt2view			)
+(declare-disabled-symbol  canvas-set-painter			)
+(declare-disabled-symbol  canvas-view2ppm			)
+(declare-disabled-symbol  canvas-view2pt			)
+(declare-disabled-symbol  contour-get-factor			)
+(declare-disabled-symbol  contour-get-factor-adjustment		)
+(declare-disabled-symbol  contour-get-levels			)
+(declare-disabled-symbol  contour-get-nlvl			)
+(declare-disabled-symbol  contour-get-nlvl-adjustment		)
+(declare-disabled-symbol  contour-get-thres			)
+(declare-disabled-symbol  contour-get-thres-adjustment		)
+(declare-disabled-symbol  contour-get-type			)
+(declare-disabled-symbol  contour-set-color-negative		)
+(declare-disabled-symbol  contour-set-color-positive		)
+(declare-disabled-symbol  contour-set-factor-adjustment		)
+(declare-disabled-symbol  contour-set-nlvl-adjustment		)
+(declare-disabled-symbol  cursor-set-enabled			)
+(declare-disabled-symbol  dimension-sim-new			)
+(declare-disabled-symbol  file->list				)
+(declare-disabled-symbol  hos-backing-sim-get-type		)
+(declare-disabled-symbol  hos-box-get-type			)
+(declare-disabled-symbol  hos-dimension-sim-get-type		)
+(declare-disabled-symbol  hos-painter-gdk-get-type		)
+(declare-disabled-symbol  marker-get-pos			)
+(declare-disabled-symbol  marker-set-pos			)
+(declare-disabled-symbol  ornament-get-group-id			)
+(declare-disabled-symbol  ornament-invalidate-region		)
+(declare-disabled-symbol  ornament-move				)
+(declare-disabled-symbol  ornament-overlap-region		)
+(declare-disabled-symbol  ornament-pick-up			)
+(declare-disabled-symbol  ornament-redraw			)
+(declare-disabled-symbol  ornament-set-group-id			)
+(declare-disabled-symbol  ornament-set-region			)
+(declare-disabled-symbol  ornament-sync-region			)
+(declare-disabled-symbol  ornament-test-grab			)
+(declare-disabled-symbol  painter-cancel-redraws		)
+(declare-disabled-symbol  painter-gdk-new			)
+(declare-disabled-symbol  painter-gdk-set-drawable-gc		)
+(declare-disabled-symbol  sim-peak-product-append-profile	)
+(declare-disabled-symbol  sim-peak-product-new			)
+(declare-disabled-symbol  sim-profile-gaussian-new		)
+(declare-disabled-symbol  spectrum-cache			)
+(declare-disabled-symbol  spectrum-nih-2d-from-file		)
+(declare-disabled-symbol  spectrum-nih-unfold			)
+(declare-disabled-symbol  spectrum-project-pt                   )
+ 
 
 
