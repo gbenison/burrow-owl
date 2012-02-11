@@ -14,7 +14,7 @@ exec guile -s $0
 (define input-file-name
   (string-append (getenv "EXAMPLE_DIR") "/assignments.scm"))
 (define tmp-file-name
-  (let* ((port (mkstemp! "/tmp/burrow-XXXXXX"))
+  (let* ((port (mkstemp! (string-copy "/tmp/burrow-XXXXXX")))
 	 (name (port-filename port))
 	 (name.str (string-append name ".str")))
     (close port)
