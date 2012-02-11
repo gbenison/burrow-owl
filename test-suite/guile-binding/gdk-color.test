@@ -9,5 +9,9 @@ exec $guile -s $0
 (define n-gc 0)
 (add-hook! after-gc-hook (lambda ()(set! n-gc (+ n-gc 1))))
 
+(define idx 1)
 (while (< n-gc 5)
+       (if (= 0 (remainder idx 5000))
+	   (gc))
+       (set! idx (+ 1 idx))
        (set (make <gtk-color-button>) 'color "red"))
