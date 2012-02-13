@@ -6,6 +6,8 @@ AC_PREREQ(2.59)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([burrow/spectrum/spectrum.c])
 
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])], [AC_SUBST([AM_DEFAULT_VERBOSITY],1)])
+
 GUILE_PROGS
 GUILE_FLAGS
 
