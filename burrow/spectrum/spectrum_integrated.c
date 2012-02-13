@@ -178,7 +178,7 @@ spectrum_integrated_wait(struct spectrum_iterator *self)
     {
       g_assert(integrated_iterator->integrand->idx[0] == i);
       gdouble delta = iterator_wait(integrated_iterator->integrand);
-      CONFESS("Integrated interator 0x%x waited at point %d, got value %.2f", self, i, delta);
+      CONFESS("Integrated interator 0x%p waited at point %d, got value %.2f", self, i, delta);
       sum += delta;
       iterator_increment(integrated_iterator->integrand, 0, 1);
     }

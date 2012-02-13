@@ -747,7 +747,7 @@ ready_queue_flush()
 	case TRAVERSING:  /* fall-through */
 	case READY:       /* fall-through */
 	default:
-	  g_error("ready_queue_flush(): spectrum 0x%x: invalid status", spec);
+	  g_error("ready_queue_flush(): spectrum 0x%p: invalid status", spec);
 	}
       g_mutex_unlock(SPECTRUM_PRIVATE(spec, status_lock));
       g_object_unref(spec);
@@ -888,7 +888,7 @@ spectrum_traverse_internal(HosSpectrum *self)
   /* outer loop through all spectrum points */
   while (1)
     {
-      CONFESS("Iterator 0x%x, considering point %d", iterator, (int)(outer_dest - buf));
+      CONFESS("Iterator 0x%p, considering point %d", iterator, (int)(outer_dest - buf));
       
       /* inner loop -- tickle remaining points */
       static const gboolean lookahead_enable = TRUE;
@@ -912,14 +912,14 @@ spectrum_traverse_internal(HosSpectrum *self)
 		      if ((n % lookahead_probe_interval) == 0)
 			if (iterator_probe(iterator))
 			  {
-			    CONFESS("Iterator 0x%x has become unblocked, stopping tickles", iterator);
+			    CONFESS("Iterator 0x%p has become unblocked, stopping tickles", iterator);
 			    break;
 			  }
 		    }
-		  CONFESS("Iterator 0x%x has reached the end of its tickles", iterator);
+		  CONFESS("Iterator 0x%p has reached the end of its tickles", iterator);
 		}
 	      
-	      CONFESS("Iterator 0x%x, forcing point %d", iterator, (int)(outer_dest - buf));
+	      CONFESS("Iterator 0x%p, forcing point %d", iterator, (int)(outer_dest - buf));
 	      iterator_restore(iterator);
 	      if (!ALREADY_INSTANTIATED(*outer_dest))
 		*outer_dest = iterator_wait(iterator);
@@ -1108,7 +1108,7 @@ spectrum_construct_iterator(HosSpectrum *self)
 void
 iterator_increment(struct spectrum_iterator *self, guint dim, gint delta)
 {
-  CONFESS_FULL(2, "Iterator 0x%x: incrementing dim %d by %d (linear_idx = %d)", self, dim, delta, self->idx_linear);
+  CONFESS_FULL(2, "Iterator 0x%p: incrementing dim %d by %d (linear_idx = %d)", self, dim, delta, self->idx_linear);
 
   self->idx[dim] += delta;
 
@@ -1153,7 +1153,7 @@ iterator_mark(struct spectrum_iterator *self)
     self->save_idx[i] = self->idx[i];
   if (self->mark)
     (self->mark)(self);
-  CONFESS("Iterator 0x%x: marked at linear_idx %d", self, self->idx_linear);
+  CONFESS("Iterator 0x%p: marked at linear_idx %d", self, self->idx_linear);
 }
 
 /*
@@ -1221,7 +1221,7 @@ iterator_restore(struct spectrum_iterator *self)
 gdouble
 iterator_wait(struct spectrum_iterator *self)
 {
-  CONFESS("Iterator 0x%x: waiting at linear_idx %d", self, self->idx_linear);
+  CONFESS("Iterator 0x%p: waiting at linear_idx %d", self, self->idx_linear);
   gdouble result;
   if (iterator_check_cache(self, &result) == FALSE)
     {
