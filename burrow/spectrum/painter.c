@@ -29,6 +29,8 @@
 
 #include <assert.h>
 #include "painter.h"
+#include "spectrum_project.h"
+#include "spectrum_transpose.h"
 #include "finite-state-machine/contour-fsm.h"
 
 enum {
