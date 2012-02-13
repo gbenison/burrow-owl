@@ -27,9 +27,7 @@ DISTCLEANFILES=ChangeLog
 MAINTAINERCLEANFILES = ChangeLog
 .PHONY: ChangeLog
 ChangeLog:
-	(bzr log $(top_srcdir) > .changelog.tmp && mv .changelog.tmp ChangeLog || rm -rf .changelog.tmp;) || \
-	(touch ChangeLog; \
-         echo 'failed to generate changelog from bzr: installing possibly empty changelog.' >&2)
+	git log > $@
 dist-hook: ChangeLog
 
 
