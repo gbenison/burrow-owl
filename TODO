@@ -1,5 +1,4 @@
 - change package version to git id for non-released branches
-- quiet the build process, like recent guile
 - change traversal queue into a LIFO
 - traversal objects should _weakly reference_ spectra
 - throw exceptions when bmrb files fail to read
