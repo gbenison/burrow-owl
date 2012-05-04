@@ -13,6 +13,7 @@ burrow_c_sources=              \
 debug.c 		       \
 skiplist.c 		       \
 contour.c  		       \
+point_cache.c                  \
 spectrum.c  		       \
 spectrum_integrated.c 	       \
 spectrum_extract.c 	       \
@@ -37,6 +38,7 @@ burrow_private_headers=        \
 debug.h 		       \
 utils.h 		       \
 skiplist.h 		       \
+point_cache.h                  \
 spectrum_priv.h 	       \
 painter_bwps.h  	       \
 painter.h  		       \
