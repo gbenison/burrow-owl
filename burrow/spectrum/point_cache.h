@@ -23,10 +23,14 @@
 #include "spectrum_priv.h"
 #include <glib.h>
 
+/*
+ * It is the caller's responsibility to never call this with
+ * DATUM_UNKNOWN_VALUE
+ */
 void    point_cache_store (gpointer data, gsize idx, gdouble value);
 
 /*
- * Fetch value previously stored by point_cache_store, process with DATUM_ENSURE_KNOWN(x), return x
+ * Return value previously stored by point_cache_store,
  * or, if no cached value is available, return DATUM_UNKNOWN_VALUE
  */
 gdouble point_cache_fetch (gpointer data, gsize idx);

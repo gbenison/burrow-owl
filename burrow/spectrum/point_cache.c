@@ -22,6 +22,7 @@
 void
 point_cache_store (gpointer data, gsize idx, gdouble value)
 {
+  g_assert(value != DATUM_UNKNOWN_VALUE);
   /* pass */
 }
 

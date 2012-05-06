@@ -1098,7 +1098,10 @@ iterator_tickle(struct spectrum_iterator *self, gdouble *dest)
     {
       is_instantiated = (self->tickle)(self, dest);
       if (is_instantiated && self->can_cache)
-	point_cache_store(self->root, self->idx_linear, *dest);
+	{
+	  DATUM_ENSURE_KNOWN(*dest);
+	  point_cache_store(self->root, self->idx_linear, *dest);
+	}
     }
 
   return is_instantiated;

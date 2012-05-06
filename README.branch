@@ -1,4 +1,5 @@
 point-cache-base:
 
-The current implementation of the 'point cache' mechanism is broken.  This branch disables
-it and provides a stub where drop-in replacements can be tried out.
+The current implementation of the 'point cache' mechanism is broken.
+This branch disables it and provides a stub where drop-in replacements
+can be tried out.
