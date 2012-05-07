@@ -1129,6 +1129,7 @@ iterator_wait(struct spectrum_iterator *self)
     {
       result = (self->wait)(self);
       if (self->can_cache)
+	DATUM_ENSURE_KNOWN(result);
 	point_cache_store(self->root, self->idx_linear, result);
     }
   return result;
