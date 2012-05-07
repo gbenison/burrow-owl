@@ -5,6 +5,7 @@
  * the same large one.
  */
 
+#include <assert.h>
 #include "burrow/spectrum.h"
 
 static char* fname = "test.DAT";
@@ -33,6 +34,32 @@ test_transform(HosSpectrum *s1)
   return s13;
 }
 
+/*
+ * Blocking full integration of a 2d spectrum.
+ */
+static double
+spectrum_integrate_2d(HosSpectrum *s)
+{
+  return spectrum_peek(spectrum_integrate(spectrum_integrate(s)), 0);
+}
+
+/*
+ * Expected results of spectrum_integrate_2d(spectrum_project(s1, n))
+ * where s1 is test_transform(-> "test.DAT" <-)
+ */
+static const double expected_results[] =
+  {
+    -7.08926e20,
+    -7.19829e21,
+    -6.39958e21,
+    -1.80110e22,
+    -4.46076e21
+  };
+
+static const int n_test_planes = 5;
+
+#define EQUAL_ENOUGH(a, b) (0.99 < ((a)/(b)) < 1.01)
+
 int
 main()
 {
@@ -51,7 +78,48 @@ main()
       return 1;
     }
 
-  HosSpectrum *s2 = test_transform(s1);
+  /*
+   * Create several instances of the transformed spectrum.
+   */
+  int i;
+
+  /*** set 'A' ***/
+  HosSpectrum *sA = test_transform(s1);
+  HosSpectrum *sAp[n_test_planes];
+  for (i = 0; i < n_test_planes; ++i)
+    {
+      sAp[i] = spectrum_project(sA, i);
+      spectrum_traverse(sAp[i]);
+    }
+
+
+  /*** set 'B' ***/
+  HosSpectrum *sB = test_transform(s1);
+  HosSpectrum *sBp[n_test_planes];
+  for (i = 0; i < n_test_planes; ++i)
+    {
+      sBp[i] = spectrum_project(sB, i);
+      spectrum_traverse(sBp[i]);
+    }
+
+  /*** set 'C' ***/
+  HosSpectrum *sC = test_transform(s1);
+  HosSpectrum *sCp[n_test_planes];
+  for (i = 0; i < n_test_planes; ++i)
+    {
+      sCp[i] = spectrum_project(sC, i);
+      spectrum_traverse(sCp[i]);
+    }
+
+  /* ensure correctness of results (and incidentally, wait for traversals) */
+  for (i = 0; i < n_test_planes; ++i)
+    assert(EQUAL_ENOUGH(spectrum_integrate_2d(sBp[i]), expected_results[i])); 
+
+  for (i = 0; i < n_test_planes; ++i)
+    assert(EQUAL_ENOUGH(spectrum_integrate_2d(sCp[i]), expected_results[i])); 
+
+  for (i = 0; i < n_test_planes; ++i)
+    assert(EQUAL_ENOUGH(spectrum_integrate_2d(sAp[i]), expected_results[i])); 
 
   return 0;
 }
