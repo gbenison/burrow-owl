@@ -372,11 +372,27 @@ const int header_size = 512;
 const int row_size = 790;
 const int n_row = 128 * 256;
 
-void
+int
 main()
 {
-  fwrite(header, float_size, header_size, stdout);
+  static const char * fname = "test.DAT";
+
+  FILE *outfile = fopen(fname, "w");
+  if (!outfile)
+    {
+      fprintf(stderr, "Could not open %s: ", fname);
+      perror("");
+      return 1;
+    }
+  
+
+  printf("Generating %s...\n", fname);
+  fwrite(header, float_size, header_size, outfile);
   int i;
   for (i = 0; i < n_row; ++i)
-    fwrite(row1, float_size, row_size, stdout);
+    fwrite(row1, float_size, row_size, outfile);
+
+  fclose(outfile);
+
+  return 0;
 }
