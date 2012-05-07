@@ -15,17 +15,20 @@ static char* fname = "test.DAT";
  * (H, N, H) -> (H, H, H)
  */
 static HosSpectrum*
-test_transform(HosSpectrum *s1)
+test_transform(HosSpectrum *sa)
 {
-  HosSpectrum *s1a = spectrum_transpose(s1, 2);    /* H, H, N */
-  HosSpectrum *s2 = spectrum_diagonal_project(s1a); /* H, N */
-  HosSpectrum *s3 = spectrum_convolute(s1, s2);    /* H1, N, H2, H', N' */
+  HosSpectrum *sb = sa;
+  HosSpectrum *sc = sa;
+
+  HosSpectrum *s1 = spectrum_transpose(sa, 2);    /* H, H, N */
+  HosSpectrum *s2 = spectrum_diagonal_project(s1); /* H, N */
+  HosSpectrum *s3 = spectrum_convolute(sb, s2);    /* H1, N, H2, H', N' */
   HosSpectrum *s4 = spectrum_transpose(s3, 3);     /* H', H1, N, H2, N' */
   HosSpectrum *s5 = spectrum_diagonal_project(s4); /* H', N, H2, N' */
   HosSpectrum *s6 = spectrum_transpose(s5, 1);     /* N, H', H2, N' */
   HosSpectrum *s7 = spectrum_transpose(s6, 3);     /* N', N, H', H2 */
   HosSpectrum *s8 = spectrum_diagonal_project(s7); /* N', H', H2 */
-  HosSpectrum *s9 = spectrum_convolute(s8, s1);    /* N', H', H2, H", N", H2" */
+  HosSpectrum *s9 = spectrum_convolute(s8, sc);    /* N', H', H2, H", N", H2" */
   HosSpectrum *s10 = spectrum_transpose(s9, 4);    /* N", N', H', H2, H", H2" */
   HosSpectrum *s11 = spectrum_diagonal_project(s10); /* N", H', H2, H", H2" */
   HosSpectrum *s12 = spectrum_project(s11, 0);       /* H', H2, H", H2" */
@@ -92,32 +95,7 @@ main()
       spectrum_traverse(sAp[i]);
     }
 
-
-  /*** set 'B' ***/
-  HosSpectrum *sB = test_transform(s1);
-  HosSpectrum *sBp[n_test_planes];
-  for (i = 0; i < n_test_planes; ++i)
-    {
-      sBp[i] = spectrum_project(sB, i);
-      spectrum_traverse(sBp[i]);
-    }
-
-  /*** set 'C' ***/
-  HosSpectrum *sC = test_transform(s1);
-  HosSpectrum *sCp[n_test_planes];
-  for (i = 0; i < n_test_planes; ++i)
-    {
-      sCp[i] = spectrum_project(sC, i);
-      spectrum_traverse(sCp[i]);
-    }
-
   /* ensure correctness of results (and incidentally, wait for traversals) */
-  for (i = 0; i < n_test_planes; ++i)
-    assert(EQUAL_ENOUGH(spectrum_integrate_2d(sBp[i]), expected_results[i])); 
-
-  for (i = 0; i < n_test_planes; ++i)
-    assert(EQUAL_ENOUGH(spectrum_integrate_2d(sCp[i]), expected_results[i])); 
-
   for (i = 0; i < n_test_planes; ++i)
     assert(EQUAL_ENOUGH(spectrum_integrate_2d(sAp[i]), expected_results[i])); 
 
